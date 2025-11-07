@@ -1,0 +1,283 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  JOB_SEEKER
+  EMPLOYER
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  FREELANCE
+}
+
+enum ExperienceLevel {
+  ENTRY
+  MID
+  SENIOR
+  EXECUTIVE
+}
+
+enum LocationType {
+  ONSITE
+  REMOTE
+  HYBRID
+}
+
+enum ApplicationStatus {
+  APPLIED
+  UNDER_REVIEW
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  REJECTED
+  HIRED
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  password      String
+  name          String
+  role          Role          @default(JOB_SEEKER)
+  phone         String?
+  location      String?
+  profilePhoto  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  profile       Profile?
+  company       Company?
+  jobs          Job[]
+  applications  Application[]
+  savedJobs     SavedJob[]
+  jobNews       JobNews[]
+  jobNewsHelpful JobNewsHelpful[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                String       @id @default(uuid())
+  userId            String       @unique
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  headline          String?
+  bio               String?
+  resume            String?      // URL to resume file
+  portfolioUrl      String?
+  githubUrl         String?
+  linkedinUrl       String?
+  websiteUrl        String?
+
+  // Profile completion percentage
+  completionScore   Int          @default(0)
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  experiences       Experience[]
+  education         Education[]
+  skills            Skill[]
+
+  @@map("profiles")
+}
+
+model Experience {
+  id                String       @id @default(uuid())
+  profileId         String
+  profile           Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  title             String
+  company           String
+  location          String?
+  startDate         DateTime
+  endDate           DateTime?
+  current           Boolean      @default(false)
+  description       String?
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@map("experiences")
+}
+
+model Education {
+  id                String       @id @default(uuid())
+  profileId         String
+  profile           Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  institution       String
+  degree            String
+  fieldOfStudy      String
+  startDate         DateTime
+  endDate           DateTime?
+  current           Boolean      @default(false)
+  grade             String?
+  description       String?
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@map("education")
+}
+
+model Skill {
+  id                String       @id @default(uuid())
+  profileId         String
+  profile           Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  name              String
+  level             String?      // Beginner, Intermediate, Advanced, Expert
+
+  createdAt         DateTime     @default(now())
+
+  @@map("skills")
+}
+
+model Company {
+  id                String       @id @default(uuid())
+  userId            String       @unique
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name              String
+  logo              String?
+  website           String?
+  industry          String?
+  companySize       String?      // 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+
+  foundedYear       Int?
+  description       String?
+  location          String?
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  jobs              Job[]
+
+  @@map("companies")
+}
+
+model Job {
+  id                  String             @id @default(uuid())
+  companyId           String?
+  company             Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Manual company info (when posting without company profile)
+  companyName         String?
+  companyWebsite      String?
+
+  title               String
+  description         String             // Rich text content
+  responsibilities    String?            // JSON array of strings
+  requiredQualifications String?         // JSON array of strings
+  preferredQualifications String?        // JSON array of strings
+  requiredSkills      String?            // JSON array of skills
+
+  employmentType      EmploymentType
+  experienceLevel     ExperienceLevel
+  locationType        LocationType
+
+  location            String?            // City, State, Country
+  salaryMin           Int?
+  salaryMax           Int?
+  salaryCurrency      String?            @default("USD")
+
+  numberOfOpenings    Int                @default(1)
+  applicationDeadline DateTime?
+
+  isActive            Boolean            @default(true)
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  // Relations
+  applications        Application[]
+  savedBy             SavedJob[]
+
+  @@map("jobs")
+}
+
+model Application {
+  id                String             @id @default(uuid())
+  jobId             String
+  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicantId       String
+  applicant         User               @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  resume            String?            // URL to resume file (optional until bunny.io integration)
+  coverLetter       String?
+  additionalInfo    String?
+
+  status            ApplicationStatus  @default(APPLIED)
+
+  appliedAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([jobId, applicantId])       // Prevent duplicate applications
+  @@map("applications")
+}
+
+model SavedJob {
+  id                String             @id @default(uuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId             String
+  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  savedAt           DateTime           @default(now())
+
+  @@unique([userId, jobId])
+  @@map("saved_jobs")
+}
+
+model JobNews {
+  id                String             @id @default(uuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title             String
+  description       String             // Main content
+  companyName       String?            // Company mentioned in the news
+  location          String?
+  source            String?            // Where they heard about it
+  externalLink      String?            // Link to job posting or source
+
+  isActive          Boolean            @default(true)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  helpfulVotes      JobNewsHelpful[]
+
+  @@map("job_news")
+}
+
+model JobNewsHelpful {
+  id                String             @id @default(uuid())
+  jobNewsId         String
+  jobNews           JobNews            @relation(fields: [jobNewsId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime           @default(now())
+
+  @@unique([jobNewsId, userId])
+  @@map("job_news_helpful")
+}
