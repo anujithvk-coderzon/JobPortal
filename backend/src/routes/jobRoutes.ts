@@ -12,7 +12,7 @@ import {
   unsaveJob,
   getSavedJobs,
 } from '../controllers/jobController';
-import { authenticate, authorizeRole } from '../middleware/auth';
+import { authenticate, optionalAuthenticate, authorizeRole } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
 const router = express.Router();
@@ -21,8 +21,8 @@ const router = express.Router();
 router.get('/', getAllJobs);
 router.get('/company/:companyId', getCompanyJobs);
 
-// Protected routes (authentication required)
-router.get('/job/:jobId', authenticate, getJobById);
+// Job detail route (public, but shows extra info if authenticated)
+router.get('/job/:jobId', optionalAuthenticate, getJobById);
 router.get('/my-jobs', authenticate, getMyJobs);
 router.get('/saved', authenticate, authorizeRole('JOB_SEEKER'), getSavedJobs);
 
