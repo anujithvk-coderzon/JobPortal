@@ -222,7 +222,17 @@ export default function CreatePostPage() {
     );
   }
 
-  if (!user) return null;
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

@@ -108,7 +108,7 @@ interface Job {
 export default function JobApplicationsPage() {
   const router = useRouter();
   const params = useParams();
-  const { isAuthenticated, isHydrated } = useAuthStore();
+  const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
 
   const [job, setJob] = useState<Job | null>(null);
@@ -565,7 +565,8 @@ ${companyName} Team`;
     ? applications.filter(app => app.status === statusFilter)
     : [];
 
-  if (!isHydrated || loading) {
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />

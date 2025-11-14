@@ -308,7 +308,8 @@ export default function ApplicationsPage() {
     fetchCounts();
   }, [isAuthenticated, isInitialLoad, statusFilter]); // Refetch when filter changes
 
-  if (!isHydrated || (loadingApplications && loadingSavedJobs)) {
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user || (loadingApplications && loadingSavedJobs)) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -318,8 +319,6 @@ export default function ApplicationsPage() {
       </div>
     );
   }
-
-  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">

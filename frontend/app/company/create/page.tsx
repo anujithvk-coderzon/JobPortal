@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,13 +16,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Upload, X, ArrowLeft } from 'lucide-react';
+import { Building2, Upload, X, ArrowLeft, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import Image from 'next/image';
 
 export default function CreateCompanyPage() {
   const router = useRouter();
+  const { user, isAuthenticated, isHydrated } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<{ base64: string; mimeType: string } | null>(null);
@@ -42,6 +45,16 @@ export default function CreateCompanyPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Authentication check
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [isAuthenticated, isHydrated, router]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -175,6 +188,18 @@ export default function CreateCompanyPage() {
       setIsLoading(false);
     }
   };
+
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">

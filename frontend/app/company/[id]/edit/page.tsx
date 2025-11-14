@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Upload, X, ArrowLeft, Trash2 } from 'lucide-react';
+import { Building2, Upload, X, ArrowLeft, Trash2, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import Image from 'next/image';
@@ -23,6 +25,7 @@ export default function EditCompanyPage() {
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;
+  const { user, isAuthenticated, isHydrated } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -48,9 +51,20 @@ export default function EditCompanyPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Authentication check
   useEffect(() => {
+    if (!isHydrated) return;
+
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [isAuthenticated, isHydrated, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isHydrated) return;
     fetchCompany();
-  }, [companyId]);
+  }, [companyId, isAuthenticated, isHydrated]);
 
   const fetchCompany = async () => {
     try {
@@ -221,6 +235,18 @@ export default function EditCompanyPage() {
       setIsSaving(false);
     }
   };
+
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

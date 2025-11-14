@@ -191,7 +191,8 @@ function DashboardPageContent() {
     return date.toLocaleDateString();
   };
 
-  if (!isHydrated || loading) {
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -201,8 +202,6 @@ function DashboardPageContent() {
       </div>
     );
   }
-
-  if (!user) return null;
 
   const totalApplications = stats.myApplicationsCount || 0;
   const totalJobs = stats.myJobsCount || 0;

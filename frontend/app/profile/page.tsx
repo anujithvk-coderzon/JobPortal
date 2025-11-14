@@ -466,7 +466,8 @@ function ProfilePageContent() {
     }
   };
 
-  if (!isHydrated || !user) {
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />

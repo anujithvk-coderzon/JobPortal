@@ -465,7 +465,8 @@ export default function ApplyJobPage() {
     }
   };
 
-  if (!isHydrated || loading) {
+  // Prevent rendering for unauthenticated users
+  if (!isHydrated || !isAuthenticated || !user || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
