@@ -26,7 +26,11 @@ const sendBrevoEmail = async (emailData: any): Promise<boolean> => {
     return true;
   } catch (error: any) {
     if (error.response?.status === 401) {
+      console.error('❌ Email service error: Invalid or expired API key');
     } else if (error.response?.data?.message?.toLowerCase().includes('sender')) {
+      console.error('❌ Email service error: Sender email not verified');
+    } else {
+      console.error('❌ Email service error:', error.response?.data?.message || error.message);
     }
     return false;
   }

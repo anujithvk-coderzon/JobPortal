@@ -61,8 +61,6 @@ export default function RegisterPage() {
 
       setShowVerification(true);
     } catch (error: any) {
-      console.error('Verification code request error:', error.response?.data);
-
       // Check if we can resend
       if (error.response?.data?.canResend) {
         setCanResend(true);
