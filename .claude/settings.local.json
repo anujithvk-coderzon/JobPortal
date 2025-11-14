@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(timeout 60 npm run build:*)"
-    ],
-    "deny": [],
-    "ask": []
-  }
-}
