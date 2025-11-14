@@ -10,11 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  JOB_SEEKER
-  EMPLOYER
-}
-
 enum EmploymentType {
   FULL_TIME
   PART_TIME
@@ -37,9 +32,7 @@ enum LocationType {
 }
 
 enum ApplicationStatus {
-  APPLIED
-  UNDER_REVIEW
-  SHORTLISTED
+  PENDING
   INTERVIEW_SCHEDULED
   REJECTED
   HIRED
@@ -50,7 +43,6 @@ model User {
   email         String        @unique
   password      String
   name          String
-  role          Role          @default(JOB_SEEKER)
   phone         String?
   location      String?
   profilePhoto  String?
@@ -59,7 +51,7 @@ model User {
 
   // Relations
   profile       Profile?
-  company       Company?
+  companies     Company[]
   jobs          Job[]
   applications  Application[]
   savedJobs     SavedJob[]
@@ -150,17 +142,26 @@ model Skill {
 
 model Company {
   id                String       @id @default(uuid())
-  userId            String       @unique
+  userId            String
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Required fields
   name              String
-  logo              String?
+  location          String
+  pinCode           String
+  contactEmail      String
+  contactPhone      String
+
+  // Optional fields
+  logo              String?      // Bunny CDN URL
   website           String?
   industry          String?
+  about             String?
   companySize       String?      // 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+
   foundedYear       Int?
-  description       String?
-  location          String?
+  linkedIn          String?
+  twitter           String?
+  facebook          String?
 
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
@@ -224,7 +225,12 @@ model Application {
   coverLetter       String?
   additionalInfo    String?
 
-  status            ApplicationStatus  @default(APPLIED)
+  status            ApplicationStatus  @default(PENDING)
+
+  // Interview scheduling fields
+  interviewDate     DateTime?
+  interviewLink     String?            // Google Meet, Zoom, etc.
+  interviewNotes    String?
 
   appliedAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -257,6 +263,11 @@ model JobNews {
   location          String?
   source            String?            // Where they heard about it
   externalLink      String?            // Link to job posting or source
+
+  // Media fields
+  poster            String?            // CDN URL for poster image
+  video             String?            // Bunny Stream video URL or ID
+  videoId           String?            // Bunny Stream video ID for deletion
 
   isActive          Boolean            @default(true)
 

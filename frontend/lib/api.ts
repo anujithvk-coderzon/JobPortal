@@ -39,70 +39,103 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+const axiosInstance = api;
+export default axiosInstance;
+
+// Generic API helper that returns response.data
+const apiHelper = {
+  get: async (url: string, config?: any) => {
+    const response = await axiosInstance.get(url, config);
+    return response.data;
+  },
+  post: async (url: string, data?: any, config?: any) => {
+    const response = await axiosInstance.post(url, data, config);
+    return response.data;
+  },
+  put: async (url: string, data?: any, config?: any) => {
+    const response = await axiosInstance.put(url, data, config);
+    return response.data;
+  },
+  delete: async (url: string, config?: any) => {
+    const response = await axiosInstance.delete(url, config);
+    return response.data;
+  },
+};
+
+// Export as named export
+export { apiHelper as api };
 
 // Auth API
 export const authAPI = {
-  register: (data: any) => api.post('/auth/register', data),
-  login: (data: any) => api.post('/auth/login', data),
-  getMe: () => api.get('/auth/me'),
-  updatePassword: (data: any) => api.put('/auth/password', data),
+  requestVerificationCode: (data: any) => axiosInstance.post('/auth/request-verification-code', data),
+  register: (data: any) => axiosInstance.post('/auth/register', data),
+  login: (data: any) => axiosInstance.post('/auth/login', data),
+  getMe: () => axiosInstance.get('/auth/me'),
+  updatePassword: (data: any) => axiosInstance.put('/auth/password', data),
+  googleRegister: (data: any) => axiosInstance.post('/auth/google/register', data),
+  googleLogin: (data: any) => axiosInstance.post('/auth/google/login', data),
 };
 
 // User API
 export const userAPI = {
-  getProfile: (userId?: string) => api.get(`/users/profile${userId ? `/${userId}` : ''}`),
-  updateProfile: (data: any) => api.put('/users/profile', data),
-  updateBasicInfo: (data: any) => api.put('/users/basic-info', data),
-  addSkill: (data: any) => api.post('/users/skills', data),
-  deleteSkill: (skillId: string) => api.delete(`/users/skills/${skillId}`),
-  addExperience: (data: any) => api.post('/users/experience', data),
+  getProfile: (userId?: string) => axiosInstance.get(`/users/profile${userId ? `/${userId}` : ''}`),
+  updateProfile: (data: any) => axiosInstance.put('/users/profile', data),
+  updateBasicInfo: (data: any) => axiosInstance.put('/users/basic-info', data),
+  addSkill: (data: any) => axiosInstance.post('/users/skills', data),
+  deleteSkill: (skillId: string) => axiosInstance.delete(`/users/skills/${skillId}`),
+  addExperience: (data: any) => axiosInstance.post('/users/experience', data),
   updateExperience: (experienceId: string, data: any) =>
-    api.put(`/users/experience/${experienceId}`, data),
-  deleteExperience: (experienceId: string) => api.delete(`/users/experience/${experienceId}`),
-  addEducation: (data: any) => api.post('/users/education', data),
+    axiosInstance.put(`/users/experience/${experienceId}`, data),
+  deleteExperience: (experienceId: string) => axiosInstance.delete(`/users/experience/${experienceId}`),
+  addEducation: (data: any) => axiosInstance.post('/users/education', data),
   updateEducation: (educationId: string, data: any) =>
-    api.put(`/users/education/${educationId}`, data),
-  deleteEducation: (educationId: string) => api.delete(`/users/education/${educationId}`),
-  updateCompany: (data: any) => api.put('/users/company', data),
+    axiosInstance.put(`/users/education/${educationId}`, data),
+  deleteEducation: (educationId: string) => axiosInstance.delete(`/users/education/${educationId}`),
+  updateCompany: (data: any) => axiosInstance.put('/users/company', data),
+  uploadProfilePhoto: (data: { image: string; mimeType: string }) => axiosInstance.post('/users/profile-photo', data),
+  deleteProfilePhoto: () => axiosInstance.delete('/users/profile-photo'),
+  uploadResume: (data: { file: string; mimeType: string; fileName: string }) => axiosInstance.post('/users/resume', data),
+  deleteResume: () => axiosInstance.delete('/users/resume'),
 };
 
 // Job API
 export const jobAPI = {
-  getAllJobs: (params?: any) => api.get('/jobs', { params }),
-  getJobById: (jobId: string) => api.get(`/jobs/job/${jobId}`),
-  getMyJobs: (params?: any) => api.get('/jobs/my-jobs', { params }),
+  getAllJobs: (params?: any) => axiosInstance.get('/jobs', { params }),
+  getJobById: (jobId: string) => axiosInstance.get(`/jobs/job/${jobId}`),
+  getMyJobs: (params?: any) => axiosInstance.get('/jobs/my-jobs', { params }),
   getCompanyJobs: (companyId: string, params?: any) =>
-    api.get(`/jobs/company/${companyId}`, { params }),
-  createJob: (data: any) => api.post('/jobs', data),
-  updateJob: (jobId: string, data: any) => api.put(`/jobs/${jobId}`, data),
-  deleteJob: (jobId: string) => api.delete(`/jobs/${jobId}`),
-  saveJob: (jobId: string) => api.post(`/jobs/${jobId}/save`),
-  unsaveJob: (jobId: string) => api.delete(`/jobs/${jobId}/save`),
-  getSavedJobs: (params?: any) => api.get('/jobs/saved', { params }),
+    axiosInstance.get(`/jobs/company/${companyId}`, { params }),
+  createJob: (data: any) => axiosInstance.post('/jobs', data),
+  updateJob: (jobId: string, data: any) => axiosInstance.put(`/jobs/${jobId}`, data),
+  deleteJob: (jobId: string) => axiosInstance.delete(`/jobs/${jobId}`),
+  saveJob: (jobId: string) => axiosInstance.post(`/jobs/${jobId}/save`),
+  unsaveJob: (jobId: string) => axiosInstance.delete(`/jobs/${jobId}/save`),
+  getSavedJobs: (params?: any) => axiosInstance.get('/jobs/saved', { params }),
 };
 
 // Application API
 export const applicationAPI = {
-  applyToJob: (jobId: string, data: any) => api.post(`/applications/apply/${jobId}`, data),
-  getMyApplications: (params?: any) => api.get('/applications/my-applications', { params }),
-  getApplicationById: (applicationId: string) => api.get(`/applications/${applicationId}`),
+  applyToJob: (jobId: string, data: any) => axiosInstance.post(`/applications/apply/${jobId}`, data),
+  getMyApplications: (params?: any) => axiosInstance.get('/applications/my-applications', { params }),
+  getApplicationById: (applicationId: string) => axiosInstance.get(`/applications/${applicationId}`),
   getJobApplications: (jobId: string, params?: any) =>
-    api.get(`/applications/job/${jobId}`, { params }),
+    axiosInstance.get(`/applications/job/${jobId}`, { params }),
   updateApplicationStatus: (applicationId: string, data: any) =>
-    api.put(`/applications/${applicationId}/status`, data),
+    axiosInstance.put(`/applications/${applicationId}/status`, data),
   withdrawApplication: (applicationId: string) =>
-    api.delete(`/applications/${applicationId}/withdraw`),
-  getDashboardStats: () => api.get('/applications/dashboard'),
+    axiosInstance.delete(`/applications/${applicationId}/withdraw`),
+  getDashboardStats: () => axiosInstance.get('/applications/dashboard'),
+  uploadOfferLetter: (data: { file: string; fileName: string; mimeType: string }) =>
+    axiosInstance.post('/applications/upload-offer-letter', data),
 };
 
 // Job News API
 export const jobNewsAPI = {
-  createJobNews: (data: any) => api.post('/job-news', data),
-  getAllJobNews: (params?: any) => api.get('/job-news', { params }),
-  getJobNewsById: (id: string) => api.get(`/job-news/${id}`),
-  updateJobNews: (id: string, data: any) => api.put(`/job-news/${id}`, data),
-  deleteJobNews: (id: string) => api.delete(`/job-news/${id}`),
-  getMyJobNews: (params?: any) => api.get('/job-news/user/my-news', { params }),
-  toggleHelpful: (id: string) => api.post(`/job-news/${id}/helpful`),
+  createJobNews: (data: any) => axiosInstance.post('/job-news', data),
+  getAllJobNews: (params?: any) => axiosInstance.get('/job-news', { params }),
+  getJobNewsById: (id: string) => axiosInstance.get(`/job-news/${id}`),
+  updateJobNews: (id: string, data: any) => axiosInstance.put(`/job-news/${id}`, data),
+  deleteJobNews: (id: string) => axiosInstance.delete(`/job-news/${id}`),
+  getMyJobNews: (params?: any) => axiosInstance.get('/job-news/user/my-news', { params }),
+  toggleHelpful: (id: string) => axiosInstance.post(`/job-news/${id}/helpful`),
 };

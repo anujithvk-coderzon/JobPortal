@@ -13,8 +13,12 @@ import {
   updateEducation,
   deleteEducation,
   updateCompany,
+  uploadProfilePhoto,
+  deleteProfilePhoto,
+  uploadResume,
+  deleteResume,
 } from '../controllers/userController';
-import { authenticate, authorizeRole } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
 const router = express.Router();
@@ -74,5 +78,27 @@ router.put(
   ]),
   updateCompany
 );
+
+// Profile photo routes
+router.post(
+  '/profile-photo',
+  authenticate,
+  validate([
+    body('image').notEmpty().withMessage('Image data is required'),
+  ]),
+  uploadProfilePhoto
+);
+router.delete('/profile-photo', authenticate, deleteProfilePhoto);
+
+// Resume routes
+router.post(
+  '/resume',
+  authenticate,
+  validate([
+    body('file').notEmpty().withMessage('File data is required'),
+  ]),
+  uploadResume
+);
+router.delete('/resume', authenticate, deleteResume);
 
 export default router;

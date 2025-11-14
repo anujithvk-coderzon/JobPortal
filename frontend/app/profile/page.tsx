@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
+import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Navbar } from '@/components/Navbar';
@@ -15,6 +16,25 @@ import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { getInitials } from '@/lib/utils';
+import { ProfileCompletion } from '@/components/ProfileCompletion';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { DEGREE_OPTIONS, getFieldsOfStudy } from '@/lib/degrees';
 import {
   User,
   Loader2,
@@ -26,7 +46,11 @@ import {
   Trash2,
   X,
   Save,
+  Camera,
+  Upload,
+  FileText,
 } from 'lucide-react';
+import { api, userAPI } from '@/lib/api';
 
 interface Education {
   id: string;
@@ -60,9 +84,12 @@ interface Skill {
 function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated, isHydrated } = useAuthStore();
+  const { user, isAuthenticated, isHydrated, updateUser, triggerProfileUpdate } = useAuthStore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [pendingResumeFile, setPendingResumeFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'basic');
 
   // Basic Profile
@@ -70,6 +97,7 @@ function ProfilePageContent() {
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [bio, setBio] = useState('');
+  const [profileData, setProfileData] = useState<any>(null);
 
   // Education, Experience, Skills
   const [education, setEducation] = useState<Education[]>([]);
@@ -81,6 +109,12 @@ function ProfilePageContent() {
   const [showExperienceForm, setShowExperienceForm] = useState(false);
   const [showSkillForm, setShowSkillForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+
+  // Delete dialog states
+  const [deleteEducationId, setDeleteEducationId] = useState<string | null>(null);
+  const [deleteExperienceId, setDeleteExperienceId] = useState<string | null>(null);
+  const [deletePhotoDialogOpen, setDeletePhotoDialogOpen] = useState(false);
+  const [deleteResumeDialogOpen, setDeleteResumeDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -94,27 +128,22 @@ function ProfilePageContent() {
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/api/users/profile', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await userAPI.getProfile();
+      const data = response.data;
+      const userData = data.data;
 
-      if (response.ok) {
-        const data = await response.json();
-        const userData = data.data;
+      useAuthStore.getState().updateUser(userData);
 
-        useAuthStore.getState().updateUser(userData);
+      setName(userData.name || '');
+      setPhone(userData.phone || '');
+      setLocation(userData.location || '');
+      setBio(userData.profile?.bio || '');
+      setProfileData(userData.profile);
 
-        setName(userData.name || '');
-        setPhone(userData.phone || '');
-        setLocation(userData.location || '');
-        setBio(userData.profile?.bio || '');
-
-        if (userData.profile) {
-          setEducation(userData.profile.education || []);
-          setExperience(userData.profile.experiences || []); // Backend returns 'experiences' not 'experience'
-          setSkills(userData.profile.skills || []);
-        }
+      if (userData.profile) {
+        setEducation(userData.profile.education || []);
+        setExperience(userData.profile.experiences || []); // Backend returns 'experiences' not 'experience'
+        setSkills(userData.profile.skills || []);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -124,29 +153,20 @@ function ProfilePageContent() {
   const saveBasicInfo = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-
       // Update basic info
-      await fetch('http://localhost:5001/api/users/basic-info', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name, phone, location }),
-      });
+      await userAPI.updateBasicInfo({ name, phone, location });
 
       // Update bio (profile)
-      await fetch('http://localhost:5001/api/users/profile-info', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ bio }),
-      });
+      await api.put('/users/profile-info', { bio });
+
+      // Upload pending resume file if exists
+      if (pendingResumeFile) {
+        await uploadResumeFile(pendingResumeFile);
+        setPendingResumeFile(null);
+      }
 
       await fetchUserProfile();
+      triggerProfileUpdate();
       toast({ title: 'Success', description: 'Profile updated successfully' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update profile', variant: 'destructive' });
@@ -155,29 +175,48 @@ function ProfilePageContent() {
     }
   };
 
+  const uploadResumeFile = async (file: File) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const base64File = reader.result as string;
+
+          const response = await userAPI.uploadResume({
+            file: base64File,
+            mimeType: file.type,
+            fileName: file.name,
+          });
+
+          const data = response.data;
+
+          // Update only the profileData resume field
+          setProfileData((prev: any) => ({
+            ...prev,
+            resume: data.data.resume
+          }));
+
+          resolve(data);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+    });
+  };
+
   const addEducation = async (data: Partial<Education>) => {
     try {
-      const token = localStorage.getItem('token');
-      const method = editingItem ? 'PUT' : 'POST';
-      const url = editingItem
-        ? `http://localhost:5001/api/users/education/${editingItem.id}`
-        : 'http://localhost:5001/api/users/education';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save education');
-      }
+      const url = editingItem?.id ? `/users/education/${editingItem.id}` : '/users/education';
+      const method = editingItem?.id ? 'put' : 'post';
+      await api[method](url, data);
 
       await fetchUserProfile();
+      triggerProfileUpdate();
       setShowEducationForm(false);
       setEditingItem(null);
       toast({ title: 'Success', description: `Education ${editingItem ? 'updated' : 'added'} successfully` });
@@ -191,41 +230,30 @@ function ProfilePageContent() {
   };
 
   const deleteEducation = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this education entry?')) return;
+    try {
+      await userAPI.deleteEducation(id);
 
-    const token = localStorage.getItem('token');
-    await fetch(`http://localhost:5001/api/users/education/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    await fetchUserProfile();
-    toast({ title: 'Success', description: 'Education deleted successfully' });
+      await fetchUserProfile();
+      triggerProfileUpdate();
+      setDeleteEducationId(null);
+      toast({ title: 'Success', description: 'Education deleted successfully' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete education',
+        variant: 'destructive'
+      });
+    }
   };
 
   const addExperience = async (data: Partial<Experience>) => {
     try {
-      const token = localStorage.getItem('token');
-      const method = editingItem ? 'PUT' : 'POST';
-      const url = editingItem
-        ? `http://localhost:5001/api/users/experience/${editingItem.id}`
-        : 'http://localhost:5001/api/users/experience';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save experience');
-      }
+      const url = editingItem?.id ? `/users/experience/${editingItem.id}` : '/users/experience';
+      const method = editingItem?.id ? 'put' : 'post';
+      await api[method](url, data);
 
       await fetchUserProfile();
+      triggerProfileUpdate();
       setShowExperienceForm(false);
       setEditingItem(null);
       toast({ title: 'Success', description: `Experience ${editingItem ? 'updated' : 'added'} successfully` });
@@ -239,36 +267,28 @@ function ProfilePageContent() {
   };
 
   const deleteExperience = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this experience entry?')) return;
+    try {
+      await userAPI.deleteExperience(id);
 
-    const token = localStorage.getItem('token');
-    await fetch(`http://localhost:5001/api/users/experience/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    await fetchUserProfile();
-    toast({ title: 'Success', description: 'Experience deleted successfully' });
+      await fetchUserProfile();
+      triggerProfileUpdate();
+      setDeleteExperienceId(null);
+      toast({ title: 'Success', description: 'Experience deleted successfully' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete experience',
+        variant: 'destructive'
+      });
+    }
   };
 
   const addSkill = async (name: string, level?: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/api/users/skills', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name, level }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add skill');
-      }
+      await userAPI.addSkill({ name, level });
 
       await fetchUserProfile();
+      triggerProfileUpdate();
       setShowSkillForm(false);
       toast({ title: 'Success', description: 'Skill added successfully' });
     } catch (error: any) {
@@ -281,14 +301,169 @@ function ProfilePageContent() {
   };
 
   const deleteSkill = async (id: string) => {
-    const token = localStorage.getItem('token');
-    await fetch(`http://localhost:5001/api/users/skills/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    await userAPI.deleteSkill(id);
 
     await fetchUserProfile();
+    triggerProfileUpdate();
     toast({ title: 'Success', description: 'Skill deleted successfully' });
+  };
+
+  const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Error',
+        description: 'Please select an image file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'Error',
+        description: 'Image size must be less than 5MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+
+        const response = await userAPI.uploadProfilePhoto({
+          image: base64Image,
+          mimeType: file.type,
+        });
+
+        const data = response.data;
+
+        // Update user in auth store
+        if (data.data) {
+          updateUser(data.data);
+        }
+
+        triggerProfileUpdate();
+        toast({
+          title: 'Success',
+          description: 'Profile photo uploaded successfully',
+        });
+      };
+
+      reader.onerror = () => {
+        throw new Error('Failed to read file');
+      };
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to upload photo',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingPhoto(false);
+      // Reset input
+      event.target.value = '';
+    }
+  };
+
+  const handleDeleteProfilePhoto = async () => {
+    try {
+      setUploadingPhoto(true);
+      const response = await userAPI.deleteProfilePhoto();
+
+      const data = response.data;
+
+      // Update user in auth store
+      if (data.data) {
+        updateUser(data.data);
+      }
+
+      setDeletePhotoDialogOpen(false);
+      toast({
+        title: 'Success',
+        description: 'Profile photo removed successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete photo',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleResumeUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: 'Error',
+        description: 'Please select a PDF or Word document',
+        variant: 'destructive',
+      });
+      event.target.value = '';
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Error',
+        description: 'File size must be less than 10MB',
+        variant: 'destructive',
+      });
+      event.target.value = '';
+      return;
+    }
+
+    // Store file for upload when Save Changes is clicked
+    setPendingResumeFile(file);
+    toast({
+      title: 'File Selected',
+      description: `${file.name} will be uploaded when you save changes`,
+    });
+  };
+
+  const handleDeleteResume = async () => {
+    try {
+      setUploadingResume(true);
+      await userAPI.deleteResume();
+
+      // Update only the profileData resume field without refetching everything
+      setProfileData((prev: any) => ({
+        ...prev,
+        resume: null
+      }));
+
+      setDeleteResumeDialogOpen(false);
+      toast({
+        title: 'Success',
+        description: 'Resume removed successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete resume',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingResume(false);
+    }
   };
 
   if (!isHydrated || !user) {
@@ -306,25 +481,72 @@ function ProfilePageContent() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto py-8 px-4 max-w-5xl">
-        {/* Profile Header */}
-        <Card className="mb-6">
+      <div className="container mx-auto py-8 px-4 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Profile Header */}
+            <Card>
           <CardContent className="pt-6">
-            <div className="flex items-start gap-6">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={user.profilePhoto ? `http://localhost:5001${user.profilePhoto}` : undefined} />
-                <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
-              </Avatar>
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              <div className="relative group">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage
+                    src={user.profilePhoto || undefined}
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
+                  />
+                  <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <input
+                    type="file"
+                    id="profile-photo-input"
+                    accept="image/*"
+                    onChange={handleProfilePhotoUpload}
+                    className="hidden"
+                    disabled={uploadingPhoto}
+                  />
+                  <label htmlFor="profile-photo-input" className="cursor-pointer">
+                    <Camera className="h-6 w-6 text-white" />
+                  </label>
+                </div>
+              </div>
               <div className="flex-1">
                 <h1 className="text-3xl font-bold mb-1">{user.name}</h1>
-                <p className="text-muted-foreground">{user.email}</p>
+                <p className="text-muted-foreground mb-4">{user.email}</p>
+                <div className="flex flex-wrap gap-2">
+                  <label htmlFor="profile-photo-input">
+                    <Button variant="outline" size="sm" asChild disabled={uploadingPhoto}>
+                      <span className="cursor-pointer">
+                        {uploadingPhoto ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        {user.profilePhoto ? 'Change Photo' : 'Upload Photo'}
+                      </span>
+                    </Button>
+                  </label>
+                  {user.profilePhoto && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletePhotoDialogOpen(true)}
+                      disabled={uploadingPhoto}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
             <TabsTrigger value="basic">
               <User className="h-4 w-4 mr-2" />
@@ -385,6 +607,105 @@ function ProfilePageContent() {
                     rows={4}
                   />
                 </div>
+
+                {/* Resume Upload Section */}
+                <div className="border-t pt-4">
+                  <Label className="text-base font-semibold mb-3 block">Resume/CV</Label>
+                  {pendingResumeFile ? (
+                    <div className="flex items-center gap-3 p-4 border-2 border-orange-500 rounded-lg bg-orange-50 dark:bg-orange-950">
+                      <FileText className="h-8 w-8 text-orange-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-orange-900 dark:text-orange-100">
+                          {pendingResumeFile.name}
+                        </p>
+                        <p className="text-xs text-orange-700 dark:text-orange-300">
+                          Ready to upload - Click "Save Changes" to upload
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setPendingResumeFile(null);
+                          const input = document.getElementById('resume-upload') as HTMLInputElement;
+                          if (input) input.value = '';
+                        }}
+                        className="flex-shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : profileData?.resume ? (
+                    <div className="flex items-center gap-3 p-4 border rounded-lg bg-accent/20">
+                      <FileText className="h-8 w-8 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">Resume uploaded</p>
+                        <p className="text-xs text-muted-foreground">
+                          Click view to open or delete to remove
+                        </p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          disabled={uploadingResume}
+                        >
+                          <a href={profileData.resume} target="_blank" rel="noopener noreferrer">
+                            View
+                          </a>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setDeleteResumeDialogOpen(true)}
+                          disabled={uploadingResume}
+                        >
+                          {uploadingResume ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                      <input
+                        type="file"
+                        id="resume-upload"
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleResumeUpload}
+                        className="hidden"
+                        disabled={uploadingResume}
+                      />
+                      <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                      <p className="text-sm font-medium mb-1">Upload your resume</p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        PDF or Word document, max 10MB
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('resume-upload')?.click()}
+                        disabled={uploadingResume}
+                      >
+                        {uploadingResume ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Choose File
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <Button onClick={saveBasicInfo} disabled={loading}>
                   {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Changes
@@ -436,7 +757,7 @@ function ProfilePageContent() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteExperience(exp.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteExperienceId(exp.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -503,7 +824,7 @@ function ProfilePageContent() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteEducation(edu.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteEducationId(edu.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -569,7 +890,97 @@ function ProfilePageContent() {
                 />
               )}
             </TabsContent>
-        </Tabs>
+            </Tabs>
+          </div>
+
+          {/* Sidebar - Profile Completion */}
+          <div className="lg:col-span-1">
+            <div className="lg:sticky lg:top-8">
+              <ProfileCompletion
+                user={user}
+                profile={{
+                  ...profileData,
+                  skills,
+                  experiences: experience,
+                  education,
+                }}
+                onNavigate={setActiveTab}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Delete Education Dialog */}
+        <AlertDialog open={!!deleteEducationId} onOpenChange={(open) => !open && setDeleteEducationId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Education</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this education entry? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteEducationId && deleteEducation(deleteEducationId)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Experience Dialog */}
+        <AlertDialog open={!!deleteExperienceId} onOpenChange={(open) => !open && setDeleteExperienceId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Experience</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this experience entry? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteExperienceId && deleteExperience(deleteExperienceId)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Profile Photo Dialog */}
+        <AlertDialog open={deletePhotoDialogOpen} onOpenChange={setDeletePhotoDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Profile Photo</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove your profile photo? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteProfilePhoto}>
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Resume Dialog */}
+        <AlertDialog open={deleteResumeDialogOpen} onOpenChange={setDeleteResumeDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Resume</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove your resume? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteResume}>
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
@@ -588,9 +999,36 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
     description: initialData?.description || '',
   });
 
+  const [customDegree, setCustomDegree] = useState('');
+  const [customField, setCustomField] = useState('');
+  const [availableFields, setAvailableFields] = useState<string[]>([]);
+
+  // Update available fields when degree changes
+  React.useEffect(() => {
+    if (formData.degree && formData.degree !== 'Other') {
+      const fields = getFieldsOfStudy(formData.degree);
+      setAvailableFields(fields);
+
+      // Reset field of study if it's not in the new list
+      if (formData.fieldOfStudy && !fields.includes(formData.fieldOfStudy)) {
+        setFormData(prev => ({ ...prev, fieldOfStudy: '' }));
+      }
+    }
+  }, [formData.degree]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+
+    // Use custom values if "Other" is selected
+    const finalData = {
+      ...formData,
+      degree: formData.degree === 'Other' ? customDegree : formData.degree,
+      fieldOfStudy: formData.fieldOfStudy === 'Other Field' || formData.fieldOfStudy === 'Please specify your field'
+        ? customField
+        : formData.fieldOfStudy,
+    };
+
+    onSave(finalData);
   };
 
   return (
@@ -607,30 +1045,82 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
                 <Input
                   value={formData.institution}
                   onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
-                  placeholder="St. Thomas College of Engineering and Technology"
+                  placeholder="e.g., Harvard University, MIT, Stanford College"
                   required
                 />
                 <p className="text-xs text-muted-foreground mt-1">School, college, or university name</p>
               </div>
               <div>
                 <Label>Degree *</Label>
-                <Input
+                <Select
                   value={formData.degree}
-                  onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
-                  placeholder="B.Tech, M.Sc, Bachelor's, Master's"
+                  onValueChange={(value) => setFormData({ ...formData, degree: value })}
                   required
-                />
-                <p className="text-xs text-muted-foreground mt-1">Type of degree or certification</p>
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select degree" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {DEGREE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select your degree type</p>
+                {formData.degree === 'Other' && (
+                  <Input
+                    value={customDegree}
+                    onChange={(e) => setCustomDegree(e.target.value)}
+                    placeholder="Enter your degree"
+                    className="mt-2"
+                    required
+                  />
+                )}
               </div>
               <div>
                 <Label>Field of Study *</Label>
-                <Input
+                <Select
                   value={formData.fieldOfStudy}
-                  onChange={(e) => setFormData({ ...formData, fieldOfStudy: e.target.value })}
-                  placeholder="Computer Science and Engineering"
+                  onValueChange={(value) => setFormData({ ...formData, fieldOfStudy: value })}
                   required
-                />
+                  disabled={!formData.degree}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.degree ? "Select field of study" : "Select degree first"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {availableFields.map((field) => (
+                      <SelectItem key={field} value={field}>
+                        {field}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground mt-1">Your major or specialization</p>
+                {(formData.fieldOfStudy === 'Other Field' ||
+                  formData.fieldOfStudy === 'Other Engineering' ||
+                  formData.fieldOfStudy === 'Other Computer Field' ||
+                  formData.fieldOfStudy === 'Other Science' ||
+                  formData.fieldOfStudy === 'Other Commerce' ||
+                  formData.fieldOfStudy === 'Other Management' ||
+                  formData.fieldOfStudy === 'Other Arts/Humanities' ||
+                  formData.fieldOfStudy === 'Other Law' ||
+                  formData.fieldOfStudy === 'Other Medical' ||
+                  formData.fieldOfStudy === 'Other Pharmacy' ||
+                  formData.fieldOfStudy === 'Other Architecture' ||
+                  formData.fieldOfStudy === 'Other Diploma' ||
+                  formData.fieldOfStudy === 'Other Research' ||
+                  formData.fieldOfStudy === 'Please specify your field') && (
+                  <Input
+                    value={customField}
+                    onChange={(e) => setCustomField(e.target.value)}
+                    placeholder="Enter your field of study"
+                    className="mt-2"
+                    required
+                  />
+                )}
               </div>
               <div>
                 <Label>Grade (Optional)</Label>
@@ -742,9 +1232,9 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
               </div>
               <div className="md:col-span-2">
                 <Label>Location (Optional)</Label>
-                <Input
+                <LocationAutocomplete
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, location: value })}
                   placeholder="San Francisco, CA or Remote"
                 />
                 <p className="text-xs text-muted-foreground mt-1">City, state/country or Remote</p>

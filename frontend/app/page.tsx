@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Navbar } from '@/components/Navbar';
-import { Search, Briefcase, MapPin, Building2, Clock, ArrowRight, User, ExternalLink, ThumbsUp } from 'lucide-react';
+import { CompanySelector } from '@/components/CompanySelector';
+import { Search, Briefcase, MapPin, Building2, Clock, ArrowRight, User, ExternalLink, ThumbsUp, Image as ImageIcon, Video } from 'lucide-react';
 import { jobNewsAPI, jobAPI } from '@/lib/api';
 import { EmploymentType, ExperienceLevel, LocationType } from '@/lib/types';
-import { timeAgo } from '@/lib/utils';
+import { timeAgo, getInitials } from '@/lib/utils';
 
 interface Post {
   id: string;
@@ -21,6 +23,8 @@ interface Post {
   location?: string;
   source?: string;
   externalLink?: string;
+  poster?: string;
+  video?: string;
   createdAt: string;
   helpfulCount?: number;
   user: {
@@ -58,6 +62,7 @@ export default function HomePage() {
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [showCompanySelector, setShowCompanySelector] = useState(false);
 
   useEffect(() => {
     fetchRecentPosts();
@@ -99,7 +104,7 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
+      <section className="pt-24 pb-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
@@ -137,12 +142,34 @@ export default function HomePage() {
                 </Button>
               </div>
             </form>
+
+            {/* Quick Action Buttons - Mobile Only */}
+            <div className="lg:hidden flex flex-wrap justify-center gap-3 mt-6 max-w-xl mx-auto">
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 min-w-[160px]"
+                onClick={() => router.push('/jobs')}
+              >
+                <Briefcase className="h-5 w-5 mr-2" />
+                Explore Jobs
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 min-w-[160px]"
+                onClick={() => router.push('/community')}
+              >
+                <User className="h-5 w-5 mr-2" />
+                Community
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Recent Job Openings Section */}
-      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 bg-background">
+      <section className="py-8 md:py-12 px-4 sm:px-6 lg:px-8 bg-background">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6 md:mb-8">
             <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Recent Job Openings</h2>
@@ -228,8 +255,8 @@ export default function HomePage() {
                 <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h3 className="text-lg font-semibold mb-2">No job openings yet</h3>
                 <p className="text-muted-foreground mb-6">Be the first to post a job opportunity and connect with talented professionals!</p>
-                <Button asChild>
-                  <Link href="/jobs/post">Post a Job</Link>
+                <Button onClick={() => setShowCompanySelector(true)}>
+                  Post a Job
                 </Button>
               </CardContent>
             </Card>
@@ -273,12 +300,33 @@ export default function HomePage() {
                       <div>
                         <h3 className="font-semibold text-base md:text-lg mb-2 line-clamp-2 leading-snug">{post.title}</h3>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                          <User className="h-4 w-4 flex-shrink-0" />
+                          <Avatar className="h-6 w-6 flex-shrink-0">
+                            <AvatarImage src={post.user.profilePhoto || undefined} alt={post.user.name} />
+                            <AvatarFallback className="text-[10px]">{getInitials(post.user.name)}</AvatarFallback>
+                          </Avatar>
                           <span className="line-clamp-1">{post.user.name}</span>
                         </div>
                         <p className="text-xs md:text-sm text-muted-foreground line-clamp-3">
                           {post.description}
                         </p>
+
+                        {/* Media Indicator */}
+                        {(post.poster || post.video) && (
+                          <div className="mt-3 flex items-center gap-2">
+                            {post.poster && (
+                              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-secondary/50 rounded-md">
+                                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">Image attached</span>
+                              </div>
+                            )}
+                            {post.video && (
+                              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-secondary/50 rounded-md">
+                                <Video className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">Video attached</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       {(post.companyName || post.location || (post.helpfulCount ?? 0) > 0) && (
                         <div className="flex flex-wrap gap-2">
@@ -380,7 +428,7 @@ export default function HomePage() {
               <h3 className="font-semibold mb-4">Get Started</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/auth/register" className="hover:text-foreground">Create Account</Link></li>
-                <li><Link href="/jobs/post" className="hover:text-foreground">Post Official Job</Link></li>
+                <li><button onClick={() => setShowCompanySelector(true)} className="hover:text-foreground text-left">Post Official Job</button></li>
                 <li><Link href="/community/create" className="hover:text-foreground">Create Post</Link></li>
                 <li><Link href="/profile" className="hover:text-foreground">Profile Settings</Link></li>
               </ul>
@@ -391,6 +439,12 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Company Selector Dialog */}
+      <CompanySelector
+        isOpen={showCompanySelector}
+        onClose={() => setShowCompanySelector(false)}
+      />
     </div>
   );
 }

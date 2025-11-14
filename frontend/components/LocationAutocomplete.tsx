@@ -20,6 +20,7 @@ interface LocationAutocompleteProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  required?: boolean;
 }
 
 export function LocationAutocomplete({
@@ -29,6 +30,7 @@ export function LocationAutocomplete({
   placeholder = 'Enter city, state, or country',
   disabled = false,
   className,
+  required = false,
 }: LocationAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -95,25 +97,36 @@ export function LocationAutocomplete({
                 q: value,
                 format: 'json',
                 addressdetails: '1',
-                limit: '3',
-                'accept-language': 'en',
+                limit: '5', // Increased to get more results before filtering
+                'accept-language': 'en-US,en',
+                'namedetails': '1', // Get name variations
               }),
             {
               headers: {
                 'User-Agent': 'JobPostingPlatform/1.0',
-                'Accept-Language': 'en',
+                'Accept-Language': 'en-US,en;q=0.9',
               },
             }
           );
 
           if (response.ok) {
             const data = await response.json();
-            const apiSuggestions = data.map((item: any) => ({
-              display_name: item.display_name,
-              name: formatLocationName(item),
-              type: item.type,
-              isLocal: false,
-            }));
+
+            // Filter and map API results - only keep English results
+            const apiSuggestions = data
+              .map((item: any) => {
+                const formattedName = formatLocationName(item);
+                return {
+                  display_name: item.display_name,
+                  name: formattedName,
+                  type: item.type,
+                  isLocal: false,
+                };
+              })
+              .filter((item: LocationSuggestion) =>
+                isEnglishOnly(item.name) &&
+                isEnglishOnly(item.display_name || '')
+              );
 
             // Cache API results
             setCachedLocation(value, apiSuggestions);
@@ -139,6 +152,12 @@ export function LocationAutocomplete({
 
     return () => clearTimeout(delayDebounceFn);
   }, [value, hasInteracted]);
+
+  // Check if text contains only English/Latin characters
+  const isEnglishOnly = (text: string): boolean => {
+    // Allow Latin letters, numbers, spaces, commas, hyphens, and common punctuation
+    return /^[a-zA-Z0-9\s,.\-'()]+$/.test(text);
+  };
 
   // Format location name from API response
   const formatLocationName = (item: any): string => {
@@ -214,6 +233,7 @@ export function LocationAutocomplete({
           onFocus={handleFocus}
           placeholder={placeholder}
           disabled={disabled}
+          required={required}
           className={cn('pl-10 pr-10', className)}
           autoComplete="off"
         />

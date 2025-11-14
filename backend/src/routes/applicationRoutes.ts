@@ -8,8 +8,9 @@ import {
   updateApplicationStatus,
   withdrawApplication,
   getDashboardStats,
+  uploadOfferLetter,
 } from '../controllers/applicationController';
-import { authenticate, authorizeRole } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
 const router = express.Router();
@@ -17,11 +18,13 @@ const router = express.Router();
 // Dashboard stats
 router.get('/dashboard', authenticate, getDashboardStats);
 
-// Job Seeker routes
+// Upload offer letter (for employers)
+router.post('/upload-offer-letter', authenticate, uploadOfferLetter);
+
+// Application routes (all authenticated users can apply and manage their applications)
 router.post(
   '/apply/:jobId',
   authenticate,
-  authorizeRole('JOB_SEEKER'),
   applyToJob
 );
 
@@ -34,25 +37,22 @@ router.get(
 router.delete(
   '/:applicationId/withdraw',
   authenticate,
-  authorizeRole('JOB_SEEKER'),
   withdrawApplication
 );
 
-// Employer routes
+// Job poster routes (ownership checked in controller)
 router.get(
   '/job/:jobId',
   authenticate,
-  authorizeRole('EMPLOYER'),
   getJobApplications
 );
 
 router.put(
   '/:applicationId/status',
   authenticate,
-  authorizeRole('EMPLOYER'),
   validate([
     body('status')
-      .isIn(['APPLIED', 'UNDER_REVIEW', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'REJECTED', 'HIRED'])
+      .isIn(['PENDING', 'INTERVIEW_SCHEDULED', 'REJECTED', 'HIRED'])
       .withMessage('Invalid status'),
   ]),
   updateApplicationStatus

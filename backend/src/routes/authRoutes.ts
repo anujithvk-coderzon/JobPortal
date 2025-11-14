@@ -1,23 +1,32 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { register, login, getMe, updatePassword } from '../controllers/authController';
+import { register, login, getMe, updatePassword, googleRegister, googleLogin, requestVerificationCode } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
 const router = express.Router();
 
-// Register
+// Request verification code
 router.post(
-  '/register',
+  '/request-verification-code',
   validate([
     body('email').isEmail().withMessage('Please provide a valid email'),
     body('password')
       .isLength({ min: 6 })
       .withMessage('Password must be at least 6 characters long'),
     body('name').notEmpty().withMessage('Name is required'),
-    body('role')
-      .isIn(['JOB_SEEKER', 'EMPLOYER'])
-      .withMessage('Role must be either JOB_SEEKER or EMPLOYER'),
+  ]),
+  requestVerificationCode
+);
+
+// Register (with verification code)
+router.post(
+  '/register',
+  validate([
+    body('email').isEmail().withMessage('Please provide a valid email'),
+    body('verificationCode')
+      .isLength({ min: 4, max: 4 })
+      .withMessage('Verification code must be 4 digits'),
   ]),
   register
 );
@@ -46,6 +55,25 @@ router.put(
       .withMessage('New password must be at least 6 characters long'),
   ]),
   updatePassword
+);
+
+// Google Sign-In for Registration
+router.post(
+  '/google/register',
+  validate([
+    body('email').isEmail().withMessage('Please provide a valid email'),
+    body('name').notEmpty().withMessage('Name is required'),
+  ]),
+  googleRegister
+);
+
+// Google Sign-In for Login
+router.post(
+  '/google/login',
+  validate([
+    body('email').isEmail().withMessage('Please provide a valid email'),
+  ]),
+  googleLogin
 );
 
 export default router;

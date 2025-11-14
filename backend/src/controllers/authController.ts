@@ -3,10 +3,22 @@ import prisma from '../config/database';
 import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
 import { AuthRequest } from '../types';
+import crypto from 'crypto';
+import { generateVerificationCode, sendVerificationCode, sendWelcomeEmail } from '../services/emailService';
+import { storeVerificationCode, verifyCode, deleteVerificationCode, hasVerificationCode } from '../services/verificationStore';
 
-export const register = async (req: Request, res: Response) => {
+// Request verification code for registration
+export const requestVerificationCode = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, role, phone, location } = req.body;
+    const { email, password, name, mobile } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email, password, and name are required',
+      });
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -20,55 +32,133 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = await hashPassword(password);
+    // Check if there's already a pending verification for this email
+    // Allow resend if explicitly requested (after 60 seconds)
+    if (hasVerificationCode(email)) {
+      const allowResend = req.body.resend === true;
+      if (!allowResend) {
+        return res.status(400).json({
+          success: false,
+          error: 'Verification code already sent. Please check your email or wait before requesting a new one.',
+          canResend: true, // Tell frontend they can resend
+        });
+      }
+      // Clear the old code to allow resend
+      deleteVerificationCode(email);
+    }
+
+    // Generate verification code
+    const code = generateVerificationCode();
+
+    // Store verification code with user data
+    storeVerificationCode(email, code, { name, password, mobile });
+
+    // Send verification email
+    const emailSent = await sendVerificationCode({ email, name, code });
+
+    if (!emailSent) {
+      // Clean up stored code if email failed to send
+      deleteVerificationCode(email);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send verification email. Please try again.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Verification code sent to your email. Please check your inbox.',
+    });
+  } catch (error: any) {
+    console.error('Request verification code error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to send verification code',
+    });
+  }
+};
+
+export const register = async (req: Request, res: Response) => {
+  try {
+    const { email, verificationCode } = req.body;
+
+    // Validate required fields
+    if (!email || !verificationCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and verification code are required',
+      });
+    }
+
+    // Verify the code
+    const verificationData = verifyCode(email, verificationCode);
+
+    if (!verificationData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired verification code',
+      });
+    }
+
+    // Check if user already exists (double-check)
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      deleteVerificationCode(email);
+      return res.status(400).json({
+        success: false,
+        error: 'User with this email already exists',
+      });
+    }
+
+    // Hash password from verification data
+    const hashedPassword = await hashPassword(verificationData.password);
 
     // Create user
     const user = await prisma.user.create({
       data: {
-        email,
+        email: verificationData.email,
         password: hashedPassword,
-        name,
-        role,
-        phone: phone || null,
-        location: location || null,
+        name: verificationData.name,
+        phone: verificationData.mobile || null,
+        location: null,
       },
       select: {
         id: true,
         email: true,
         name: true,
-        role: true,
         phone: true,
         location: true,
         createdAt: true,
       },
     });
 
-    // Create profile for job seekers
-    if (role === 'JOB_SEEKER') {
-      await prisma.profile.create({
-        data: {
-          userId: user.id,
-          completionScore: 20, // Base score for registration
-        },
-      });
-    }
-
-    // Create company for employers
-    if (role === 'EMPLOYER') {
-      await prisma.company.create({
-        data: {
-          userId: user.id,
-          name: '', // Will be updated later
-        },
-      });
-    }
+    // Create profile for all users
+    await prisma.profile.create({
+      data: {
+        userId: user.id,
+        completionScore: 20, // Base score for registration
+      },
+    });
 
     // Generate token
     const token = generateToken({
       userId: user.id,
       email: user.email,
-      role: user.role,
+    });
+
+    // Delete verification code after successful registration
+    deleteVerificationCode(email);
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail({
+      email: user.email,
+      name: user.name,
+    }).catch((error) => {
+      console.error('Failed to send welcome email:', error);
+      // Don't fail registration if welcome email fails
     });
 
     return res.status(201).json({
@@ -100,7 +190,6 @@ export const login = async (req: Request, res: Response) => {
         email: true,
         password: true,
         name: true,
-        role: true,
         phone: true,
         location: true,
         profilePhoto: true,
@@ -128,7 +217,6 @@ export const login = async (req: Request, res: Response) => {
     const token = generateToken({
       userId: user.id,
       email: user.email,
-      role: user.role,
     });
 
     // Remove password from response
@@ -166,7 +254,6 @@ export const getMe = async (req: AuthRequest, res: Response) => {
         id: true,
         email: true,
         name: true,
-        role: true,
         phone: true,
         location: true,
         profilePhoto: true,
@@ -178,7 +265,6 @@ export const getMe = async (req: AuthRequest, res: Response) => {
             education: true,
           },
         },
-        company: true,
       },
     });
 
@@ -254,6 +340,147 @@ export const updatePassword = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to update password',
+    });
+  }
+};
+
+// Google Sign-In for Registration
+export const googleRegister = async (req: Request, res: Response) => {
+  try {
+    const { email, name, googleId, profilePhoto, phone, location } = req.body;
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'User with this email already exists. Please use the login page.',
+        isRegistered: true,
+      });
+    }
+
+    // Generate a random password for Google users (they won't use it)
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await hashPassword(randomPassword);
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        phone: phone || null,
+        location: location || null,
+        profilePhoto: profilePhoto || null,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        location: true,
+        profilePhoto: true,
+        createdAt: true,
+      },
+    });
+
+    // Create profile for all users
+    await prisma.profile.create({
+      data: {
+        userId: user.id,
+        completionScore: 30, // Higher base score for Google users with profile photo
+      },
+    });
+
+    // Generate token
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+    });
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail({
+      email: user.email,
+      name: user.name,
+    }).catch((error) => {
+      console.error('Failed to send welcome email:', error);
+      // Don't fail registration if welcome email fails
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        user,
+        token,
+      },
+      message: 'User registered successfully with Google',
+    });
+  } catch (error: any) {
+    console.error('Google registration error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to register user with Google',
+    });
+  }
+};
+
+// Google Sign-In for Login
+export const googleLogin = async (req: Request, res: Response) => {
+  try {
+    const { email, name, googleId, profilePhoto } = req.body;
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        location: true,
+        profilePhoto: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'No account found with this email. Please register first.',
+        isRegistered: false,
+      });
+    }
+
+    // Update profile photo if not set
+    if (!user.profilePhoto && profilePhoto) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { profilePhoto },
+      });
+      user.profilePhoto = profilePhoto;
+    }
+
+    // Generate token
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        user,
+        token,
+      },
+      message: 'Login successful with Google',
+    });
+  } catch (error: any) {
+    console.error('Google login error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to login with Google',
     });
   }
 };

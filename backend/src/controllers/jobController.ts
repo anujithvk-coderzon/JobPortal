@@ -27,46 +27,39 @@ export const createJob = async (req: AuthRequest, res: Response) => {
       salaryCurrency,
       numberOfOpenings,
       applicationDeadline,
-      companyName,
-      companyWebsite,
-      useCompanyProfile,
+      companyId,
     } = req.body;
 
-    let companyId = null;
-    let manualCompanyName = null;
-    let manualCompanyWebsite = null;
-
-    // Check if user wants to use their company profile
-    if (useCompanyProfile) {
-      const company = await prisma.company.findUnique({
-        where: { userId: req.user.userId },
+    // Validate company ID
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Company ID is required',
       });
+    }
 
-      if (!company) {
-        return res.status(400).json({
-          success: false,
-          error: 'Please complete your company profile before using it for job postings',
-        });
-      }
+    // Verify company exists and belongs to the user
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
 
-      companyId = company.id;
-    } else {
-      // Use manual company info
-      if (!companyName) {
-        return res.status(400).json({
-          success: false,
-          error: 'Company name is required',
-        });
-      }
-      manualCompanyName = companyName;
-      manualCompanyWebsite = companyWebsite;
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        error: 'Company not found',
+      });
+    }
+
+    if (company.userId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to post jobs for this company',
+      });
     }
 
     const job = await prisma.job.create({
       data: {
         companyId,
-        companyName: manualCompanyName,
-        companyWebsite: manualCompanyWebsite,
         userId: req.user.userId,
         title,
         description,
@@ -157,7 +150,6 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
           { title: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } },
           { company: { name: { contains: search, mode: 'insensitive' } } },
-          { companyName: { contains: search, mode: 'insensitive' } },
         ],
       });
     }
@@ -225,15 +217,9 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
       prisma.job.count({ where }),
     ]);
 
-    // Parse JSON fields and normalize company data
+    // Parse JSON fields
     const jobsWithParsedData = jobs.map(job => ({
       ...job,
-      company: job.company || {
-        name: job.companyName,
-        logo: null,
-        location: null,
-        industry: null,
-      },
       responsibilities: job.responsibilities ? JSON.parse(job.responsibilities) : null,
       requiredQualifications: job.requiredQualifications
         ? JSON.parse(job.requiredQualifications)
@@ -281,7 +267,7 @@ export const getJobById = async (req: AuthRequest, res: Response) => {
             industry: true,
             companySize: true,
             website: true,
-            description: true,
+            about: true,
           },
         },
         user: {
@@ -525,7 +511,6 @@ export const getMyJobs = async (req: AuthRequest, res: Response) => {
         { title: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { company: { name: { contains: search, mode: 'insensitive' } } },
-        { companyName: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -584,7 +569,6 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
       prisma.job.findMany({
         where: {
           companyId: companyId,
-          isActive: true,
         },
         skip,
         take,
@@ -607,7 +591,6 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
       prisma.job.count({
         where: {
           companyId: companyId,
-          isActive: true,
         },
       }),
       prisma.company.findUnique({
@@ -615,11 +598,31 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
       }),
     ]);
 
+    // Get pending applications count for each job
+    const jobsWithPendingCount = await Promise.all(
+      jobs.map(async (job) => {
+        const pendingCount = await prisma.application.count({
+          where: {
+            jobId: job.id,
+            status: 'PENDING',
+          },
+        });
+
+        return {
+          ...job,
+          _count: {
+            ...job._count,
+            pendingApplications: pendingCount,
+          },
+        };
+      })
+    );
+
     return res.status(200).json({
       success: true,
       data: {
         company,
-        jobs,
+        jobs: jobsWithPendingCount,
         pagination: {
           total,
           page: parseInt(page),

@@ -242,7 +242,7 @@ function JobsPageContent() {
           {/* Filters Panel */}
           {showFilters && (
             <Card>
-              <CardContent className="pt-4 md:pt-6">
+              <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 pt-4 md:pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                   <div>
                     <label className="text-xs md:text-sm font-medium mb-2 block">Employment Type</label>
@@ -343,7 +343,7 @@ function JobsPageContent() {
           <JobCardSkeletonList count={5} />
         ) : jobs.length === 0 ? (
           <Card>
-            <CardContent className="py-20 text-center">
+            <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 py-20 text-center">
               <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
               <p className="text-muted-foreground mb-4">
@@ -363,7 +363,7 @@ function JobsPageContent() {
                   className="hover:shadow-lg hover:border-primary/50 transition-all duration-200 cursor-pointer"
                   onClick={() => router.push(`/jobs/${job.id}`)}
                 >
-                  <CardHeader className="space-y-3">
+                  <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6 space-y-3">
                     <div>
                       <h3 className="text-lg md:text-xl font-semibold mb-2 leading-snug">{job.title}</h3>
                       <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-muted-foreground mb-3">

@@ -12,7 +12,7 @@ import {
   unsaveJob,
   getSavedJobs,
 } from '../controllers/jobController';
-import { authenticate, optionalAuthenticate, authorizeRole } from '../middleware/auth';
+import { authenticate, optionalAuthenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
 const router = express.Router();
@@ -24,7 +24,7 @@ router.get('/company/:companyId', getCompanyJobs);
 // Job detail route (public, but shows extra info if authenticated)
 router.get('/job/:jobId', optionalAuthenticate, getJobById);
 router.get('/my-jobs', authenticate, getMyJobs);
-router.get('/saved', authenticate, authorizeRole('JOB_SEEKER'), getSavedJobs);
+router.get('/saved', authenticate, getSavedJobs);
 
 // Job CRUD (Any authenticated user can post jobs)
 router.post(
@@ -58,18 +58,16 @@ router.delete(
   deleteJob
 );
 
-// Save/Unsave jobs (Job Seeker only)
+// Save/Unsave jobs (all authenticated users can save jobs)
 router.post(
   '/:jobId/save',
   authenticate,
-  authorizeRole('JOB_SEEKER'),
   saveJob
 );
 
 router.delete(
   '/:jobId/save',
   authenticate,
-  authorizeRole('JOB_SEEKER'),
   unsaveJob
 );
 

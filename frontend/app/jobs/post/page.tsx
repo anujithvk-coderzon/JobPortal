@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { jobAPI } from '@/lib/api';
+import { api, jobAPI } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { Switch } from '@/components/ui/switch';
 import { CurrencySelect } from '@/components/CurrencySelect';
@@ -27,14 +27,27 @@ import {
   LOCATION_TYPE_OPTIONS,
   CURRENCY_OPTIONS,
 } from '@/lib/constants';
-import { Loader2, Plus, X, Briefcase, DollarSign, Building2 } from 'lucide-react';
+import { Loader2, Plus, X, Briefcase, DollarSign, Building2, Sparkles, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
-export default function PostJobPage() {
+interface Company {
+  id: string;
+  name: string;
+  logo: string | null;
+  location: string;
+  contactEmail: string;
+  contactPhone: string;
+}
+
+function PostJobPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [useCompanyProfile, setUseCompanyProfile] = useState(false);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -48,9 +61,6 @@ export default function PostJobPage() {
     salaryCurrency: 'USD',
     numberOfOpenings: '1',
     applicationDeadline: '',
-    // Manual company info
-    companyName: '',
-    companyWebsite: '',
   });
 
   const [responsibilities, setResponsibilities] = useState<string[]>(['']);
@@ -66,11 +76,47 @@ export default function PostJobPage() {
       return;
     }
 
-    // If user has a company profile, default to using it
-    if (user?.company) {
-      setUseCompanyProfile(true);
-    }
+    fetchCompanies();
   }, [isAuthenticated, isHydrated, user, router]);
+
+  useEffect(() => {
+    // Set company from URL parameter
+    const companyIdFromUrl = searchParams.get('companyId');
+    if (companyIdFromUrl && companies.length > 0) {
+      const companyExists = companies.find(c => c.id === companyIdFromUrl);
+      if (companyExists) {
+        setSelectedCompanyId(companyIdFromUrl);
+      }
+    }
+  }, [searchParams, companies]);
+
+  const fetchCompanies = async () => {
+    try {
+      setCompaniesLoading(true);
+      const response = await api.get('/companies');
+      if (response.success) {
+        setCompanies(response.data.companies);
+
+        // If no companies, redirect to create company page
+        if (response.data.companies.length === 0) {
+          toast({
+            title: 'No Companies Found',
+            description: 'Please create a company profile before posting jobs',
+          });
+          router.push('/company/create');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load companies',
+        variant: 'destructive',
+      });
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
@@ -105,10 +151,10 @@ export default function PostJobPage() {
     e.preventDefault();
 
     // Validation
-    if (!useCompanyProfile && !formData.companyName.trim()) {
+    if (!selectedCompanyId) {
       toast({
         title: 'Error',
-        description: 'Please provide company name or use your company profile',
+        description: 'Please select a company',
         variant: 'destructive',
       });
       return;
@@ -133,10 +179,7 @@ export default function PostJobPage() {
         requiredQualifications: requiredQualifications.filter((q) => q.trim() !== ''),
         preferredQualifications: preferredQualifications.filter((q) => q.trim() !== ''),
         requiredSkills: requiredSkills.filter((s) => s.trim() !== ''),
-        // Company information
-        useCompanyProfile,
-        companyName: !useCompanyProfile ? formData.companyName : undefined,
-        companyWebsite: !useCompanyProfile ? formData.companyWebsite : undefined,
+        companyId: selectedCompanyId,
       };
 
       const response = await jobAPI.createJob(jobData);
@@ -170,51 +213,202 @@ export default function PostJobPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Post an Official Job</h1>
-          <p className="text-muted-foreground">
-            Post a verified job opportunity on behalf of a company. For informal job leads or tips, use{' '}
-            <button
-              type="button"
-              onClick={() => router.push('/community/create')}
-              className="text-primary hover:underline font-medium"
-            >
-              Create Post
-            </button>{' '}
-            instead.
-          </p>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Header with Orange Theme */}
+        <div className="mb-6 sm:mb-8">
+          {/* Decorative Header */}
+          <div className="bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg p-6 sm:p-8 text-white shadow-lg mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <Briefcase className="h-6 w-6 sm:h-7 sm:w-7" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold">Post Official Job</h1>
+              </div>
+            </div>
+            <p className="text-orange-50 text-sm sm:text-base mb-4">
+              Post a verified job opportunity on behalf of your company
+            </p>
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4">
+              <p className="text-sm text-orange-50">
+                💡 <strong>Looking to share job tips or leads?</strong> Use{' '}
+                <button
+                  type="button"
+                  onClick={() => router.push('/community/create')}
+                  className="underline font-semibold hover:text-white transition-colors"
+                >
+                  Share to Community
+                </button>{' '}
+                instead for informal job-related content.
+              </p>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Company Selection */}
+          {companiesLoading ? (
+            <Card className="border-orange-100 shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : searchParams.get('companyId') && selectedCompanyId ? (
+            /* Compact view when coming from company page */
+            <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    {companies.find(c => c.id === selectedCompanyId)?.logo ? (
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden border-2 border-orange-200 shadow-sm">
+                        <Image
+                          src={companies.find(c => c.id === selectedCompanyId)!.logo!}
+                          alt={companies.find(c => c.id === selectedCompanyId)!.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 bg-orange-200 rounded-lg flex items-center justify-center">
+                        <Building2 className="h-6 w-6 text-orange-700" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Posting as</p>
+                    <h3 className="text-base font-bold text-orange-900">{companies.find(c => c.id === selectedCompanyId)?.name}</h3>
+                  </div>
+                </div>
+                {companies.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedCompanyId('')}
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                  >
+                    Change Company
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Full selection view when accessing directly */
+            <Card className="border-orange-100 shadow-sm">
+              <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+                <CardTitle className="flex items-center gap-2 text-orange-900">
+                  <Building2 className="h-5 w-5 text-orange-600" />
+                  Select Company
+                </CardTitle>
+                <CardDescription className="text-orange-700">Choose the company posting this job</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company <span className="text-red-500">*</span></Label>
+                  <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                    <SelectTrigger id="company" className="border-orange-200 focus:ring-orange-500">
+                      <SelectValue placeholder="Select a company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          <div className="flex items-center gap-2">
+                            {company.logo ? (
+                              <div className="relative w-5 h-5 rounded overflow-hidden">
+                                <Image
+                                  src={company.logo}
+                                  alt={company.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <Building2 className="h-4 w-4 text-orange-600" />
+                            )}
+                            <span>{company.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!selectedCompanyId && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Don't have a company yet?{' '}
+                      <button
+                        type="button"
+                        onClick={() => router.push('/company/create')}
+                        className="text-orange-600 hover:text-orange-700 font-medium underline"
+                      >
+                        Create one now
+                      </button>
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>Essential details about the position</CardDescription>
+          <Card className="border-orange-100 shadow-sm">
+            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+              <CardTitle className="flex items-center gap-2 text-orange-900">
+                <Briefcase className="h-5 w-5 text-orange-600" />
+                Job Details
+              </CardTitle>
+              <CardDescription className="text-orange-700">Essential details about the position</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
               <div>
-                <Label htmlFor="title">Job Title *</Label>
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="title">Job Title <span className="text-red-500">*</span></Label>
+                  <span className={`text-xs font-medium transition-colors ${
+                    formData.title.length > 100 ? 'text-red-500' :
+                    formData.title.length > 85 ? 'text-orange-500' :
+                    'text-muted-foreground'
+                  }`}>
+                    {formData.title.length}/100
+                  </span>
+                </div>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
                   placeholder="e.g., Senior Software Engineer"
+                  maxLength={100}
                   required
+                  className={formData.title.length > 100 ? 'border-red-500 focus:ring-red-500' : ''}
                 />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  A clear, specific job title helps attract the right candidates
+                </p>
               </div>
 
               <div>
-                <Label htmlFor="description">Job Description *</Label>
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="description">Job Description <span className="text-red-500">*</span></Label>
+                  <span className={`text-xs font-medium transition-colors ${
+                    formData.description.length > 5000 ? 'text-red-500' :
+                    formData.description.length > 4500 ? 'text-orange-500' :
+                    'text-muted-foreground'
+                  }`}>
+                    {formData.description.length}/5000
+                  </span>
+                </div>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   placeholder="Describe the role, company culture, and what makes this opportunity unique..."
-                  rows={6}
+                  rows={8}
+                  maxLength={5000}
                   required
+                  className={`resize-none ${formData.description.length > 5000 ? 'border-red-500 focus:ring-red-500' : ''}`}
                 />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Include key details about the role, team, culture, and growth opportunities
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -290,7 +484,7 @@ export default function PostJobPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="numberOfOpenings">Number of Openings *</Label>
+                  <Label htmlFor="numberOfOpenings">Number of Openings <span className="text-red-500">*</span></Label>
                   <Input
                     id="numberOfOpenings"
                     type="number"
@@ -299,6 +493,9 @@ export default function PostJobPage() {
                     onChange={(e) => handleInputChange('numberOfOpenings', e.target.value)}
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    How many positions are you hiring for?
+                  </p>
                 </div>
 
                 <div>
@@ -310,92 +507,32 @@ export default function PostJobPage() {
                     value={formData.applicationDeadline}
                     onChange={(e) => handleInputChange('applicationDeadline', e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Must be a future date
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Optional - Set when applications should close
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Company Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Company Information
-              </CardTitle>
-              <CardDescription>
-                Choose how you want to represent the company for this job posting
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {user?.company && (
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <Switch
-                      id="useCompanyProfile"
-                      checked={useCompanyProfile}
-                      onCheckedChange={setUseCompanyProfile}
-                    />
-                    <div>
-                      <Label htmlFor="useCompanyProfile" className="cursor-pointer font-medium">
-                        Use my company profile
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Post this job using your company profile: {user.company?.name}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!useCompanyProfile && (
-                <div className="space-y-4 p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    {user?.company
-                      ? 'Or enter company details manually for this job posting'
-                      : 'Enter company details for this job posting'}
-                  </p>
-
-                  <div>
-                    <Label htmlFor="companyName">
-                      Company Name <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="companyName"
-                      value={formData.companyName}
-                      onChange={(e) => handleInputChange('companyName', e.target.value)}
-                      placeholder="e.g., TechCorp Inc."
-                      required={!useCompanyProfile}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="companyWebsite">Company Website (Optional)</Label>
-                    <Input
-                      id="companyWebsite"
-                      type="url"
-                      value={formData.companyWebsite}
-                      onChange={(e) => handleInputChange('companyWebsite', e.target.value)}
-                      placeholder="https://example.com"
-                    />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Compensation */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
+          <Card className="border-orange-100 shadow-sm">
+            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+              <CardTitle className="flex items-center gap-2 text-orange-900">
+                <DollarSign className="h-5 w-5 text-orange-600" />
                 Compensation
               </CardTitle>
-              <CardDescription>Salary range for this position</CardDescription>
+              <CardDescription className="text-orange-700">Salary range for this position (optional but recommended)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="bg-orange-50/50 border border-orange-100 rounded-lg p-3.5 mb-4">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-orange-800 leading-relaxed">
+                    <strong className="font-semibold">Transparency tip:</strong> Including salary ranges can increase application rates by up to 30%. It helps attract serious candidates and saves time for both parties.
+                  </p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="salaryMin">Minimum Salary</Label>
@@ -429,31 +566,53 @@ export default function PostJobPage() {
                   />
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Leave blank if you prefer not to disclose salary information
+              </p>
             </CardContent>
           </Card>
 
+          {/* Divider */}
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-orange-200"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-background px-4 text-xs font-semibold text-orange-600 uppercase tracking-wider">
+                Position Details
+              </span>
+            </div>
+          </div>
+
           {/* Responsibilities */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Responsibilities</CardTitle>
-              <CardDescription>Key responsibilities for this role</CardDescription>
+          <Card className="border-orange-100 shadow-sm">
+            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+              <CardTitle className="text-orange-900">Responsibilities</CardTitle>
+              <CardDescription className="text-orange-700">Day-to-day tasks and key responsibilities</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground mb-3">
+                List the primary responsibilities this role will handle. Be specific and use action verbs.
+              </p>
               {responsibilities.map((responsibility, index) => (
                 <div key={index} className="flex gap-2">
-                  <Input
-                    value={responsibility}
-                    onChange={(e) =>
-                      handleArrayChange(responsibilities, setResponsibilities, index, e.target.value)
-                    }
-                    placeholder="e.g., Design and implement new features"
-                  />
+                  <div className="flex-1">
+                    <Input
+                      value={responsibility}
+                      onChange={(e) =>
+                        handleArrayChange(responsibilities, setResponsibilities, index, e.target.value)
+                      }
+                      placeholder={index === 0 ? "e.g., Design and implement scalable backend services" : "e.g., Collaborate with cross-functional teams"}
+                      maxLength={200}
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(responsibilities, setResponsibilities, index)}
                     disabled={responsibilities.length === 1}
+                    className="flex-shrink-0"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -464,7 +623,7 @@ export default function PostJobPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(responsibilities, setResponsibilities)}
-                className="w-full"
+                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Responsibility
@@ -473,27 +632,34 @@ export default function PostJobPage() {
           </Card>
 
           {/* Required Qualifications */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Required Qualifications</CardTitle>
-              <CardDescription>Must-have qualifications for candidates</CardDescription>
+          <Card className="border-orange-100 shadow-sm">
+            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+              <CardTitle className="text-orange-900">Required Qualifications</CardTitle>
+              <CardDescription className="text-orange-700">Essential qualifications candidates must have</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground mb-3">
+                Include education, certifications, years of experience, or specific achievements required.
+              </p>
               {requiredQualifications.map((qualification, index) => (
                 <div key={index} className="flex gap-2">
-                  <Input
-                    value={qualification}
-                    onChange={(e) =>
-                      handleArrayChange(requiredQualifications, setRequiredQualifications, index, e.target.value)
-                    }
-                    placeholder="e.g., Bachelor's degree in Computer Science"
-                  />
+                  <div className="flex-1">
+                    <Input
+                      value={qualification}
+                      onChange={(e) =>
+                        handleArrayChange(requiredQualifications, setRequiredQualifications, index, e.target.value)
+                      }
+                      placeholder={index === 0 ? "e.g., Bachelor's degree in Computer Science or related field" : "e.g., 5+ years of professional software development"}
+                      maxLength={200}
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(requiredQualifications, setRequiredQualifications, index)}
                     disabled={requiredQualifications.length === 1}
+                    className="flex-shrink-0"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -504,7 +670,7 @@ export default function PostJobPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(requiredQualifications, setRequiredQualifications)}
-                className="w-full"
+                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Qualification
@@ -513,27 +679,34 @@ export default function PostJobPage() {
           </Card>
 
           {/* Preferred Qualifications */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Preferred Qualifications</CardTitle>
-              <CardDescription>Nice-to-have qualifications</CardDescription>
+          <Card className="border-orange-100 shadow-sm">
+            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+              <CardTitle className="text-orange-900">Preferred Qualifications</CardTitle>
+              <CardDescription className="text-orange-700">Bonus qualifications that would make a candidate stand out</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground mb-3">
+                Optional qualifications that would be beneficial but aren't deal-breakers.
+              </p>
               {preferredQualifications.map((qualification, index) => (
                 <div key={index} className="flex gap-2">
-                  <Input
-                    value={qualification}
-                    onChange={(e) =>
-                      handleArrayChange(preferredQualifications, setPreferredQualifications, index, e.target.value)
-                    }
-                    placeholder="e.g., Experience with cloud platforms"
-                  />
+                  <div className="flex-1">
+                    <Input
+                      value={qualification}
+                      onChange={(e) =>
+                        handleArrayChange(preferredQualifications, setPreferredQualifications, index, e.target.value)
+                      }
+                      placeholder={index === 0 ? "e.g., Experience with cloud platforms (AWS, Azure, GCP)" : "e.g., Open source contributions or published technical writing"}
+                      maxLength={200}
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(preferredQualifications, setPreferredQualifications, index)}
                     disabled={preferredQualifications.length === 1}
+                    className="flex-shrink-0"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -544,7 +717,7 @@ export default function PostJobPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(preferredQualifications, setPreferredQualifications)}
-                className="w-full"
+                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Qualification
@@ -553,27 +726,34 @@ export default function PostJobPage() {
           </Card>
 
           {/* Required Skills */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Required Skills</CardTitle>
-              <CardDescription>Technical and soft skills required</CardDescription>
+          <Card className="border-orange-100 shadow-sm">
+            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+              <CardTitle className="text-orange-900">Required Skills</CardTitle>
+              <CardDescription className="text-orange-700">Technical and soft skills candidates need</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground mb-3">
+                List specific technologies, frameworks, tools, and soft skills needed for success in this role.
+              </p>
               {requiredSkills.map((skill, index) => (
                 <div key={index} className="flex gap-2">
-                  <Input
-                    value={skill}
-                    onChange={(e) =>
-                      handleArrayChange(requiredSkills, setRequiredSkills, index, e.target.value)
-                    }
-                    placeholder="e.g., JavaScript, React, Node.js"
-                  />
+                  <div className="flex-1">
+                    <Input
+                      value={skill}
+                      onChange={(e) =>
+                        handleArrayChange(requiredSkills, setRequiredSkills, index, e.target.value)
+                      }
+                      placeholder={index === 0 ? "e.g., JavaScript, TypeScript, React" : index === 1 ? "e.g., RESTful APIs, GraphQL" : "e.g., Strong communication and teamwork"}
+                      maxLength={150}
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(requiredSkills, setRequiredSkills, index)}
                     disabled={requiredSkills.length === 1}
+                    className="flex-shrink-0"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -584,7 +764,7 @@ export default function PostJobPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(requiredSkills, setRequiredSkills)}
-                className="w-full"
+                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Skill
@@ -592,9 +772,45 @@ export default function PostJobPage() {
             </CardContent>
           </Card>
 
+          {/* Motivational Submit Section */}
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-lg p-5 sm:p-6 border border-orange-200 shadow-sm">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-600 to-orange-700 rounded-full flex items-center justify-center shadow-md">
+                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-base sm:text-lg font-semibold text-orange-900 mb-1.5">Ready to find your next team member?</h4>
+                <p className="text-sm text-orange-800 leading-relaxed mb-3">
+                  Your job posting will be visible to all candidates on the platform. Make sure all information is accurate and complete to attract the best talent for your team.
+                </p>
+                <div className="bg-white/60 rounded-lg p-3 backdrop-blur-sm border border-orange-200/50">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-orange-700 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-orange-900 leading-relaxed">
+                      <strong className="font-semibold">Pro tip:</strong> Jobs with complete information (including salary ranges and detailed descriptions) receive 2-3x more qualified applications. Take a moment to review everything before posting.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Submit Buttons */}
-          <div className="flex gap-4">
-            <Button type="submit" disabled={loading} className="flex-1">
+          <div className="flex flex-col-reverse sm:flex-row gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              disabled={loading}
+              className="flex-1 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white shadow-md hover:shadow-lg transition-all"
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -603,21 +819,28 @@ export default function PostJobPage() {
               ) : (
                 <>
                   <Briefcase className="mr-2 h-4 w-4" />
-                  Post Job
+                  Post Official Job
                 </>
               )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={loading}
-            >
-              Cancel
             </Button>
           </div>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function PostJobPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    }>
+      <PostJobPageContent />
+    </Suspense>
   );
 }

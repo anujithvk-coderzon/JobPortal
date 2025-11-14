@@ -1,5 +1,3 @@
-export type Role = 'JOB_SEEKER' | 'EMPLOYER';
-
 export type EmploymentType = 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERNSHIP' | 'FREELANCE';
 
 export type ExperienceLevel = 'ENTRY' | 'MID' | 'SENIOR' | 'EXECUTIVE';
@@ -18,7 +16,6 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: Role;
   phone?: string;
   location?: string;
   profilePhoto?: string;

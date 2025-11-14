@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { jobNewsAPI } from '@/lib/api';
 import { timeAgo, getInitials } from '@/lib/utils';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import {
   ArrowLeft,
   User,
@@ -33,6 +34,8 @@ interface Post {
   location?: string;
   source?: string;
   externalLink?: string;
+  poster?: string;
+  video?: string;
   createdAt: string;
   helpfulCount?: number;
   user: {
@@ -199,7 +202,7 @@ export default function PostDetailPage() {
               <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                 <Avatar className="h-10 w-10 md:h-12 md:w-12 flex-shrink-0">
                   <AvatarImage
-                    src={post.user.profilePhoto ? `http://localhost:5001${post.user.profilePhoto}` : undefined}
+                    src={post.user.profilePhoto || undefined}
                     alt={post.user.name}
                   />
                   <AvatarFallback>{getInitials(post.user.name)}</AvatarFallback>
@@ -265,6 +268,29 @@ export default function PostDetailPage() {
               )}
             </div>
           </CardHeader>
+
+          {/* Media Section - Separate section with max-width like LinkedIn */}
+          {(post.poster || post.video) && (
+            <div className="px-6 py-4 border-b">
+              {/* Poster Image */}
+              {post.poster && (
+                <div className="relative rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 mx-auto" style={{ maxWidth: '680px' }}>
+                  <img
+                    src={post.poster}
+                    alt={post.title}
+                    className="w-full h-auto object-contain"
+                    style={{ maxHeight: '450px' }}
+                    loading="lazy"
+                  />
+                </div>
+              )}
+
+              {/* Video */}
+              {post.video && (
+                <VideoPlayer videoUrl={post.video} title={post.title} maxWidth="680px" />
+              )}
+            </div>
+          )}
 
           <CardContent className="space-y-6">
             {/* Description */}

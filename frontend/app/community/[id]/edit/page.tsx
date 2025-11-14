@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { jobNewsAPI } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { Loader2, Newspaper, ArrowLeft } from 'lucide-react';
+import { Loader2, Newspaper, ArrowLeft, Upload, Image as ImageIcon, Video, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function EditPostPage() {
@@ -31,6 +31,17 @@ export default function EditPostPage() {
     source: '',
     externalLink: '',
   });
+
+  // Media states
+  const [currentPoster, setCurrentPoster] = useState<string | null>(null);
+  const [currentVideo, setCurrentVideo] = useState<string | null>(null);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [removePoster, setRemovePoster] = useState(false);
+  const [removeVideo, setRemoveVideo] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -69,6 +80,10 @@ export default function EditPostPage() {
         source: post.source || '',
         externalLink: post.externalLink || '',
       });
+
+      // Set current media
+      setCurrentPoster(post.poster || null);
+      setCurrentVideo(post.video || null);
     } catch (error: any) {
       console.error('Error fetching post:', error);
       toast({
@@ -89,6 +104,98 @@ export default function EditPostPage() {
     });
   };
 
+  const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Error',
+        description: 'Please select an image file (JPG, PNG, etc.)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Error',
+        description: 'Poster image must be less than 10MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setPosterFile(file);
+    setRemovePoster(false);
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPosterPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+      toast({
+        title: 'Error',
+        description: 'Please select a video file (MP4, MOV, etc.)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (50MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({
+        title: 'Error',
+        description: 'Video must be less than 50MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setVideoFile(file);
+    setRemoveVideo(false);
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setVideoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePoster = () => {
+    setPosterFile(null);
+    setPosterPreview(null);
+    setCurrentPoster(null);
+    setRemovePoster(true);
+  };
+
+  const handleRemoveVideo = () => {
+    setVideoFile(null);
+    setVideoPreview(null);
+    setCurrentVideo(null);
+    setRemoveVideo(true);
+  };
+
+  const handleCancelNewPoster = () => {
+    setPosterFile(null);
+    setPosterPreview(null);
+  };
+
+  const handleCancelNewVideo = () => {
+    setVideoFile(null);
+    setVideoPreview(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -102,6 +209,7 @@ export default function EditPostPage() {
     }
 
     setLoading(true);
+    setUploadingMedia(true);
 
     try {
       // Filter out empty optional fields to avoid validation errors
@@ -115,6 +223,48 @@ export default function EditPostPage() {
       if (formData.location.trim()) payload.location = formData.location.trim();
       if (formData.source.trim()) payload.source = formData.source.trim();
       if (formData.externalLink.trim()) payload.externalLink = formData.externalLink.trim();
+
+      // Handle poster removal
+      if (removePoster) {
+        payload.removePoster = true;
+      }
+
+      // Handle new poster upload
+      if (posterFile) {
+        const reader = new FileReader();
+        const posterBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(posterFile);
+        });
+        payload.poster = posterBase64;
+        payload.posterMimeType = posterFile.type;
+      }
+
+      // Handle video removal
+      if (removeVideo) {
+        payload.removeVideo = true;
+      }
+
+      // Handle new video upload
+      if (videoFile) {
+        const reader = new FileReader();
+        const videoBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(videoFile);
+        });
+        payload.video = videoBase64;
+        payload.videoMimeType = videoFile.type;
+      }
 
       await jobNewsAPI.updateJobNews(params.id as string, payload);
 
@@ -133,6 +283,7 @@ export default function EditPostPage() {
       });
     } finally {
       setLoading(false);
+      setUploadingMedia(false);
     }
   };
 
@@ -286,6 +437,139 @@ export default function EditPostPage() {
                 </p>
               </div>
 
+              {/* Poster Image Upload (Optional) */}
+              <div className="space-y-2">
+                <Label htmlFor="poster">Poster Image (Optional)</Label>
+                {posterPreview || currentPoster ? (
+                  <div className="relative border-2 border-dashed rounded-lg p-4 bg-gray-50 dark:bg-gray-900 mx-auto" style={{ maxWidth: '550px' }}>
+                    <img
+                      src={posterPreview || currentPoster || ''}
+                      alt="Poster preview"
+                      className="w-full h-auto object-contain rounded-md"
+                      style={{ maxHeight: '350px' }}
+                    />
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      {posterPreview && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleCancelNewPoster}
+                          disabled={loading}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleRemovePoster}
+                        disabled={loading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {posterPreview && (
+                      <p className="text-xs text-green-600 mt-2">New poster will be uploaded</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                    <input
+                      type="file"
+                      id="poster"
+                      accept="image/*"
+                      onChange={handlePosterUpload}
+                      disabled={loading}
+                      className="hidden"
+                    />
+                    <label htmlFor="poster" className="cursor-pointer">
+                      <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="font-medium mb-1">Upload Poster Image</p>
+                      <p className="text-xs text-muted-foreground">
+                        JPG, PNG or GIF (max 10MB)
+                      </p>
+                    </label>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Add a visual element to make your post stand out
+                </p>
+              </div>
+
+              {/* Video Upload (Optional) */}
+              <div className="space-y-2">
+                <Label htmlFor="video">Video (Optional)</Label>
+                {videoPreview || currentVideo ? (
+                  <div className="relative border-2 border-dashed rounded-lg p-4 bg-black mx-auto" style={{ maxWidth: '550px' }}>
+                    {videoPreview ? (
+                      <video
+                        src={videoPreview}
+                        controls
+                        className="w-full rounded-md"
+                        style={{ maxHeight: '350px' }}
+                      />
+                    ) : currentVideo ? (
+                      <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+                        <iframe
+                          src={currentVideo}
+                          className="absolute top-0 left-0 w-full h-full rounded-md"
+                          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : null}
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      {videoPreview && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleCancelNewVideo}
+                          disabled={loading}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleRemoveVideo}
+                        disabled={loading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {videoPreview && (
+                      <p className="text-xs text-green-600 mt-2">New video will be uploaded</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                    <input
+                      type="file"
+                      id="video"
+                      accept="video/*"
+                      onChange={handleVideoUpload}
+                      disabled={loading}
+                      className="hidden"
+                    />
+                    <label htmlFor="video" className="cursor-pointer">
+                      <Video className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="font-medium mb-1">Upload Video</p>
+                      <p className="text-xs text-muted-foreground">
+                        MP4, MOV or WebM (max 50MB)
+                      </p>
+                    </label>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Share a video tutorial, demo, or announcement
+                </p>
+              </div>
+
               {/* Submit Button */}
               <div className="flex gap-4 pt-4">
                 <Button
@@ -301,7 +585,7 @@ export default function EditPostPage() {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
+                      {uploadingMedia ? 'Uploading media...' : 'Updating...'}
                     </>
                   ) : (
                     <>

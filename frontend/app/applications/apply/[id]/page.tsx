@@ -11,9 +11,28 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { jobAPI, applicationAPI } from '@/lib/api';
+import { jobAPI, applicationAPI, userAPI } from '@/lib/api';
 import { Job } from '@/lib/types';
-import { Loader2, ArrowLeft, Briefcase, Building2, MapPin, Send, Save, AlertCircle, CheckCircle, Plus, Pencil, Trash2, X } from 'lucide-react';
+import { LocationAutocomplete } from '@/components/LocationAutocomplete';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { DEGREE_OPTIONS, getFieldsOfStudy } from '@/lib/degrees';
+import { Loader2, ArrowLeft, Briefcase, Building2, MapPin, Send, Save, AlertCircle, CheckCircle, Plus, Pencil, Trash2, X, Upload, FileText } from 'lucide-react';
 
 interface ProfileData {
   name: string;
@@ -29,7 +48,7 @@ interface ProfileData {
 export default function ApplyJobPage() {
   const router = useRouter();
   const params = useParams();
-  const { user, isAuthenticated, isHydrated } = useAuthStore();
+  const { user, isAuthenticated, isHydrated, triggerProfileUpdate } = useAuthStore();
   const { toast } = useToast();
 
   const [job, setJob] = useState<Job | null>(null);
@@ -64,11 +83,20 @@ export default function ApplyJobPage() {
   const [profileChanged, setProfileChanged] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Resume states
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const [uploadingResume, setUploadingResume] = useState(false);
+
   // Modal states
   const [showEducationForm, setShowEducationForm] = useState(false);
   const [showExperienceForm, setShowExperienceForm] = useState(false);
   const [showSkillForm, setShowSkillForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+
+  // Delete dialog states
+  const [deleteEducationId, setDeleteEducationId] = useState<string | null>(null);
+  const [deleteExperienceId, setDeleteExperienceId] = useState<string | null>(null);
+  const [deleteResumeDialogOpen, setDeleteResumeDialogOpen] = useState(false);
 
   const jobId = params.id as string;
 
@@ -115,14 +143,10 @@ export default function ApplyJobPage() {
       }
 
       // Fetch user profile
-      const token = localStorage.getItem('token');
-      const profileResponse = await fetch('http://localhost:5001/api/users/profile', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileResponse = await userAPI.getProfile();
 
-      if (profileResponse.ok) {
-        const profileDataResponse = await profileResponse.json();
-        const userData = profileDataResponse.data;
+      if (profileResponse.data.success) {
+        const userData = profileResponse.data.data;
 
         const profile = {
           name: userData.name || '',
@@ -138,6 +162,9 @@ export default function ApplyJobPage() {
         setProfileData(profile);
         setOriginalProfileData(profile);
         setProfileSaved(!hasEmptyRequiredFields(profile));
+
+        // Set resume URL
+        setResumeUrl(userData.profile?.resume || null);
       }
     } catch (error: any) {
       toast({
@@ -152,41 +179,26 @@ export default function ApplyJobPage() {
   };
 
   const hasEmptyRequiredFields = (profile: ProfileData) => {
-    return !profile.name || !profile.phone || !profile.location || !profile.bio;
+    return !profile.name || !profile.phone || !profile.location || !profile.bio || profile.education.length === 0;
   };
 
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      const token = localStorage.getItem('token');
-
       // Update basic info
-      await fetch('http://localhost:5001/api/users/basic-info', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: profileData.name,
-          phone: profileData.phone,
-          location: profileData.location,
-        }),
+      await userAPI.updateBasicInfo({
+        name: profileData.name,
+        phone: profileData.phone,
+        location: profileData.location,
       });
 
       // Update bio
-      await fetch('http://localhost:5001/api/users/profile-info', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ bio: profileData.bio }),
-      });
+      await userAPI.updateProfile({ bio: profileData.bio });
 
       setOriginalProfileData(profileData);
       setProfileSaved(true);
       setProfileChanged(false);
+      triggerProfileUpdate();
 
       toast({
         title: 'Success',
@@ -205,132 +217,86 @@ export default function ApplyJobPage() {
 
   const addExperience = async (data: any) => {
     try {
-      const token = localStorage.getItem('token');
-      const method = editingItem ? 'PUT' : 'POST';
-      const url = editingItem
-        ? `http://localhost:5001/api/users/experience/${editingItem.id}`
-        : 'http://localhost:5001/api/users/experience';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save experience');
+      if (editingItem) {
+        await userAPI.updateExperience(editingItem.id, data);
+      } else {
+        await userAPI.addExperience(data);
       }
 
       await fetchJobAndProfile();
+      triggerProfileUpdate();
       setShowExperienceForm(false);
       setEditingItem(null);
       toast({ title: 'Success', description: `Experience ${editingItem ? 'updated' : 'added'} successfully` });
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to save experience',
+        description: error.response?.data?.error || 'Failed to save experience',
         variant: 'destructive',
       });
     }
   };
 
   const deleteExperience = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this experience entry?')) return;
-
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5001/api/users/experience/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await userAPI.deleteExperience(id);
 
       await fetchJobAndProfile();
+      triggerProfileUpdate();
+      setDeleteExperienceId(null);
       toast({ title: 'Success', description: 'Experience deleted successfully' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to delete experience', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to delete experience', variant: 'destructive' });
     }
   };
 
   const addEducation = async (data: any) => {
     try {
-      const token = localStorage.getItem('token');
-      const method = editingItem ? 'PUT' : 'POST';
-      const url = editingItem
-        ? `http://localhost:5001/api/users/education/${editingItem.id}`
-        : 'http://localhost:5001/api/users/education';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save education');
+      if (editingItem) {
+        await userAPI.updateEducation(editingItem.id, data);
+      } else {
+        await userAPI.addEducation(data);
       }
 
       await fetchJobAndProfile();
+      triggerProfileUpdate();
       setShowEducationForm(false);
       setEditingItem(null);
       toast({ title: 'Success', description: `Education ${editingItem ? 'updated' : 'added'} successfully` });
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to save education',
+        description: error.response?.data?.error || 'Failed to save education',
         variant: 'destructive',
       });
     }
   };
 
   const deleteEducation = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this education entry?')) return;
-
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5001/api/users/education/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await userAPI.deleteEducation(id);
 
       await fetchJobAndProfile();
+      triggerProfileUpdate();
+      setDeleteEducationId(null);
       toast({ title: 'Success', description: 'Education deleted successfully' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to delete education', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to delete education', variant: 'destructive' });
     }
   };
 
   const addSkill = async (name: string, level?: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/api/users/skills', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name, level }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add skill');
-      }
+      await userAPI.addSkill({ name, level });
 
       await fetchJobAndProfile();
+      triggerProfileUpdate();
       setShowSkillForm(false);
       toast({ title: 'Success', description: 'Skill added successfully' });
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to add skill',
+        description: error.response?.data?.error || 'Failed to add skill',
         variant: 'destructive',
       });
     }
@@ -338,27 +304,122 @@ export default function ApplyJobPage() {
 
   const deleteSkill = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5001/api/users/skills/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await userAPI.deleteSkill(id);
 
       await fetchJobAndProfile();
+      triggerProfileUpdate();
       toast({ title: 'Success', description: 'Skill deleted successfully' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to delete skill', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to delete skill', variant: 'destructive' });
+    }
+  };
+
+  const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: 'Error',
+        description: 'Please upload a PDF or Word document',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Error',
+        description: 'Resume size must be less than 10MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setUploadingResume(true);
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64File = reader.result as string;
+
+        const response = await userAPI.uploadResume({
+          file: base64File,
+          mimeType: file.type,
+          fileName: file.name,
+        });
+
+        if (response.data.success) {
+          setResumeUrl(response.data.data.resume);
+          triggerProfileUpdate();
+          toast({
+            title: 'Success',
+            description: 'Resume uploaded successfully',
+          });
+        }
+      };
+
+      reader.onerror = () => {
+        throw new Error('Failed to read file');
+      };
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to upload resume',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingResume(false);
+      // Reset input
+      event.target.value = '';
+    }
+  };
+
+  const handleDeleteResume = async () => {
+    try {
+      setUploadingResume(true);
+      await userAPI.deleteResume();
+      setResumeUrl(null);
+      triggerProfileUpdate();
+      setDeleteResumeDialogOpen(false);
+      toast({
+        title: 'Success',
+        description: 'Resume removed successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to delete resume',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingResume(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Check if resume is uploaded
+    if (!resumeUrl) {
+      toast({
+        title: 'Resume Required',
+        description: 'Please upload your resume before applying',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Check if required profile fields are filled
     if (hasEmptyRequiredFields(profileData)) {
       toast({
         title: 'Incomplete Profile',
-        description: 'Please fill in all required profile fields (Name, Phone, Location, Bio) and save before applying',
+        description: 'Please fill in all required profile fields (Name, Phone, Location, Bio, Education) and save before applying',
         variant: 'destructive',
       });
       return;
@@ -420,7 +481,7 @@ export default function ApplyJobPage() {
   }
 
   const hasEmptyFields = hasEmptyRequiredFields(profileData);
-  const canSubmit = !hasEmptyFields && !profileChanged && profileSaved && coverLetter.trim();
+  const canSubmit = !hasEmptyFields && !profileChanged && profileSaved && coverLetter.trim() && resumeUrl;
 
   return (
     <div className="min-h-screen bg-background">
@@ -523,10 +584,9 @@ export default function ApplyJobPage() {
                   <Label htmlFor="location">
                     Location <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="location"
+                  <LocationAutocomplete
                     value={profileData.location}
-                    onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
+                    onChange={(value) => setProfileData({ ...profileData, location: value })}
                     placeholder="City, Country"
                     required
                   />
@@ -551,7 +611,7 @@ export default function ApplyJobPage() {
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
-                    Experience, education, and skills are optional but recommended to strengthen your application
+                    <span className="font-semibold text-foreground">Education is required.</span> Experience and skills are optional but recommended to strengthen your application
                   </p>
                   <Button
                     type="button"
@@ -638,7 +698,7 @@ export default function ApplyJobPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => deleteExperience(exp.id)}
+                            onClick={() => setDeleteExperienceId(exp.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -656,11 +716,13 @@ export default function ApplyJobPage() {
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle>Education</CardTitle>
+                  <CardTitle>
+                    Education <span className="text-destructive">*</span>
+                  </CardTitle>
                   <CardDescription>
                     {profileData.education.length > 0
                       ? 'Your educational background will be included with your application'
-                      : 'Add education to strengthen your application (Optional)'}
+                      : 'Add at least one education entry - Required to apply'}
                   </CardDescription>
                 </div>
                 <Button
@@ -680,8 +742,8 @@ export default function ApplyJobPage() {
             <CardContent>
               {profileData.education.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
-                  <p className="mb-2">No education added yet</p>
-                  <p className="text-sm">Click "Add Education" to get started</p>
+                  <p className="mb-2 font-medium text-destructive">No education added yet - Required</p>
+                  <p className="text-sm">Click "Add Education" to add your educational background</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -713,7 +775,7 @@ export default function ApplyJobPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => deleteEducation(edu.id)}
+                            onClick={() => setDeleteEducationId(edu.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -770,6 +832,91 @@ export default function ApplyJobPage() {
                       </button>
                     </Badge>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Resume Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Resume <span className="text-destructive">*</span></CardTitle>
+              <CardDescription>
+                Upload your resume (PDF or Word document, max 10MB)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {resumeUrl ? (
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="font-medium">Resume uploaded</p>
+                      <a
+                        href={resumeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View resume
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      id="resume-replace-input"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={handleResumeUpload}
+                      className="hidden"
+                      disabled={uploadingResume}
+                    />
+                    <label htmlFor="resume-replace-input">
+                      <Button variant="outline" size="sm" asChild disabled={uploadingResume}>
+                        <span className="cursor-pointer">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Change
+                        </span>
+                      </Button>
+                    </label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteResumeDialogOpen(true)}
+                      disabled={uploadingResume}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed rounded-lg p-8">
+                  <input
+                    type="file"
+                    id="resume-input"
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={handleResumeUpload}
+                    className="hidden"
+                    disabled={uploadingResume}
+                  />
+                  <label
+                    htmlFor="resume-input"
+                    className="flex flex-col items-center justify-center cursor-pointer"
+                  >
+                    {uploadingResume ? (
+                      <>
+                        <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+                        <p className="text-sm text-muted-foreground">Uploading...</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-sm font-medium mb-1">Click to upload resume</p>
+                        <p className="text-xs text-muted-foreground">PDF or Word (max 10MB)</p>
+                      </>
+                    )}
+                  </label>
                 </div>
               )}
             </CardContent>
@@ -887,6 +1034,60 @@ export default function ApplyJobPage() {
             onCancel={() => setShowSkillForm(false)}
           />
         )}
+
+        {/* Delete Education Dialog */}
+        <AlertDialog open={!!deleteEducationId} onOpenChange={(open) => !open && setDeleteEducationId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Education</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this education entry? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteEducationId && deleteEducation(deleteEducationId)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Experience Dialog */}
+        <AlertDialog open={!!deleteExperienceId} onOpenChange={(open) => !open && setDeleteExperienceId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Experience</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this experience entry? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteExperienceId && deleteExperience(deleteExperienceId)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Resume Dialog */}
+        <AlertDialog open={deleteResumeDialogOpen} onOpenChange={setDeleteResumeDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Resume</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove your resume? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteResume}>
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
@@ -904,10 +1105,17 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
     grade: initialData?.grade || '',
     description: initialData?.description || '',
   });
+  const [customDegree, setCustomDegree] = useState('');
+  const [customField, setCustomField] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    const finalData = {
+      ...formData,
+      degree: formData.degree === 'Other' ? customDegree : formData.degree,
+      fieldOfStudy: formData.fieldOfStudy === 'Other Field' ? customField : formData.fieldOfStudy,
+    };
+    onSave(finalData);
   };
 
   return (
@@ -924,30 +1132,70 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
                 <Input
                   value={formData.institution}
                   onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
-                  placeholder="St. Thomas College of Engineering and Technology"
+                  placeholder="Harvard University, MIT, Stanford University"
                   required
                 />
                 <p className="text-xs text-muted-foreground mt-1">School, college, or university name</p>
               </div>
               <div>
                 <Label>Degree *</Label>
-                <Input
+                <Select
                   value={formData.degree}
-                  onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
-                  placeholder="B.Tech, M.Sc, Bachelor's, Master's"
+                  onValueChange={(value) => setFormData({ ...formData, degree: value, fieldOfStudy: '' })}
                   required
-                />
-                <p className="text-xs text-muted-foreground mt-1">Type of degree or certification</p>
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select degree" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {DEGREE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select your degree type</p>
+                {formData.degree === 'Other' && (
+                  <Input
+                    value={customDegree}
+                    onChange={(e) => setCustomDegree(e.target.value)}
+                    placeholder="Enter your degree"
+                    className="mt-2"
+                    required
+                  />
+                )}
               </div>
               <div>
                 <Label>Field of Study *</Label>
-                <Input
+                <Select
                   value={formData.fieldOfStudy}
-                  onChange={(e) => setFormData({ ...formData, fieldOfStudy: e.target.value })}
-                  placeholder="Computer Science and Engineering"
+                  onValueChange={(value) => setFormData({ ...formData, fieldOfStudy: value })}
                   required
-                />
-                <p className="text-xs text-muted-foreground mt-1">Your major or specialization</p>
+                  disabled={!formData.degree}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.degree ? "Select field of study" : "Select degree first"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {getFieldsOfStudy(formData.degree).map((field) => (
+                      <SelectItem key={field} value={field}>
+                        {field}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="Other Field">Other (Specify)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select your specialization</p>
+                {formData.fieldOfStudy === 'Other Field' && (
+                  <Input
+                    value={customField}
+                    onChange={(e) => setCustomField(e.target.value)}
+                    placeholder="Enter your field of study"
+                    className="mt-2"
+                    required
+                  />
+                )}
               </div>
               <div>
                 <Label>Grade (Optional)</Label>
@@ -1059,9 +1307,9 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
               </div>
               <div className="md:col-span-2">
                 <Label>Location (Optional)</Label>
-                <Input
+                <LocationAutocomplete
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, location: value })}
                   placeholder="San Francisco, CA or Remote"
                 />
                 <p className="text-xs text-muted-foreground mt-1">City, state/country or Remote</p>

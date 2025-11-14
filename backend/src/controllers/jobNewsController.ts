@@ -1,6 +1,14 @@
 import { Response } from 'express';
 import prisma from '../config/database';
 import { AuthRequest } from '../types';
+import {
+  uploadToBunny,
+  deleteFromBunny,
+  extractFilenameFromUrl,
+  generatePosterFilename,
+  uploadVideoToBunnyStream,
+  deleteVideoFromBunnyStream,
+} from '../utils/bunnyStorage';
 
 export const createJobNews = async (req: AuthRequest, res: Response) => {
   try {
@@ -18,7 +26,57 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
       location,
       source,
       externalLink,
+      poster,
+      posterMimeType,
+      video,
+      videoMimeType,
     } = req.body;
+
+    let posterUrl: string | undefined;
+    let videoUrl: string | undefined;
+    let videoId: string | undefined;
+
+    // Handle poster upload
+    if (poster && posterMimeType) {
+      const extension = posterMimeType.split('/')[1];
+      const filename = generatePosterFilename(req.user.userId, extension);
+      const buffer = Buffer.from(poster, 'base64');
+
+      const uploadResult = await uploadToBunny(buffer, filename, posterMimeType);
+
+      if (uploadResult.success) {
+        posterUrl = uploadResult.url;
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to upload poster',
+        });
+      }
+    }
+
+    // Handle video upload
+    if (video) {
+      const buffer = Buffer.from(video, 'base64');
+      const uploadResult = await uploadVideoToBunnyStream(buffer, title);
+
+      if (uploadResult.success && uploadResult.videoUrl && uploadResult.videoId) {
+        videoUrl = uploadResult.videoUrl;
+        videoId = uploadResult.videoId;
+      } else {
+        console.error('Video upload failed:', uploadResult.error);
+        // If poster was uploaded but video fails, delete the poster
+        if (posterUrl) {
+          const filename = extractFilenameFromUrl(posterUrl);
+          if (filename) {
+            await deleteFromBunny(filename);
+          }
+        }
+        return res.status(500).json({
+          success: false,
+          error: uploadResult.error || 'Failed to upload video',
+        });
+      }
+    }
 
     const jobNews = await prisma.jobNews.create({
       data: {
@@ -29,6 +87,9 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
         location,
         source,
         externalLink,
+        poster: posterUrl,
+        video: videoUrl,
+        videoId,
       },
       include: {
         user: {
@@ -228,7 +289,80 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
       source,
       externalLink,
       isActive,
+      poster,
+      posterMimeType,
+      video,
+      videoMimeType,
+      removePoster,
+      removeVideo,
     } = req.body;
+
+    let posterUrl = existingJobNews.poster;
+    let videoUrl = existingJobNews.video;
+    let videoId = existingJobNews.videoId;
+
+    // Handle poster removal
+    if (removePoster && existingJobNews.poster) {
+      const filename = extractFilenameFromUrl(existingJobNews.poster);
+      if (filename) {
+        await deleteFromBunny(filename);
+      }
+      posterUrl = null;
+    }
+
+    // Handle new poster upload
+    if (poster && posterMimeType) {
+      // Delete old poster if exists
+      if (existingJobNews.poster) {
+        const filename = extractFilenameFromUrl(existingJobNews.poster);
+        if (filename) {
+          await deleteFromBunny(filename);
+        }
+      }
+
+      const extension = posterMimeType.split('/')[1];
+      const filename = generatePosterFilename(req.user.userId, extension);
+      const buffer = Buffer.from(poster, 'base64');
+
+      const uploadResult = await uploadToBunny(buffer, filename, posterMimeType);
+
+      if (uploadResult.success && uploadResult.url) {
+        posterUrl = uploadResult.url;
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to upload new poster',
+        });
+      }
+    }
+
+    // Handle video removal
+    if (removeVideo && existingJobNews.videoId) {
+      await deleteVideoFromBunnyStream(existingJobNews.videoId);
+      videoUrl = null;
+      videoId = null;
+    }
+
+    // Handle new video upload
+    if (video) {
+      // Delete old video if exists
+      if (existingJobNews.videoId) {
+        await deleteVideoFromBunnyStream(existingJobNews.videoId);
+      }
+
+      const buffer = Buffer.from(video, 'base64');
+      const uploadResult = await uploadVideoToBunnyStream(buffer, title);
+
+      if (uploadResult.success && uploadResult.videoUrl && uploadResult.videoId) {
+        videoUrl = uploadResult.videoUrl;
+        videoId = uploadResult.videoId;
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to upload new video',
+        });
+      }
+    }
 
     const jobNews = await prisma.jobNews.update({
       where: { id },
@@ -240,6 +374,9 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
         source,
         externalLink,
         isActive,
+        poster: posterUrl,
+        video: videoUrl,
+        videoId: videoId,
       },
       include: {
         user: {
@@ -295,6 +432,19 @@ export const deleteJobNews = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Delete poster from Bunny Storage if exists
+    if (existingJobNews.poster) {
+      const filename = extractFilenameFromUrl(existingJobNews.poster);
+      if (filename) {
+        await deleteFromBunny(filename);
+      }
+    }
+
+    // Delete video from Bunny Stream if exists
+    if (existingJobNews.videoId) {
+      await deleteVideoFromBunnyStream(existingJobNews.videoId);
+    }
+
     await prisma.jobNews.delete({
       where: { id },
     });
@@ -342,14 +492,28 @@ export const getMyJobNews = async (req: AuthRequest, res: Response) => {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: {
+              helpfulVotes: true,
+            },
+          },
+        },
       }),
       prisma.jobNews.count({ where }),
     ]);
 
+    // Map to add helpfulCount to each post
+    const jobNewsWithCounts = jobNews.map((post) => ({
+      ...post,
+      helpfulCount: post._count.helpfulVotes,
+      _count: undefined, // Remove _count from response
+    }));
+
     return res.status(200).json({
       success: true,
       data: {
-        jobNews,
+        jobNews: jobNewsWithCounts,
         pagination: {
           total,
           page: parseInt(page),

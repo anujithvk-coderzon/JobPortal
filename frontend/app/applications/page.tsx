@@ -24,6 +24,10 @@ import {
   Bookmark,
   Trash2,
   Users,
+  Calendar,
+  Link as LinkIcon,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { timeAgo } from '@/lib/utils';
 
@@ -31,6 +35,9 @@ interface Application {
   id: string;
   status: ApplicationStatus;
   appliedAt: string;
+  interviewDate?: string;
+  interviewLink?: string;
+  interviewNotes?: string;
   job: {
     id: string;
     title: string;
@@ -72,6 +79,8 @@ export default function ApplicationsPage() {
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState('applications');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<'active' | 'HIRED' | 'REJECTED'>('active');
 
   // Applications State
   const [applications, setApplications] = useState<Application[]>([]);
@@ -95,6 +104,7 @@ export default function ApplicationsPage() {
     totalPages: 0,
   });
 
+  // Initial load effect
   useEffect(() => {
     if (!isHydrated) return;
 
@@ -103,16 +113,35 @@ export default function ApplicationsPage() {
       return;
     }
 
-    fetchApplications();
-    fetchSavedJobs();
-  }, [isAuthenticated, isHydrated, router]);
+    if (isInitialLoad) {
+      // Check for URL parameter to set initial tab
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam === 'saved') {
+        setActiveTab('saved');
+      }
 
-  const fetchApplications = async () => {
-    setLoadingApplications(true);
+      // Initial fetch with loading state
+      setLoadingApplications(true);
+      fetchApplications(true).finally(() => setLoadingApplications(false));
+      fetchSavedJobs();
+      setIsInitialLoad(false);
+    }
+  }, [isAuthenticated, isHydrated, router, isInitialLoad]);
+
+  // Fetch applications when status filter changes (no loading state to avoid flicker)
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated || isInitialLoad) return;
+
+    fetchApplications(true);
+  }, [statusFilter]);
+
+  const fetchApplications = async (resetPage = false) => {
     try {
       const response = await applicationAPI.getMyApplications({
-        page: applicationsPagination.page,
+        page: resetPage ? 1 : applicationsPagination.page,
         limit: applicationsPagination.limit,
+        status: statusFilter,
       });
 
       if (response.data.success) {
@@ -125,8 +154,6 @@ export default function ApplicationsPage() {
         console.error('Error fetching applications:', error);
       }
       setApplications([]);
-    } finally {
-      setLoadingApplications(false);
     }
   };
 
@@ -160,6 +187,7 @@ export default function ApplicationsPage() {
       const response = await applicationAPI.getMyApplications({
         page: nextPage,
         limit: applicationsPagination.limit,
+        status: statusFilter,
       });
 
       if (response.data.success) {
@@ -247,6 +275,39 @@ export default function ApplicationsPage() {
     return new Date(job.applicationDeadline) < new Date();
   };
 
+  // Get counts from backend stats (will be fetched separately)
+  const [statusCounts, setStatusCounts] = useState({
+    active: 0,
+    hired: 0,
+    rejected: 0,
+  });
+
+  // Fetch all counts for filter buttons
+  useEffect(() => {
+    const fetchCounts = async () => {
+      if (!isAuthenticated || isInitialLoad) return;
+
+      try {
+        // Fetch counts for all statuses in parallel
+        const [activeRes, hiredRes, rejectedRes] = await Promise.all([
+          applicationAPI.getMyApplications({ page: 1, limit: 1, status: 'active' }),
+          applicationAPI.getMyApplications({ page: 1, limit: 1, status: 'HIRED' }),
+          applicationAPI.getMyApplications({ page: 1, limit: 1, status: 'REJECTED' }),
+        ]);
+
+        setStatusCounts({
+          active: activeRes.data.data.pagination.total || 0,
+          hired: hiredRes.data.data.pagination.total || 0,
+          rejected: rejectedRes.data.data.pagination.total || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching status counts:', error);
+      }
+    };
+
+    fetchCounts();
+  }, [isAuthenticated, isInitialLoad, statusFilter]); // Refetch when filter changes
+
   if (!isHydrated || (loadingApplications && loadingSavedJobs)) {
     return (
       <div className="min-h-screen bg-background">
@@ -288,24 +349,91 @@ export default function ApplicationsPage() {
 
           {/* Applications Tab */}
           <TabsContent value="applications">
+            {/* Status Filter Buttons */}
+            <div className="mb-6 flex flex-wrap gap-2">
+              <Button
+                variant={statusFilter === 'active' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('active')}
+                className="flex items-center gap-2"
+              >
+                <Clock className="h-4 w-4" />
+                Active ({statusCounts.active})
+              </Button>
+              <Button
+                variant={statusFilter === 'HIRED' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('HIRED')}
+                className="flex items-center gap-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Hired ({statusCounts.hired})
+              </Button>
+              <Button
+                variant={statusFilter === 'REJECTED' ? 'outline' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('REJECTED')}
+                className={`flex items-center gap-2 ${statusFilter === 'REJECTED' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}`}
+              >
+                <XCircle className="h-4 w-4" />
+                Rejected ({statusCounts.rejected})
+              </Button>
+            </div>
+
             {loadingApplications ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
             ) : applications.length === 0 ? (
               <Card>
-                <CardContent className="py-20 text-center">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">No applications yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Start applying to jobs to see them here
-                  </p>
-                  <Button asChild>
-                    <a href="/jobs">
-                      <Briefcase className="mr-2 h-4 w-4" />
-                      Browse Jobs
-                    </a>
-                  </Button>
+                <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 py-20 text-center">
+                  {statusFilter === 'active' ? (
+                    <>
+                      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                      <h3 className="text-lg font-semibold mb-2">No active applications</h3>
+                      <p className="text-muted-foreground mb-4">
+                        You don't have any pending or scheduled interviews right now.
+                      </p>
+                      <Button asChild>
+                        <a href="/jobs">
+                          <Briefcase className="mr-2 h-4 w-4" />
+                          Browse Jobs
+                        </a>
+                      </Button>
+                    </>
+                  ) : statusFilter === 'HIRED' ? (
+                    <>
+                      <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                      <h3 className="text-lg font-semibold mb-2">No job offers yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        You haven't been hired for any positions yet. Keep applying and stay positive!
+                      </p>
+                      <div className="flex gap-2 justify-center">
+                        <Button variant="outline" onClick={() => setStatusFilter('active')}>
+                          <Clock className="mr-2 h-4 w-4" />
+                          View Active Applications
+                        </Button>
+                        <Button asChild>
+                          <a href="/jobs">
+                            <Briefcase className="mr-2 h-4 w-4" />
+                            Browse Jobs
+                          </a>
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                      <h3 className="text-lg font-semibold mb-2">No rejections</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Great news! You don't have any rejected applications.
+                      </p>
+                      <Button variant="outline" onClick={() => setStatusFilter('active')}>
+                        <Clock className="mr-2 h-4 w-4" />
+                        View Active Applications
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -317,7 +445,7 @@ export default function ApplicationsPage() {
                       className="hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => router.push(`/jobs/${application.job.id}`)}
                     >
-                      <CardHeader>
+                      <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div className="flex-1">
                             <h3 className="text-xl font-semibold mb-2">
@@ -343,6 +471,45 @@ export default function ApplicationsPage() {
                                 {getApplicationStatusLabel(application.status)}
                               </Badge>
                             </div>
+
+                            {/* Interview Details */}
+                            {application.status === 'INTERVIEW_SCHEDULED' && application.interviewDate && (
+                              <div className="mt-3 p-3 border rounded-lg bg-primary/5 space-y-2">
+                                <div className="flex items-center gap-2 font-medium text-sm">
+                                  <Calendar className="h-4 w-4 text-primary" />
+                                  <span>Interview Scheduled</span>
+                                </div>
+                                <div className="text-sm space-y-1">
+                                  <p className="font-medium">
+                                    {new Date(application.interviewDate).toLocaleDateString('en-US', {
+                                      weekday: 'long',
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </p>
+                                  {application.interviewLink && (
+                                    <a
+                                      href={application.interviewLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1 text-primary hover:underline"
+                                    >
+                                      <LinkIcon className="h-3 w-3" />
+                                      Join Meeting
+                                    </a>
+                                  )}
+                                  {application.interviewNotes && (
+                                    <p className="text-muted-foreground text-xs mt-2">
+                                      <strong>Notes:</strong> {application.interviewNotes}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div className="flex flex-col items-end gap-2">
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -370,7 +537,7 @@ export default function ApplicationsPage() {
                 {applicationsPagination.page < applicationsPagination.totalPages && (
                   <div className="flex flex-col items-center justify-center gap-4 mt-8">
                     <p className="text-sm text-muted-foreground">
-                      Showing {applications.length} of {applicationsPagination.total} applications
+                      Showing {applications.length} of {applicationsPagination.total} {statusFilter === 'active' ? 'active' : statusFilter.toLowerCase()} applications
                     </p>
                     <Button
                       onClick={loadMoreApplications}
@@ -405,7 +572,7 @@ export default function ApplicationsPage() {
               </div>
             ) : savedJobs.length === 0 ? (
               <Card>
-                <CardContent className="py-20 text-center">
+                <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 py-20 text-center">
                   <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-semibold mb-2">No saved jobs yet</h3>
                   <p className="text-muted-foreground mb-4">
@@ -428,7 +595,7 @@ export default function ApplicationsPage() {
                       className="hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => router.push(`/jobs/${savedJob.job.id}`)}
                     >
-                      <CardHeader>
+                      <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
                         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-2">
