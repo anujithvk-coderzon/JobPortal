@@ -128,14 +128,51 @@ export default function EditPostPage() {
       return;
     }
 
-    setPosterFile(file);
-    setRemovePoster(false);
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPosterPreview(reader.result as string);
+    // Validate aspect ratio (1.91:1 for professional LinkedIn-style posts)
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      const width = img.width;
+      const height = img.height;
+      const aspectRatio = width / height;
+
+      // LinkedIn standard: 1.91:1 (allows small tolerance of ±0.05)
+      const targetRatio = 1.91;
+      const tolerance = 0.05;
+
+      if (Math.abs(aspectRatio - targetRatio) > tolerance) {
+        toast({
+          title: 'Invalid Aspect Ratio',
+          description: `Poster must be 1.91:1 aspect ratio (e.g., 1200×628px). Your image is ${width}×${height}px (${aspectRatio.toFixed(2)}:1).`,
+          variant: 'destructive',
+        });
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+
+      URL.revokeObjectURL(objectUrl);
+      setPosterFile(file);
+      setRemovePoster(false);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPosterPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      toast({
+        title: 'Error',
+        description: 'Failed to load image. Please try another file.',
+        variant: 'destructive',
+      });
+    };
+
+    img.src = objectUrl;
   };
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,14 +199,55 @@ export default function EditPostPage() {
       return;
     }
 
-    setVideoFile(file);
-    setRemoveVideo(false);
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setVideoPreview(reader.result as string);
+    // Validate aspect ratio (9:16 vertical or 16:9 horizontal for professional content)
+    const video = document.createElement('video');
+    const objectUrl = URL.createObjectURL(file);
+
+    video.onloadedmetadata = () => {
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      const aspectRatio = width / height;
+
+      // Accepted ratios: 9:16 (0.5625) for vertical or 16:9 (1.7778) for horizontal
+      const verticalRatio = 9 / 16; // 0.5625
+      const horizontalRatio = 16 / 9; // 1.7778
+      const tolerance = 0.05;
+
+      const isVertical = Math.abs(aspectRatio - verticalRatio) <= tolerance;
+      const isHorizontal = Math.abs(aspectRatio - horizontalRatio) <= tolerance;
+
+      if (!isVertical && !isHorizontal) {
+        toast({
+          title: 'Invalid Aspect Ratio',
+          description: `Video must be either 9:16 (vertical, e.g., 1080×1920px) or 16:9 (horizontal, e.g., 1920×1080px). Your video is ${width}×${height}px (${aspectRatio.toFixed(2)}:1).`,
+          variant: 'destructive',
+        });
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+
+      URL.revokeObjectURL(objectUrl);
+      setVideoFile(file);
+      setRemoveVideo(false);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVideoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      toast({
+        title: 'Error',
+        description: 'Failed to load video. Please try another file.',
+        variant: 'destructive',
+      });
+    };
+
+    video.src = objectUrl;
   };
 
   const handleRemovePoster = () => {
@@ -487,9 +565,16 @@ export default function EditPostPage() {
                     <label htmlFor="poster" className="cursor-pointer">
                       <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                       <p className="font-medium mb-1">Upload Poster Image</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground mb-3">
                         JPG, PNG or GIF (max 10MB)
                       </p>
+                      <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
+                        <p className="text-xs font-semibold text-primary mb-1">📐 Required Aspect Ratio:</p>
+                        <p className="text-xs font-medium">1.91:1 (Landscape)</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Recommended: 1200×628px or 1920×1005px
+                        </p>
+                      </div>
                     </label>
                   </div>
                 )}
@@ -559,9 +644,16 @@ export default function EditPostPage() {
                     <label htmlFor="video" className="cursor-pointer">
                       <Video className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                       <p className="font-medium mb-1">Upload Video</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground mb-3">
                         MP4, MOV or WebM (max 50MB)
                       </p>
+                      <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
+                        <p className="text-xs font-semibold text-primary mb-1">📐 Required Aspect Ratio:</p>
+                        <p className="text-xs font-medium">9:16 (Vertical) or 16:9 (Horizontal)</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Vertical: 1080×1920px • Horizontal: 1920×1080px
+                        </p>
+                      </div>
                     </label>
                   </div>
                 )}

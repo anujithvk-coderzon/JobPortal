@@ -5,6 +5,11 @@ export interface AuthRequest extends Request {
     userId: string;
     email: string;
   };
+  admin?: {
+    adminId: string;
+    email: string;
+    role: 'SUPER_ADMIN' | 'MODERATOR';
+  };
 }
 
 export interface PaginationParams {

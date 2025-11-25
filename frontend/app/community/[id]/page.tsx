@@ -26,6 +26,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+interface CredibilityScore {
+  level: string;
+  score: number;
+  nextLevel: string;
+  nextLevelAt: number;
+}
+
 interface Post {
   id: string;
   title: string;
@@ -42,6 +49,7 @@ interface Post {
     id: string;
     name: string;
     profilePhoto?: string;
+    credibilityScore?: CredibilityScore;
   };
 }
 
@@ -207,9 +215,31 @@ export default function PostDetailPage() {
                   />
                   <AvatarFallback>{getInitials(post.user.name)}</AvatarFallback>
                 </Avatar>
-                <div className="min-w-0">
-                  <p className="font-medium text-sm md:text-base truncate">{post.user.name}</p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-sm md:text-base truncate">{post.user.name}</p>
+                    {/* Credibility Badge - Inline next to name */}
+                    {post.user.credibilityScore && (
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border-2 flex-shrink-0 ${
+                        post.user.credibilityScore.level === 'Newbie' ? 'bg-gray-50 text-gray-700 border-gray-300' :
+                        post.user.credibilityScore.level === 'Contributor' ? 'bg-amber-50 text-amber-800 border-amber-300' :
+                        post.user.credibilityScore.level === 'Trusted' ? 'bg-slate-50 text-slate-800 border-slate-400' :
+                        post.user.credibilityScore.level === 'Expert' ? 'bg-yellow-50 text-yellow-800 border-yellow-400' :
+                        'bg-purple-50 text-purple-800 border-purple-400'
+                      }`}>
+                        <span className="text-base leading-none">
+                          {post.user.credibilityScore.level === 'Newbie' ? '🌱' :
+                           post.user.credibilityScore.level === 'Contributor' ? '🥉' :
+                           post.user.credibilityScore.level === 'Trusted' ? '🥈' :
+                           post.user.credibilityScore.level === 'Expert' ? '🥇' : '👑'}
+                        </span>
+                        <span className="text-xs font-bold leading-tight">
+                          {post.user.credibilityScore.level}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                     <Clock className="h-3 w-3 flex-shrink-0" />
                     <span>{timeAgo(post.createdAt)}</span>
                   </div>

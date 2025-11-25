@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { jobNewsAPI } from '@/lib/api';
 import { timeAgo, getInitials } from '@/lib/utils';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { CredibilityBadgeCompact } from '@/components/CredibilityBadge';
 import {
   Search,
   MapPin,
@@ -23,7 +24,16 @@ import {
   ExternalLink,
   User,
   ThumbsUp,
+  Eye,
+  Award,
 } from 'lucide-react';
+
+interface CredibilityScore {
+  level: string;
+  score: number;
+  nextLevel: string;
+  nextLevelAt: number;
+}
 
 interface Post {
   id: string;
@@ -37,10 +47,12 @@ interface Post {
   video?: string;
   createdAt: string;
   helpfulCount?: number;
+  isHelpful?: boolean;
   user: {
     id: string;
     name: string;
     profilePhoto?: string;
+    credibilityScore?: CredibilityScore;
   };
 }
 
@@ -128,6 +140,33 @@ function CommunityPageContent() {
     }
   };
 
+  const handleToggleHelpful = async (postId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    try {
+      const response = await jobNewsAPI.toggleHelpful(postId);
+      const { isHelpful: newIsHelpful, helpfulCount: newCount } = response.data.data;
+
+      // Update the post in the list
+      setPosts(posts.map(post =>
+        post.id === postId
+          ? { ...post, isHelpful: newIsHelpful, helpfulCount: newCount }
+          : post
+      ));
+
+      toast({
+        title: newIsHelpful ? 'Marked as helpful!' : 'Unmarked',
+        description: newIsHelpful ? 'Thank you for your feedback.' : 'Removed your helpful vote.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to update. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -136,25 +175,36 @@ function CommunityPageContent() {
         {/* Header */}
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Community</h1>
-          <p className="text-sm md:text-base text-muted-foreground">
+          <p className="text-sm md:text-base text-muted-foreground mb-3">
             Share and discover job leads, career tips, industry insights, and articles
           </p>
+          <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <ThumbsUp className="h-3.5 w-3.5 text-primary" />
+              <span>Mark helpful posts to support contributors</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Award className="h-3.5 w-3.5 text-primary" />
+              <span>Build credibility: 🌱 Newbie → 🥉 Contributor → 🥈 Trusted → 🥇 Expert → 👑 Authority</span>
+            </div>
+          </div>
         </div>
 
         {/* Search Bar */}
         <div className="mb-6">
-          <form onSubmit={handleSearch} className="flex gap-3">
+          <form onSubmit={handleSearch} className="flex gap-2 sm:gap-3">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 flex-shrink-0" />
+              <Search className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 flex-shrink-0" />
               <Input
-                placeholder="Search posts, topics, or keywords..."
+                placeholder="Search posts..."
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="pl-10 h-11"
+                className="pl-9 sm:pl-10 h-10 sm:h-11 text-sm sm:text-base"
               />
             </div>
-            <Button type="submit" className="w-auto h-11 px-6 sm:px-8">
-              Search
+            <Button type="submit" className="w-auto h-10 sm:h-11 px-4 sm:px-6 md:px-8 text-sm sm:text-base">
+              <span className="hidden sm:inline">Search</span>
+              <Search className="h-4 w-4 sm:hidden" />
             </Button>
           </form>
         </div>
@@ -195,19 +245,53 @@ function CommunityPageContent() {
                   onClick={() => router.push(`/community/${post.id}`)}
                 >
                   <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
-                    {/* Author Info */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src={post.user.profilePhoto || undefined} alt={post.user.name} />
-                        <AvatarFallback className="text-xs">{getInitials(post.user.name)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{post.user.name}</p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>{timeAgo(post.createdAt)}</span>
+                    {/* Author Info with Credibility Badge */}
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
+                          <AvatarImage src={post.user.profilePhoto || undefined} alt={post.user.name} />
+                          <AvatarFallback className="text-xs">{getInitials(post.user.name)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium truncate">{post.user.name}</p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/user/${post.user.id}`);
+                              }}
+                              className="text-xs text-primary hover:underline flex-shrink-0"
+                            >
+                              View Profile
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>{timeAgo(post.createdAt)}</span>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Credibility Badge - Inline on the right */}
+                      {post.user.credibilityScore && (
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 flex-shrink-0 ${
+                          post.user.credibilityScore.level === 'Newbie' ? 'bg-gray-50 text-gray-700 border-gray-300' :
+                          post.user.credibilityScore.level === 'Contributor' ? 'bg-amber-50 text-amber-800 border-amber-300' :
+                          post.user.credibilityScore.level === 'Trusted' ? 'bg-slate-50 text-slate-800 border-slate-400' :
+                          post.user.credibilityScore.level === 'Expert' ? 'bg-yellow-50 text-yellow-800 border-yellow-400' :
+                          'bg-purple-50 text-purple-800 border-purple-400'
+                        }`}>
+                          <span className="text-xl leading-none">
+                            {post.user.credibilityScore.level === 'Newbie' ? '🌱' :
+                             post.user.credibilityScore.level === 'Contributor' ? '🥉' :
+                             post.user.credibilityScore.level === 'Trusted' ? '🥈' :
+                             post.user.credibilityScore.level === 'Expert' ? '🥇' : '👑'}
+                          </span>
+                          <span className="text-xs font-bold leading-tight">
+                            {post.user.credibilityScore.level}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Title */}
@@ -264,35 +348,43 @@ function CommunityPageContent() {
                           {post.source}
                         </Badge>
                       )}
-                      {(post.helpfulCount ?? 0) > 0 && (
-                        <Badge variant="default" className="text-xs bg-blue-600 hover:bg-blue-700">
-                          <ThumbsUp className="h-3 w-3 mr-1" />
-                          {post.helpfulCount} {post.helpfulCount === 1 ? 'person' : 'people'} found helpful
-                        </Badge>
-                      )}
                     </div>
                   </CardContent>
 
                   {/* Footer with Actions */}
                   <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 pt-3 border-t">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          variant={post.isHelpful ? "default" : "outline"}
+                          size="sm"
+                          className={`h-8 text-xs ${post.isHelpful ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' : 'border-border'}`}
+                          onClick={(e) => handleToggleHelpful(post.id, e)}
+                        >
+                          <ThumbsUp className={`h-3 w-3 mr-1.5 ${post.isHelpful ? 'fill-current' : ''}`} />
+                          {post.isHelpful ? 'Helpful' : 'Mark as Helpful'}
+                          {(post.helpfulCount ?? 0) > 0 && (
+                            <span className="ml-1.5">({post.helpfulCount})</span>
+                          )}
+                        </Button>
+                        {post.externalLink && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs border-border"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(post.externalLink, '_blank');
+                            }}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1.5" />
+                            External Link
+                          </Button>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors whitespace-nowrap hidden sm:inline">
                         Read more →
                       </span>
-                      {post.externalLink && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(post.externalLink, '_blank');
-                          }}
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1.5" />
-                          External Link
-                        </Button>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

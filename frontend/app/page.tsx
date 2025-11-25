@@ -10,10 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Navbar } from '@/components/Navbar';
 import { CompanySelector } from '@/components/CompanySelector';
+import { JobMatchScore } from '@/components/JobMatchScore';
 import { Search, Briefcase, MapPin, Building2, Clock, ArrowRight, User, ExternalLink, ThumbsUp, Image as ImageIcon, Video } from 'lucide-react';
 import { jobNewsAPI, jobAPI } from '@/lib/api';
 import { EmploymentType, ExperienceLevel, LocationType } from '@/lib/types';
 import { timeAgo, getInitials } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
 
 interface Post {
   id: string;
@@ -56,8 +58,8 @@ interface Job {
 
 export default function HomePage() {
   const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('');
   const [recentPosts, setRecentPosts] = useState<Post[]>([]);
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -95,7 +97,6 @@ export default function HomePage() {
     e.preventDefault();
     const params = new URLSearchParams();
     if (searchQuery) params.append('search', searchQuery);
-    if (location) params.append('location', location);
     router.push(`/jobs?${params.toString()}`);
   };
 
@@ -114,31 +115,22 @@ export default function HomePage() {
               Discover opportunities that match your skills and ambitions
             </p>
 
-            {/* Search Bar */}
+            {/* Search Bar - Professional Design */}
             <form onSubmit={handleSearch} className="max-w-4xl mx-auto">
-              <div className="flex flex-col md:flex-row gap-3 p-3 bg-background rounded-lg shadow-xl border">
-                <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-secondary/30 rounded-md md:bg-transparent md:px-0 md:py-0">
-                  <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <div className="flex gap-1.5 sm:gap-2 p-1.5 sm:p-2 bg-background rounded-lg shadow-xl border">
+                <div className="flex-1 flex items-center gap-2 sm:gap-3 px-2 sm:px-4">
+                  <Search className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                   <Input
                     type="text"
-                    placeholder="Job title, keywords, or company"
+                    placeholder="Search jobs..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm sm:text-base"
                   />
                 </div>
-                <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-secondary/30 rounded-md md:bg-transparent md:px-0 md:py-0">
-                  <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                  <Input
-                    type="text"
-                    placeholder="City, state, or remote"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                  />
-                </div>
-                <Button type="submit" size="lg" className="w-full md:w-auto md:px-8">
-                  Search Jobs
+                <Button type="submit" size="default" className="px-4 sm:px-6 md:px-8 text-sm sm:text-base h-9 sm:h-10">
+                  <span className="hidden sm:inline">Search</span>
+                  <Search className="h-4 w-4 sm:hidden" />
                 </Button>
               </div>
             </form>
@@ -210,7 +202,7 @@ export default function HomePage() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 items-center">
                         {job.location && (
                           <Badge variant="secondary" className="text-xs">
                             <MapPin className="h-3 w-3 mr-1" />
@@ -223,6 +215,11 @@ export default function HomePage() {
                         <Badge variant="outline" className="text-xs">
                           {job.locationType}
                         </Badge>
+                        {isAuthenticated && (
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <JobMatchScore jobId={job.id} variant="badge" />
+                          </div>
+                        )}
                       </div>
                       {(job.salaryMin || job.salaryMax) && (
                         <p className="text-sm font-semibold text-primary">

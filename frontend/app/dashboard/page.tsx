@@ -66,6 +66,24 @@ interface CommunityPost {
   helpfulCount?: number;
 }
 
+// Helper function to determine job status
+const getJobStatus = (job: any) => {
+  if (!job.isActive) return { label: 'Inactive', variant: 'secondary' as const, color: 'text-gray-500' };
+
+  if (job.applicationDeadline) {
+    const deadline = new Date(job.applicationDeadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadline.setHours(0, 0, 0, 0);
+
+    if (deadline < today) {
+      return { label: 'Expired', variant: 'destructive' as const, color: 'text-red-500' };
+    }
+  }
+
+  return { label: 'Active', variant: 'default' as const, color: 'text-green-500' };
+};
+
 function DashboardPageContent() {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
@@ -551,14 +569,14 @@ function DashboardPageContent() {
                             <div className="flex items-center gap-1">
                               <Users className="h-2.5 w-2.5 md:h-3 md:w-3 text-gray-400" />
                               <span className="text-[10px] md:text-xs text-gray-500">
-                                {job._count?.applications || 0}
+                                {job._count?.applications || 0} applicants
                               </span>
                             </div>
                             <Badge
-                              variant={job.isActive ? 'default' : 'secondary'}
+                              variant={getJobStatus(job).variant}
                               className="text-[9px] md:text-xs py-0 h-4 md:h-5"
                             >
-                              {job.isActive ? 'Active' : 'Inactive'}
+                              {getJobStatus(job).label}
                             </Badge>
                           </div>
                         </div>

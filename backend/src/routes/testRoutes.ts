@@ -18,9 +18,6 @@ router.post('/test-email', async (req: Request, res: Response) => {
       });
     }
 
-    console.log('\n🧪 Testing email configuration...');
-    console.log('Attempting to send to:', email);
-
     // Generate test code
     const testCode = '1234';
 

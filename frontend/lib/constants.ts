@@ -96,6 +96,7 @@ export const CURRENCY_OPTIONS = [
 
 // Sort Options
 export const JOB_SORT_OPTIONS = [
+  { value: 'match', label: 'Best Match' },
   { value: 'recent', label: 'Most Recent' },
   { value: 'salary', label: 'Highest Salary' },
 ] as const;

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { JobCardSkeletonList } from '@/components/JobCardSkeleton';
+import { JobMatchScore } from '@/components/JobMatchScore';
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { jobAPI } from '@/lib/api';
 import { Job } from '@/lib/types';
 import { formatSalary, timeAgo } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
 import {
   EMPLOYMENT_TYPE_OPTIONS,
   EXPERIENCE_LEVEL_OPTIONS,
@@ -38,12 +40,15 @@ import {
   Filter,
   Loader2,
   ChevronRight,
+  XCircle,
+  TrendingUp,
 } from 'lucide-react';
 
 function JobsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { isAuthenticated } = useAuthStore();
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,20 +95,22 @@ function JobsPageContent() {
     return () => clearTimeout(debounceTimer);
   }, [filters.search]);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (customFilters?: any, customPage?: number) => {
     setLoading(true);
     try {
+      const currentFilters = customFilters || filters;
+      const currentPage = customPage !== undefined ? customPage : pagination.page;
       const params: any = {
-        page: pagination.page,
+        page: currentPage,
         limit: pagination.limit,
-        sortBy: filters.sortBy,
+        sortBy: currentFilters.sortBy,
       };
 
-      if (filters.search) params.search = filters.search;
-      if (filters.location) params.location = filters.location;
-      if (filters.employmentType && filters.employmentType !== 'ALL') params.employmentType = filters.employmentType;
-      if (filters.experienceLevel && filters.experienceLevel !== 'ALL') params.experienceLevel = filters.experienceLevel;
-      if (filters.locationType && filters.locationType !== 'ALL') params.locationType = filters.locationType;
+      if (currentFilters.search) params.search = currentFilters.search;
+      if (currentFilters.location) params.location = currentFilters.location;
+      if (currentFilters.employmentType && currentFilters.employmentType !== 'ALL') params.employmentType = currentFilters.employmentType;
+      if (currentFilters.experienceLevel && currentFilters.experienceLevel !== 'ALL') params.experienceLevel = currentFilters.experienceLevel;
+      if (currentFilters.locationType && currentFilters.locationType !== 'ALL') params.locationType = currentFilters.locationType;
 
       const response = await jobAPI.getAllJobs(params);
       setJobs(response.data.data.jobs);
@@ -141,21 +148,20 @@ function JobsPageContent() {
   };
 
   const clearFilters = async () => {
-    setFilters({
+    const clearedFilters = {
       search: '',
       location: '',
       employmentType: 'ALL',
       experienceLevel: 'ALL',
       locationType: 'ALL',
       sortBy: 'recent',
-    });
+    };
+    setFilters(clearedFilters);
     setJobs([]); // Clear existing jobs when clearing filters
     setPagination({ ...pagination, page: 1 });
     setIsFiltering(true);
-    setTimeout(async () => {
-      await fetchJobs();
-      setIsFiltering(false);
-    }, 100);
+    await fetchJobs(clearedFilters, 1);
+    setIsFiltering(false);
   };
 
   const loadMoreJobs = async () => {
@@ -202,46 +208,115 @@ function JobsPageContent() {
           </p>
         </div>
 
-        {/* Search and Filter Bar */}
-        <div className="mb-6 space-y-3">
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 flex-shrink-0" />
-              <Input
-                placeholder="Job title, keywords, or company"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="pl-10 h-11"
-              />
-            </div>
-            <div className="sm:w-48 md:w-64 relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 flex-shrink-0" />
-              <Input
-                placeholder="City, state, or remote"
-                value={filters.location}
-                onChange={(e) => handleFilterChange('location', e.target.value)}
-                className="pl-10 h-11"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button type="submit" className="flex-1 sm:flex-none h-11 px-6">
-                Search
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex-1 sm:flex-none h-11 px-4"
-              >
-                <Filter className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Filters</span>
+        {/* Professional Search Bar */}
+        <div className="mb-6">
+          <form onSubmit={handleSearch}>
+            <div className="flex gap-1.5 sm:gap-2 p-1.5 sm:p-2 bg-background rounded-lg shadow-lg border">
+              <div className="flex-1 flex items-center gap-2 sm:gap-3 px-2 sm:px-4">
+                <Search className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
+                <Input
+                  type="text"
+                  placeholder="Search jobs..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm sm:text-base"
+                />
+              </div>
+              <Button type="submit" size="default" className="px-4 sm:px-6 md:px-8 text-sm sm:text-base h-9 sm:h-10">
+                <span className="hidden sm:inline">Search</span>
+                <Search className="h-4 w-4 sm:hidden" />
               </Button>
             </div>
           </form>
 
-          {/* Filters Panel */}
-          {showFilters && (
-            <Card>
+          {/* Quick Filter Chips */}
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Badge
+              variant={filters.locationType === 'REMOTE' ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
+              onClick={() => {
+                const newValue = filters.locationType === 'REMOTE' ? 'ALL' : 'REMOTE';
+                const newFilters = { ...filters, locationType: newValue };
+                setFilters(newFilters);
+                setPagination({ ...pagination, page: 1 });
+                fetchJobs(newFilters, 1);
+              }}
+            >
+              <MapPin className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Remote Only</span>
+              <span className="sm:hidden">Remote</span>
+            </Badge>
+            <Badge
+              variant={filters.employmentType === 'FULL_TIME' ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
+              onClick={() => {
+                const newValue = filters.employmentType === 'FULL_TIME' ? 'ALL' : 'FULL_TIME';
+                const newFilters = { ...filters, employmentType: newValue };
+                setFilters(newFilters);
+                setPagination({ ...pagination, page: 1 });
+                fetchJobs(newFilters, 1);
+              }}
+            >
+              <Briefcase className="h-3 w-3 mr-1" />
+              Full-time
+            </Badge>
+            <Badge
+              variant={filters.experienceLevel === 'ENTRY' ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
+              onClick={() => {
+                const newValue = filters.experienceLevel === 'ENTRY' ? 'ALL' : 'ENTRY';
+                const newFilters = { ...filters, experienceLevel: newValue };
+                setFilters(newFilters);
+                setPagination({ ...pagination, page: 1 });
+                fetchJobs(newFilters, 1);
+              }}
+            >
+              Entry Level
+            </Badge>
+            <Badge
+              variant={filters.experienceLevel === 'SENIOR' ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
+              onClick={() => {
+                const newValue = filters.experienceLevel === 'SENIOR' ? 'ALL' : 'SENIOR';
+                const newFilters = { ...filters, experienceLevel: newValue };
+                setFilters(newFilters);
+                setPagination({ ...pagination, page: 1 });
+                fetchJobs(newFilters, 1);
+              }}
+            >
+              Senior Level
+            </Badge>
+            {isAuthenticated && (
+              <Badge
+                variant={filters.sortBy === 'match' ? 'default' : 'outline'}
+                className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
+                onClick={() => {
+                  const newValue = filters.sortBy === 'match' ? 'recent' : 'match';
+                  const newFilters = { ...filters, sortBy: newValue };
+                  setFilters(newFilters);
+                  setPagination({ ...pagination, page: 1 });
+                  fetchJobs(newFilters, 1);
+                }}
+              >
+                <TrendingUp className="h-3 w-3 mr-1" />
+                Best Match
+              </Badge>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="ml-auto"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              More Filters
+            </Button>
+          </div>
+        </div>
+
+        {/* Advanced Filters Panel */}
+        {showFilters && (
+          <Card className="mb-6">
               <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 pt-4 md:pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                   <div>
@@ -336,7 +411,6 @@ function JobsPageContent() {
               </CardContent>
             </Card>
           )}
-        </div>
 
         {/* Job Listings */}
         {loading ? (
@@ -381,7 +455,7 @@ function JobsPageContent() {
                           </>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-2 mb-3">
+                      <div className="flex flex-wrap gap-2 mb-3 items-center">
                         <Badge variant="secondary" className="text-xs">{getEmploymentTypeLabel(job.employmentType)}</Badge>
                         <Badge variant="secondary" className="text-xs">{getExperienceLevelLabel(job.experienceLevel)}</Badge>
                         <Badge variant="secondary" className="text-xs">{getLocationTypeLabel(job.locationType)}</Badge>
@@ -389,6 +463,11 @@ function JobsPageContent() {
                           <Badge variant="outline" className="text-xs">
                             {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
                           </Badge>
+                        )}
+                        {isAuthenticated && (
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <JobMatchScore jobId={job.id} variant="badge" />
+                          </div>
                         )}
                       </div>
                       <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 leading-relaxed">

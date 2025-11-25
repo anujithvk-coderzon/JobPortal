@@ -2,6 +2,7 @@ import express from 'express';
 import { body } from 'express-validator';
 import {
   getProfile,
+  getPublicProfile,
   updateProfile,
   updateBasicInfo,
   addSkill,
@@ -17,6 +18,7 @@ import {
   deleteProfilePhoto,
   uploadResume,
   deleteResume,
+  getMyPosts,
 } from '../controllers/userController';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -25,6 +27,7 @@ const router = express.Router();
 
 // Profile routes
 router.get('/profile/:userId?', authenticate, getProfile);
+router.get('/public-profile/:userId', authenticate, getPublicProfile);
 router.put('/profile', authenticate, updateProfile);
 router.put('/profile-info', authenticate, updateProfile);
 router.put('/basic-info', authenticate, updateBasicInfo);
@@ -100,5 +103,8 @@ router.post(
   uploadResume
 );
 router.delete('/resume', authenticate, deleteResume);
+
+// Posts routes
+router.get('/my-posts', authenticate, getMyPosts);
 
 export default router;

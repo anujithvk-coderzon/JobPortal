@@ -90,6 +90,8 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
         poster: posterUrl,
         video: videoUrl,
         videoId,
+        isActive: false, // Post is inactive until approved by admin
+        moderationStatus: 'PENDING', // Default to pending moderation
       },
       include: {
         user: {
@@ -105,7 +107,7 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
     return res.status(201).json({
       success: true,
       data: jobNews,
-      message: 'Job news posted successfully',
+      message: 'Job news submitted successfully. It will be visible after admin approval.',
     });
   } catch (error: any) {
     console.error('Create job news error:', error);
@@ -130,6 +132,7 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
 
     const where: any = {
       isActive: true,
+      moderationStatus: 'APPROVED', // Only show approved posts
     };
 
     if (search) {
@@ -163,16 +166,87 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
               helpfulVotes: true,
             },
           },
+          helpfulVotes: req.user ? {
+            where: {
+              userId: req.user.userId,
+            },
+            select: {
+              id: true,
+            },
+          } : false,
         },
       }),
       prisma.jobNews.count({ where }),
     ]);
 
-    // Map to add helpfulCount to each post
+    // Get unique user IDs to calculate credibility scores
+    const userIds = [...new Set(jobNews.map(post => post.userId))];
+
+    // Calculate credibility score for each user
+    const userCredibilityMap = new Map();
+
+    for (const userId of userIds) {
+      const userPosts = await prisma.jobNews.findMany({
+        where: {
+          userId,
+          moderationStatus: 'APPROVED',
+          isActive: true,
+        },
+        select: {
+          _count: {
+            select: {
+              helpfulVotes: true,
+            },
+          },
+        },
+      });
+
+      const totalHelpfulMarks = userPosts.reduce(
+        (sum, post) => sum + post._count.helpfulVotes,
+        0
+      );
+
+      let credibilityLevel = 'Newbie';
+      let nextLevel = 'Contributor';
+      let nextLevelAt = 10;
+
+      if (totalHelpfulMarks >= 100) {
+        credibilityLevel = 'Authority';
+        nextLevel = 'Authority';
+        nextLevelAt = 100;
+      } else if (totalHelpfulMarks >= 50) {
+        credibilityLevel = 'Expert';
+        nextLevel = 'Authority';
+        nextLevelAt = 100;
+      } else if (totalHelpfulMarks >= 25) {
+        credibilityLevel = 'Trusted';
+        nextLevel = 'Expert';
+        nextLevelAt = 50;
+      } else if (totalHelpfulMarks >= 10) {
+        credibilityLevel = 'Contributor';
+        nextLevel = 'Trusted';
+        nextLevelAt = 25;
+      }
+
+      userCredibilityMap.set(userId, {
+        level: credibilityLevel,
+        score: totalHelpfulMarks,
+        nextLevel,
+        nextLevelAt,
+      });
+    }
+
+    // Map to add helpfulCount, credibilityScore, and isHelpful to each post
     const jobNewsWithCounts = jobNews.map((post) => ({
       ...post,
       helpfulCount: post._count.helpfulVotes,
-      _count: undefined, // Remove _count from response
+      isHelpful: post.helpfulVotes && post.helpfulVotes.length > 0,
+      user: {
+        ...post.user,
+        credibilityScore: userCredibilityMap.get(post.userId),
+      },
+      _count: undefined,
+      helpfulVotes: undefined,
     }));
 
     return res.status(200).json({
@@ -226,11 +300,62 @@ export const getJobNewsById = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Check if post is approved (unless it's the owner viewing their own post)
+    if (jobNews.moderationStatus !== 'APPROVED' && jobNews.userId !== req.user?.userId) {
+      return res.status(404).json({
+        success: false,
+        error: 'Job news not found',
+      });
+    }
+
     // Calculate helpful count and check if current user marked as helpful
     const helpfulCount = jobNews.helpfulVotes.length;
     const userHasMarkedHelpful = req.user
       ? jobNews.helpfulVotes.some(vote => vote.userId === req.user!.userId)
       : false;
+
+    // Calculate credibility score for the post author
+    const userPosts = await prisma.jobNews.findMany({
+      where: {
+        userId: jobNews.userId,
+        moderationStatus: 'APPROVED',
+        isActive: true,
+      },
+      select: {
+        _count: {
+          select: {
+            helpfulVotes: true,
+          },
+        },
+      },
+    });
+
+    const totalHelpfulMarks = userPosts.reduce(
+      (sum, post) => sum + post._count.helpfulVotes,
+      0
+    );
+
+    let credibilityLevel = 'Newbie';
+    let nextLevel = 'Contributor';
+    let nextLevelAt = 10;
+
+    if (totalHelpfulMarks >= 100) {
+      credibilityLevel = 'Authority';
+      nextLevel = 'Authority';
+      nextLevelAt = 100;
+    } else if (totalHelpfulMarks >= 50) {
+      credibilityLevel = 'Expert';
+      nextLevel = 'Authority';
+      nextLevelAt = 100;
+    } else if (totalHelpfulMarks >= 25) {
+      credibilityLevel = 'Trusted';
+      nextLevel = 'Expert';
+      nextLevelAt = 50;
+    } else if (totalHelpfulMarks >= 10) {
+      credibilityLevel = 'Contributor';
+      nextLevel = 'Trusted';
+      nextLevelAt = 25;
+    }
 
     // Remove helpfulVotes from response and add helpful metadata
     const { helpfulVotes, ...jobNewsData } = jobNews;
@@ -241,6 +366,15 @@ export const getJobNewsById = async (req: AuthRequest, res: Response) => {
         ...jobNewsData,
         helpfulCount,
         userHasMarkedHelpful,
+        user: {
+          ...jobNews.user,
+          credibilityScore: {
+            level: credibilityLevel,
+            score: totalHelpfulMarks,
+            nextLevel,
+            nextLevelAt,
+          },
+        },
       },
     });
   } catch (error: any) {

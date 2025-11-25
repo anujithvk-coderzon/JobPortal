@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,20 @@ export default function LoginPage() {
     email: '',
     password: '',
   });
+
+  // Check for auth error message from blocked/deleted user
+  useEffect(() => {
+    const authError = localStorage.getItem('auth_error');
+    if (authError) {
+      toast({
+        title: 'Account Issue',
+        description: authError,
+        variant: 'destructive',
+        duration: 6000,
+      });
+      localStorage.removeItem('auth_error');
+    }
+  }, [toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -50,10 +64,14 @@ export default function LoginPage() {
       // Redirect to home page - better UX, less overwhelming
       router.push('/');
     } catch (error: any) {
+      const errorCode = error.response?.data?.code;
+      const errorMessage = error.response?.data?.error || 'Failed to login. Please try again.';
+
       toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to login. Please try again.',
+        title: errorCode === 'USER_BLOCKED' || errorCode === 'USER_DELETED' ? 'Account Issue' : 'Error',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 5000, // 5 seconds for all errors
       });
     } finally {
       setLoading(false);
@@ -88,12 +106,25 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error('Google sign-in error:', error);
 
+      // Check if user is blocked or deleted
+      const errorCode = error.response?.data?.code;
+      if (errorCode === 'USER_BLOCKED' || errorCode === 'USER_DELETED') {
+        toast({
+          title: 'Account Issue',
+          description: error.response?.data?.error || 'Your account has been blocked or deleted.',
+          variant: 'destructive',
+          duration: 5000, // 5 seconds
+        });
+        return; // Don't redirect or do anything else
+      }
+
       // Check if user is not registered
       if (error.response?.data?.isRegistered === false) {
         toast({
           title: 'Account Not Found',
           description: error.response.data.error,
           variant: 'destructive',
+          duration: 5000,
         });
         setTimeout(() => {
           router.push('/auth/register');
@@ -103,6 +134,7 @@ export default function LoginPage() {
           title: 'Error',
           description: error.response?.data?.error || 'Failed to sign in with Google. Please try again.',
           variant: 'destructive',
+          duration: 5000,
         });
       }
     } finally {

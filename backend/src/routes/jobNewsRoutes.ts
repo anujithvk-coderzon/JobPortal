@@ -24,8 +24,8 @@ const jobNewsValidation = [
   body('externalLink').optional().trim().isURL().withMessage('External link must be a valid URL'),
 ];
 
-// Public routes
-router.get('/', getAllJobNews);
+// Public routes (with optional authentication to track helpful votes)
+router.get('/', optionalAuthenticate, getAllJobNews);
 
 // Protected routes (must come before /:id to avoid conflicts)
 router.post('/', authenticate, validate(jobNewsValidation), createJobNews);

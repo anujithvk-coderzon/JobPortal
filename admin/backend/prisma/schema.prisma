@@ -1,0 +1,114 @@
+// Admin System Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  MODERATOR
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Admin users table (separate from main users)
+model Admin {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  password      String
+  name          String
+  role          AdminRole   @default(MODERATOR)
+  isActive      Boolean     @default(true)
+  lastLogin     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  moderations   PostModeration[]
+  userActions   UserAction[]
+
+  @@map("admins")
+}
+
+// Track post moderation history
+model PostModeration {
+  id              String      @id @default(uuid())
+  postId          String      // Reference to JobNews in main DB
+  adminId         String
+  admin           Admin       @relation(fields: [adminId], references: [id])
+  action          String      // APPROVE, REJECT, DELETE
+  reason          String?
+  createdAt       DateTime    @default(now())
+
+  @@map("post_moderations")
+}
+
+// Track user management actions
+model UserAction {
+  id              String      @id @default(uuid())
+  userId          String      // Reference to User in main DB
+  adminId         String
+  admin           Admin       @relation(fields: [adminId], references: [id])
+  action          String      // BLOCK, UNBLOCK, DELETE
+  reason          String?
+  createdAt       DateTime    @default(now())
+
+  @@map("user_actions")
+}
+
+// Main platform User model (read/write access for admin)
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  password      String
+  name          String
+  phone         String?
+  location      String?
+  profilePhoto  String?
+  isBlocked     Boolean       @default(false)
+  isDeleted     Boolean       @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  jobNews       JobNews[]
+
+  @@map("users")
+}
+
+// Main platform JobNews model (read/write access for admin)
+model JobNews {
+  id                String             @id @default(uuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title             String
+  description       String
+  companyName       String?
+  location          String?
+  source            String?
+  externalLink      String?
+  poster            String?
+  video             String?
+  videoId           String?
+
+  moderationStatus  ModerationStatus   @default(PENDING)
+  moderatedBy       String?            // Admin ID who moderated
+  moderatedAt       DateTime?
+  rejectionReason   String?
+
+  isActive          Boolean            @default(false) // Inactive until approved
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@map("job_news")
+}

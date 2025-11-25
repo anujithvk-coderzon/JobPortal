@@ -89,33 +89,6 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    // Debug logging
-    console.log('=== Dashboard Debug ===');
-    console.log('User ID:', userId);
-    console.log('Total applications to my jobs:', applicationsToMyJobs);
-    console.log('Pending applications count:', pendingApplicationsCount);
-
-    // Get detailed info about applications
-    const allApplicationsToMyJobs = await prisma.application.findMany({
-      where: {
-        job: {
-          userId,
-        },
-      },
-      select: {
-        id: true,
-        status: true,
-        job: {
-          select: {
-            id: true,
-            title: true,
-            userId: true,
-          },
-        },
-      },
-    });
-    console.log('All applications to my jobs:', JSON.stringify(allApplicationsToMyJobs, null, 2));
-
     const recentApplicationsReceived = await prisma.application.findMany({
       where: {
         job: {

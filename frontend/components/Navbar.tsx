@@ -15,10 +15,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
-import { Briefcase, Menu, X, User, LogOut, ChevronDown, Building2, Plus, MessageSquarePlus } from 'lucide-react';
+import { Briefcase, Menu, X, User, LogOut, ChevronDown, Building2, Plus, MessageSquarePlus, Bell } from 'lucide-react';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
-import { api } from '@/lib/api';
+import { api, notificationAPI } from '@/lib/api';
 import Image from 'next/image';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Company {
   id: string;
@@ -26,14 +27,27 @@ interface Company {
   logo: string | null;
 }
 
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  postId?: string;
+  createdAt: string;
+  isRead: boolean;
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const handleLogout = () => {
     logout();
@@ -69,13 +83,50 @@ export function Navbar() {
     }
   };
 
+  const fetchNotifications = async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await notificationAPI.getNotifications();
+      if (response.data?.success) {
+        setNotifications(response.data.data || []);
+        setUnreadCount((response.data.data || []).length);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    try {
+      // Mark as read
+      await notificationAPI.markAsRead(notification.id);
+
+      // Remove from list
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+
+      // Don't navigate for rejected posts (they're deleted)
+      // Only navigate to post if it exists and is NOT a rejection notification
+      if (notification.postId && notification.type !== 'POST_REJECTED') {
+        router.push(`/community/${notification.postId}`);
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchCompanies();
       fetchPendingApplications();
+      fetchNotifications();
 
-      // Refresh pending count every 30 seconds
-      const interval = setInterval(fetchPendingApplications, 30000);
+      // Refresh counts every 30 seconds
+      const interval = setInterval(() => {
+        fetchPendingApplications();
+        fetchNotifications();
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
@@ -133,6 +184,7 @@ export function Navbar() {
                 <NavLink href="/community">Community</NavLink>
                 <NavLink href="/dashboard" badge={pendingApplicationsCount}>Dashboard</NavLink>
                 <NavLink href="/applications">My Applications</NavLink>
+                <NavLink href="/my-page">My Page</NavLink>
               </div>
             )}
           </div>
@@ -160,21 +212,11 @@ export function Navbar() {
                   <MessageSquarePlus className="mr-2 h-4 w-4" />
                   Share to Community
                 </Button>
-                {/* MD-LG: Short text */}
+                {/* SM-LG: Icon only */}
                 <Button
                   onClick={() => router.push('/community/create')}
                   size="sm"
-                  className="hidden md:flex xl:hidden bg-blue-600 hover:bg-blue-700 text-white"
-                  title="Share to Community"
-                >
-                  <MessageSquarePlus className="mr-2 h-4 w-4" />
-                  Share
-                </Button>
-                {/* SM: Icon only */}
-                <Button
-                  onClick={() => router.push('/community/create')}
-                  size="sm"
-                  className="hidden sm:flex md:hidden bg-blue-600 hover:bg-blue-700 text-white"
+                  className="hidden sm:flex xl:hidden bg-blue-600 hover:bg-blue-700 text-white"
                   title="Share to Community"
                 >
                   <MessageSquarePlus className="h-4 w-4" />
@@ -404,6 +446,74 @@ export function Navbar() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
+                {/* Notifications Bell - Always Visible when authenticated */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full p-0 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 flex-shrink-0 hover:bg-accent transition-colors flex items-center justify-center">
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 animate-pulse shadow-lg">
+                          <span className="text-[10px] font-bold text-white leading-none">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        </span>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-80" align="end">
+                    <DropdownMenuLabel>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold">Notifications</span>
+                        {unreadCount > 0 && (
+                          <span className="text-xs text-muted-foreground">{unreadCount} unread</span>
+                        )}
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {notifications.length === 0 ? (
+                      <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                        No notifications
+                      </div>
+                    ) : (
+                      <>
+                        <div className="max-h-[400px] overflow-y-auto">
+                          {notifications.map((notification) => (
+                            <DropdownMenuItem
+                              key={notification.id}
+                              onClick={() => handleNotificationClick(notification)}
+                              className="flex flex-col items-start gap-1 py-3 px-3 cursor-pointer hover:bg-accent focus:bg-accent"
+                            >
+                              <div className="flex items-start justify-between w-full gap-2">
+                                <p className="text-sm font-medium leading-tight">{notification.title}</p>
+                                {notification.type === 'POST_REJECTED' && (
+                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded flex-shrink-0">
+                                    REJECTED
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{notification.message}</p>
+                              <div className="flex items-center justify-between w-full mt-1">
+                                <p className="text-[10px] text-muted-foreground">
+                                  {new Date(notification.createdAt).toLocaleString()}
+                                </p>
+                                <p className="text-[9px] text-primary/70 italic">
+                                  Click to dismiss
+                                </p>
+                              </div>
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                        <DropdownMenuSeparator />
+                        <div className="px-3 py-2 text-center">
+                          <p className="text-[10px] text-muted-foreground">
+                            Click any notification to mark as read
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {/* User Menu - Always Visible */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -447,6 +557,7 @@ export function Navbar() {
               <>
                 <NavLink href="/dashboard" badge={pendingApplicationsCount} className="block py-2.5">Dashboard</NavLink>
                 <NavLink href="/applications" className="block py-2.5">My Applications</NavLink>
+                <NavLink href="/my-page" className="block py-2.5">My Page</NavLink>
 
                 {/* Share to Community */}
                 <div className="pt-3 pb-2">

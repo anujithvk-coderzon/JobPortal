@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import prisma from '../config/database';
 import { AuthRequest, SearchParams } from '../types';
+import { calculateJobMatch, calculateJobMatches } from '../services/jobMatchingService';
+import { parseSearchQuery } from '../utils/searchParser';
 
 export const createJob = async (req: AuthRequest, res: Response) => {
   try {
@@ -109,7 +111,7 @@ export const createJob = async (req: AuthRequest, res: Response) => {
 
 export const getAllJobs = async (req: AuthRequest, res: Response) => {
   try {
-    const {
+    let {
       page = 1,
       limit = 20,
       search,
@@ -125,33 +127,126 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
+    // Parse search query for intelligent keyword extraction
+    const parsedSearch = parseSearchQuery(search || '');
+
+    // Apply extracted filters only if they weren't already set by the user
+    if (parsedSearch.location && !location) {
+      location = parsedSearch.location;
+    }
+    if (parsedSearch.locationType && !locationType) {
+      locationType = parsedSearch.locationType;
+    }
+    if (parsedSearch.employmentType && !employmentType) {
+      employmentType = parsedSearch.employmentType;
+    }
+    if (parsedSearch.experienceLevel && !experienceLevel) {
+      experienceLevel = parsedSearch.experienceLevel;
+    }
+    if (parsedSearch.salaryMin && !salaryMin) {
+      salaryMin = parsedSearch.salaryMin.toString();
+    }
+    if (parsedSearch.salaryMax && !salaryMax) {
+      salaryMax = parsedSearch.salaryMax.toString();
+    }
+
+    // Use the cleaned query for actual text search
+    if (search) {
+      search = parsedSearch.cleanedQuery;
+    }
+
     // Build filter conditions
+    // Set time to start of today (00:00:00) for date-only comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const where: any = {
       isActive: true,
-      // Filter out expired jobs (no deadline OR deadline in future)
+      // Filter out expired jobs (no deadline OR deadline is today or in future)
       OR: [
         { applicationDeadline: null },
-        { applicationDeadline: { gte: new Date() } },
+        { applicationDeadline: { gte: today } },
       ],
     };
 
-    // Hide user's own posts from the feed
-    if (req.user) {
-      where.userId = {
-        not: req.user.userId,
-      };
-    }
+    // Full-text search with relevance ranking
+    // If search is provided, we'll use PostgreSQL full-text search for better results
+    let searchRankingSubquery = '';
+    let searchJobIds: string[] = [];
 
-    // Search in title, description, and company name
-    if (search) {
-      where.AND = where.AND || [];
-      where.AND.push({
-        OR: [
-          { title: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { company: { name: { contains: search, mode: 'insensitive' } } },
-        ],
-      });
+    if (search && search.trim() !== '') {
+      // Split search into individual words and create search query
+      const searchTerms = search.trim().split(/\s+/).filter((term: string) => term.length > 0);
+      const tsQuery = searchTerms.map((term: string) => `${term}:*`).join(' & ');
+
+      // Use raw SQL for full-text search with weighted ranking
+      // Title: A (weight 1.0), Skills: B (weight 0.4), Description: C (weight 0.2), Company: D (weight 0.1)
+      const searchResults = await prisma.$queryRaw<Array<{ id: string; rank: number }>>`
+        SELECT
+          id,
+          ts_rank_cd(
+            setweight(to_tsvector('english', COALESCE(title, '')), 'A') ||
+            setweight(to_tsvector('english', COALESCE("requiredSkills", '')), 'B') ||
+            setweight(to_tsvector('english', COALESCE(description, '')), 'C') ||
+            setweight(to_tsvector('english', COALESCE("companyName", '')), 'D'),
+            to_tsquery('english', ${tsQuery})
+          ) as rank
+        FROM "jobs"
+        WHERE
+          "isActive" = true
+          AND (
+            to_tsvector('english', COALESCE(title, '')) ||
+            to_tsvector('english', COALESCE("requiredSkills", '')) ||
+            to_tsvector('english', COALESCE(description, '')) ||
+            to_tsvector('english', COALESCE("companyName", ''))
+          ) @@ to_tsquery('english', ${tsQuery})
+        ORDER BY rank DESC
+      `;
+
+      searchJobIds = searchResults.map(result => result.id);
+
+      // If no results found with strict matching, try OR matching (any word matches)
+      if (searchJobIds.length === 0 && searchTerms.length > 1) {
+        const tsQueryOr = searchTerms.map((term: string) => `${term}:*`).join(' | ');
+        const fallbackResults = await prisma.$queryRaw<Array<{ id: string; rank: number }>>`
+          SELECT
+            id,
+            ts_rank_cd(
+              setweight(to_tsvector('english', COALESCE(title, '')), 'A') ||
+              setweight(to_tsvector('english', COALESCE("requiredSkills", '')), 'B') ||
+              setweight(to_tsvector('english', COALESCE(description, '')), 'C') ||
+              setweight(to_tsvector('english', COALESCE("companyName", '')), 'D'),
+              to_tsquery('english', ${tsQueryOr})
+            ) as rank
+          FROM "jobs"
+          WHERE
+            "isActive" = true
+            AND (
+              to_tsvector('english', COALESCE(title, '')) ||
+              to_tsvector('english', COALESCE("requiredSkills", '')) ||
+              to_tsvector('english', COALESCE(description, '')) ||
+              to_tsvector('english', COALESCE("companyName", ''))
+            ) @@ to_tsquery('english', ${tsQueryOr})
+          ORDER BY rank DESC
+        `;
+        searchJobIds = fallbackResults.map(result => result.id);
+      }
+
+      // If still no results, fall back to simple pattern matching
+      if (searchJobIds.length === 0) {
+        where.AND = where.AND || [];
+        where.AND.push({
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+            { companyName: { contains: search, mode: 'insensitive' } },
+            { requiredSkills: { contains: search, mode: 'insensitive' } },
+          ],
+        });
+      } else {
+        // Filter by matching job IDs
+        where.id = { in: searchJobIds };
+      }
     }
 
     // Location filter
@@ -187,16 +282,25 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
 
     // Sort options
     let orderBy: any = { createdAt: 'desc' };
-    if (sortBy === 'salary') {
+
+    // If search results exist, preserve search ranking order
+    if (search && searchJobIds.length > 0) {
+      // Jobs will be sorted by relevance ranking from full-text search
+      // We'll sort them in the application layer to maintain search ranking
+      orderBy = undefined;
+    } else if (sortBy === 'salary') {
       orderBy = { salaryMax: 'desc' };
     }
+
+    // For match sorting, we need to fetch all jobs first, then sort and paginate
+    const shouldFetchAll = sortBy === 'match' && req.user;
 
     // Execute query
     const [jobs, total] = await Promise.all([
       prisma.job.findMany({
         where,
-        skip,
-        take,
+        skip: shouldFetchAll ? undefined : skip,
+        take: shouldFetchAll ? undefined : take,
         orderBy,
         include: {
           company: {
@@ -218,7 +322,7 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
     ]);
 
     // Parse JSON fields
-    const jobsWithParsedData = jobs.map(job => ({
+    let jobsWithParsedData = jobs.map(job => ({
       ...job,
       responsibilities: job.responsibilities ? JSON.parse(job.responsibilities) : null,
       requiredQualifications: job.requiredQualifications
@@ -229,6 +333,76 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
         : null,
       requiredSkills: job.requiredSkills ? JSON.parse(job.requiredSkills) : null,
     }));
+
+    // Sort by search relevance if we have search results
+    if (search && searchJobIds.length > 0) {
+      // If user is authenticated, calculate match scores and sort by match percentage
+      if (req.user) {
+        try {
+          const jobsWithMatchScores = await Promise.all(
+            jobsWithParsedData.map(async (job) => {
+              try {
+                const matchScore = await calculateJobMatch(req.user!.userId, job.id);
+                return { ...job, matchScore: matchScore.overall };
+              } catch (error) {
+                console.error(`Error calculating match for job ${job.id}:`, error);
+                return { ...job, matchScore: 0 };
+              }
+            })
+          );
+
+          // Sort by match score descending (highest match first)
+          jobsWithParsedData = jobsWithMatchScores.sort((a: any, b: any) => {
+            return b.matchScore - a.matchScore;
+          });
+        } catch (error) {
+          console.error('Error calculating match scores for search:', error);
+          // Fall back to search relevance ranking
+          const rankMap = new Map(searchJobIds.map((id, index) => [id, index]));
+          jobsWithParsedData.sort((a, b) => {
+            const rankA = rankMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+            const rankB = rankMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+            return rankA - rankB;
+          });
+        }
+      } else {
+        // For non-authenticated users, use search relevance ranking
+        const rankMap = new Map(searchJobIds.map((id, index) => [id, index]));
+        jobsWithParsedData.sort((a, b) => {
+          const rankA = rankMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+          const rankB = rankMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+          return rankA - rankB;
+        });
+      }
+    }
+
+    // If sorting by match and user is authenticated, calculate match scores and sort
+    if (sortBy === 'match' && req.user && !search) {
+      try {
+        const jobsWithMatchScores = await Promise.all(
+          jobsWithParsedData.map(async (job) => {
+            try {
+              const matchScore = await calculateJobMatch(req.user!.userId, job.id);
+              return { ...job, matchScore: matchScore.overall };
+            } catch (error) {
+              console.error(`Error calculating match for job ${job.id}:`, error);
+              return { ...job, matchScore: 0 };
+            }
+          })
+        );
+
+        // Sort by match score descending (highest first)
+        const sortedJobs = jobsWithMatchScores.sort((a: any, b: any) => {
+          return b.matchScore - a.matchScore;
+        });
+
+        // Now apply pagination to sorted results
+        jobsWithParsedData = sortedJobs.slice(skip, skip + take);
+      } catch (error) {
+        console.error('Error calculating match scores:', error);
+        // Continue with unsorted jobs if match calculation fails
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -499,9 +673,17 @@ export const getMyJobs = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { page = 1, limit = 20, search } = req.query as any;
+    let { page = 1, limit = 20, search } = req.query as any;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
+
+    // Parse search query for intelligent keyword extraction
+    const parsedSearch = parseSearchQuery(search || '');
+
+    // Use the cleaned query for actual text search
+    if (search) {
+      search = parsedSearch.cleanedQuery;
+    }
 
     // Build where clause with search
     const where: any = { userId: req.user.userId };
@@ -512,6 +694,20 @@ export const getMyJobs = async (req: AuthRequest, res: Response) => {
         { description: { contains: search, mode: 'insensitive' } },
         { company: { name: { contains: search, mode: 'insensitive' } } },
       ];
+    }
+
+    // Apply parsed filters if present
+    if (parsedSearch.locationType) {
+      where.locationType = parsedSearch.locationType;
+    }
+    if (parsedSearch.employmentType) {
+      where.employmentType = parsedSearch.employmentType;
+    }
+    if (parsedSearch.experienceLevel) {
+      where.experienceLevel = parsedSearch.experienceLevel;
+    }
+    if (parsedSearch.location) {
+      where.location = { contains: parsedSearch.location, mode: 'insensitive' };
     }
 
     const [jobs, total] = await Promise.all([
@@ -565,10 +761,20 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
+    // Set time to start of today (00:00:00) for date-only comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const [jobs, total, company] = await Promise.all([
       prisma.job.findMany({
         where: {
           companyId: companyId,
+          isActive: true,
+          // Only show jobs that haven't expired (no deadline OR deadline is today or in future)
+          OR: [
+            { applicationDeadline: null },
+            { applicationDeadline: { gte: today } },
+          ],
         },
         skip,
         take,
@@ -591,6 +797,11 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
       prisma.job.count({
         where: {
           companyId: companyId,
+          isActive: true,
+          OR: [
+            { applicationDeadline: null },
+            { applicationDeadline: { gte: today } },
+          ],
         },
       }),
       prisma.company.findUnique({
@@ -791,6 +1002,97 @@ export const getSavedJobs = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch saved jobs',
+    });
+  }
+};
+
+export const getJobMatchScore = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const { jobId } = req.params;
+    const { userId } = req.query; // Optional: calculate match for specific user
+
+    // Check if job exists
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        error: 'Job not found',
+      });
+    }
+
+    // If userId is provided, verify the requester is the job poster
+    if (userId && typeof userId === 'string') {
+      if (job.userId !== req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          error: 'You can only view match scores for applicants of your own jobs',
+        });
+      }
+
+      // Calculate match score for the specified user
+      const matchScore = await calculateJobMatch(userId, jobId);
+      return res.status(200).json({
+        success: true,
+        data: matchScore,
+      });
+    }
+
+    // Calculate match score for logged-in user
+    const matchScore = await calculateJobMatch(req.user.userId, jobId);
+
+    return res.status(200).json({
+      success: true,
+      data: matchScore,
+    });
+  } catch (error: any) {
+    console.error('Get job match score error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to calculate job match score',
+    });
+  }
+};
+
+export const getJobsWithMatchScores = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const { jobIds } = req.body;
+
+    if (!jobIds || !Array.isArray(jobIds) || jobIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Job IDs array is required',
+      });
+    }
+
+    // Calculate match scores for all jobs
+    const matchScores = await calculateJobMatches(req.user.userId, jobIds);
+
+    return res.status(200).json({
+      success: true,
+      data: matchScores,
+    });
+  } catch (error: any) {
+    console.error('Get jobs with match scores error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to calculate job match scores',
     });
   }
 };

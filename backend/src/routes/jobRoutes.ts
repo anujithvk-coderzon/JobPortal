@@ -11,14 +11,16 @@ import {
   saveJob,
   unsaveJob,
   getSavedJobs,
+  getJobMatchScore,
+  getJobsWithMatchScores,
 } from '../controllers/jobController';
 import { authenticate, optionalAuthenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
 const router = express.Router();
 
-// Public routes (no authentication required)
-router.get('/', getAllJobs);
+// Public routes (optional authentication for match sorting)
+router.get('/', optionalAuthenticate, getAllJobs);
 router.get('/company/:companyId', getCompanyJobs);
 
 // Job detail route (public, but shows extra info if authenticated)
@@ -69,6 +71,19 @@ router.delete(
   '/:jobId/save',
   authenticate,
   unsaveJob
+);
+
+// Job matching endpoints (batch endpoint must come before dynamic route)
+router.post(
+  '/match/batch',
+  authenticate,
+  getJobsWithMatchScores
+);
+
+router.get(
+  '/:jobId/match',
+  authenticate,
+  getJobMatchScore
 );
 
 export default router;

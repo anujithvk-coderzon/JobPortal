@@ -57,3 +57,54 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Custom scrollbar styles for webkit browsers (Chrome, Safari, Edge) */
+  /* Completely hide native scrollbar on mobile */
+  .scrollbar-thin {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Show scrollbar only on large screens (desktop) */
+  @media (min-width: 1024px) {
+    .scrollbar-thin {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(156, 163, 175, 0.6) transparent;
+      -ms-overflow-style: auto;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar {
+      display: block;
+      width: 6px;
+      height: 6px;
+    }
+
+    /* Remove scrollbar arrows/buttons */
+    .scrollbar-thin::-webkit-scrollbar-button {
+      display: none;
+    }
+
+    /* Transparent track - only bar is visible */
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* Visible scrollbar thumb/bar */
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.6);
+      border-radius: 10px;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+      background: rgba(107, 114, 128, 0.8);
+    }
+  }
+}

@@ -193,6 +193,8 @@ export const login = async (req: Request, res: Response) => {
         phone: true,
         location: true,
         profilePhoto: true,
+        isBlocked: true,
+        isDeleted: true,
       },
     });
 
@@ -200,6 +202,24 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({
         success: false,
         error: 'Invalid email or password',
+      });
+    }
+
+    // Check if user is deleted
+    if (user.isDeleted) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been deleted. Please try registering with another email.',
+        code: 'USER_DELETED',
+      });
+    }
+
+    // Check if user is blocked
+    if (user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been blocked by the admin. Please contact support.',
+        code: 'USER_BLOCKED',
       });
     }
 
@@ -219,8 +239,8 @@ export const login = async (req: Request, res: Response) => {
       email: user.email,
     });
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
+    // Remove password, isBlocked, isDeleted from response
+    const { password: _, isBlocked, isDeleted, ...userWithoutPassword } = user;
 
     return res.status(200).json({
       success: true,
@@ -442,6 +462,8 @@ export const googleLogin = async (req: Request, res: Response) => {
         phone: true,
         location: true,
         profilePhoto: true,
+        isBlocked: true,
+        isDeleted: true,
       },
     });
 
@@ -450,6 +472,24 @@ export const googleLogin = async (req: Request, res: Response) => {
         success: false,
         error: 'No account found with this email. Please register first.',
         isRegistered: false,
+      });
+    }
+
+    // Check if user is deleted
+    if (user.isDeleted) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been deleted. Please try registering with another email.',
+        code: 'USER_DELETED',
+      });
+    }
+
+    // Check if user is blocked
+    if (user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been blocked by the admin. Please contact support.',
+        code: 'USER_BLOCKED',
       });
     }
 
@@ -468,10 +508,13 @@ export const googleLogin = async (req: Request, res: Response) => {
       email: user.email,
     });
 
+    // Remove isBlocked and isDeleted from response
+    const { isBlocked, isDeleted, ...userWithoutSensitiveData } = user;
+
     return res.status(200).json({
       success: true,
       data: {
-        user,
+        user: userWithoutSensitiveData,
         token,
       },
       message: 'Login successful with Google',

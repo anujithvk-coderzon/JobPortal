@@ -482,22 +482,22 @@ function ProfilePageContent() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto py-8 px-4 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="container mx-auto py-4 sm:py-6 md:py-8 px-3 sm:px-4 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Profile Header */}
             <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row items-start gap-6">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
               <div className="relative group">
-                <Avatar className="h-24 w-24">
+                <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
                   <AvatarImage
                     src={user.profilePhoto || undefined}
                     referrerPolicy="no-referrer"
                     crossOrigin="anonymous"
                   />
-                  <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
+                  <AvatarFallback className="text-xl sm:text-2xl">{getInitials(user.name)}</AvatarFallback>
                 </Avatar>
                 <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <input
@@ -509,23 +509,24 @@ function ProfilePageContent() {
                     disabled={uploadingPhoto}
                   />
                   <label htmlFor="profile-photo-input" className="cursor-pointer">
-                    <Camera className="h-6 w-6 text-white" />
+                    <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </label>
                 </div>
               </div>
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold mb-1">{user.name}</h1>
-                <p className="text-muted-foreground mb-4">{user.email}</p>
+              <div className="flex-1 w-full">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-1 break-words">{user.name}</h1>
+                <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4 break-words">{user.email}</p>
                 <div className="flex flex-wrap gap-2">
                   <label htmlFor="profile-photo-input">
                     <Button variant="outline" size="sm" asChild disabled={uploadingPhoto}>
-                      <span className="cursor-pointer">
+                      <span className="cursor-pointer text-xs sm:text-sm">
                         {uploadingPhoto ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
                         ) : (
-                          <Upload className="h-4 w-4 mr-2" />
+                          <Upload className="h-4 w-4 sm:mr-2" />
                         )}
-                        {user.profilePhoto ? 'Change Photo' : 'Upload Photo'}
+                        <span className="hidden sm:inline">{user.profilePhoto ? 'Change Photo' : 'Upload Photo'}</span>
+                        <span className="sm:hidden">{user.profilePhoto ? 'Change' : 'Upload'}</span>
                       </span>
                     </Button>
                   </label>
@@ -535,9 +536,10 @@ function ProfilePageContent() {
                       size="sm"
                       onClick={() => setDeletePhotoDialogOpen(true)}
                       disabled={uploadingPhoto}
+                      className="text-xs sm:text-sm"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Remove
+                      <Trash2 className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Remove</span>
                     </Button>
                   )}
                 </div>
@@ -548,20 +550,20 @@ function ProfilePageContent() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
-            <TabsTrigger value="basic">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-2 p-1">
+            <TabsTrigger value="basic" className="text-sm">
               <User className="h-4 w-4 mr-2" />
               Basic
             </TabsTrigger>
-            <TabsTrigger value="experience">
+            <TabsTrigger value="experience" className="text-sm">
               <Briefcase className="h-4 w-4 mr-2" />
               Experience
             </TabsTrigger>
-            <TabsTrigger value="education">
+            <TabsTrigger value="education" className="text-sm">
               <GraduationCap className="h-4 w-4 mr-2" />
               Education
             </TabsTrigger>
-            <TabsTrigger value="skills">
+            <TabsTrigger value="skills" className="text-sm">
               <Award className="h-4 w-4 mr-2" />
               Skills
             </TabsTrigger>
@@ -574,8 +576,8 @@ function ProfilePageContent() {
                 <CardTitle>Basic Information</CardTitle>
                 <CardDescription>Update your personal details</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="name">Full Name</Label>
                     <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -613,10 +615,10 @@ function ProfilePageContent() {
                 <div className="border-t pt-4">
                   <Label className="text-base font-semibold mb-3 block">Resume/CV</Label>
                   {pendingResumeFile ? (
-                    <div className="flex items-center gap-3 p-4 border-2 border-orange-500 rounded-lg bg-orange-50 dark:bg-orange-950">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 border-2 border-orange-500 rounded-lg bg-orange-50 dark:bg-orange-950">
                       <FileText className="h-8 w-8 text-orange-600 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-orange-900 dark:text-orange-100">
+                        <p className="font-medium text-sm text-orange-900 dark:text-orange-100 break-words">
                           {pendingResumeFile.name}
                         </p>
                         <p className="text-xs text-orange-700 dark:text-orange-300">
@@ -631,13 +633,13 @@ function ProfilePageContent() {
                           const input = document.getElementById('resume-upload') as HTMLInputElement;
                           if (input) input.value = '';
                         }}
-                        className="flex-shrink-0"
+                        className="flex-shrink-0 self-end sm:self-auto"
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : profileData?.resume ? (
-                    <div className="flex items-center gap-3 p-4 border rounded-lg bg-accent/20">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 border rounded-lg bg-accent/20">
                       <FileText className="h-8 w-8 text-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">Resume uploaded</p>
@@ -645,7 +647,7 @@ function ProfilePageContent() {
                           Click view to open or delete to remove
                         </p>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-2 flex-shrink-0 self-end sm:self-auto">
                         <Button
                           variant="outline"
                           size="sm"
@@ -719,35 +721,36 @@ function ProfilePageContent() {
           <TabsContent value="experience">
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div>
                       <CardTitle>Work Experience</CardTitle>
                       <CardDescription>Add your professional experience</CardDescription>
                     </div>
-                    <Button onClick={() => { setShowExperienceForm(true); setEditingItem(null); }}>
+                    <Button onClick={() => { setShowExperienceForm(true); setEditingItem(null); }} className="sm:flex-shrink-0">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Experience
+                      <span className="hidden sm:inline">Add Experience</span>
+                      <span className="sm:hidden">Add</span>
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4">
                   {experience.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">No experience added yet</p>
                   ) : (
                     experience.map((exp) => (
-                      <div key={exp.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-semibold">{exp.title}</h3>
+                      <div key={exp.id} className="border rounded-lg p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-base sm:text-lg">{exp.title}</h3>
                             <p className="text-sm text-muted-foreground">{exp.company}</p>
                             {exp.location && <p className="text-sm text-muted-foreground">{exp.location}</p>}
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                               {new Date(exp.startDate).toLocaleDateString()} -{' '}
                               {exp.current ? 'Present' : exp.endDate ? new Date(exp.endDate).toLocaleDateString() : ''}
                             </p>
                             {exp.description && <p className="text-sm mt-2">{exp.description}</p>}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 self-end sm:self-auto flex-shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -786,35 +789,36 @@ function ProfilePageContent() {
           <TabsContent value="education">
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div>
                       <CardTitle>Education</CardTitle>
                       <CardDescription>Add your educational background</CardDescription>
                     </div>
-                    <Button onClick={() => { setShowEducationForm(true); setEditingItem(null); }}>
+                    <Button onClick={() => { setShowEducationForm(true); setEditingItem(null); }} className="sm:flex-shrink-0">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Education
+                      <span className="hidden sm:inline">Add Education</span>
+                      <span className="sm:hidden">Add</span>
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4">
                   {education.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">No education added yet</p>
                   ) : (
                     education.map((edu) => (
-                      <div key={edu.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-semibold">{edu.degree} in {edu.fieldOfStudy}</h3>
+                      <div key={edu.id} className="border rounded-lg p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-base sm:text-lg">{edu.degree} in {edu.fieldOfStudy}</h3>
                             <p className="text-sm text-muted-foreground">{edu.institution}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                               {new Date(edu.startDate).toLocaleDateString()} -{' '}
                               {edu.current ? 'Present' : edu.endDate ? new Date(edu.endDate).toLocaleDateString() : ''}
                             </p>
                             {edu.grade && <p className="text-sm mt-1">Grade: {edu.grade}</p>}
                             {edu.description && <p className="text-sm mt-2">{edu.description}</p>}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 self-end sm:self-auto flex-shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -853,14 +857,15 @@ function ProfilePageContent() {
           <TabsContent value="skills">
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div>
                       <CardTitle>Skills</CardTitle>
                       <CardDescription>Add your technical and soft skills</CardDescription>
                     </div>
-                    <Button onClick={() => setShowSkillForm(true)}>
+                    <Button onClick={() => setShowSkillForm(true)} className="sm:flex-shrink-0">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Skill
+                      <span className="hidden sm:inline">Add Skill</span>
+                      <span className="sm:hidden">Add</span>
                     </Button>
                   </div>
                 </CardHeader>
@@ -913,15 +918,15 @@ function ProfilePageContent() {
 
         {/* Delete Education Dialog */}
         <AlertDialog open={!!deleteEducationId} onOpenChange={(open) => !open && setDeleteEducationId(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md mx-4">
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Education</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-base sm:text-lg">Delete Education</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
                 Are you sure you want to delete this education entry? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={() => deleteEducationId && deleteEducation(deleteEducationId)}>
                 Delete
               </AlertDialogAction>
@@ -931,15 +936,15 @@ function ProfilePageContent() {
 
         {/* Delete Experience Dialog */}
         <AlertDialog open={!!deleteExperienceId} onOpenChange={(open) => !open && setDeleteExperienceId(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md mx-4">
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Experience</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-base sm:text-lg">Delete Experience</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
                 Are you sure you want to delete this experience entry? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={() => deleteExperienceId && deleteExperience(deleteExperienceId)}>
                 Delete
               </AlertDialogAction>
@@ -949,15 +954,15 @@ function ProfilePageContent() {
 
         {/* Delete Profile Photo Dialog */}
         <AlertDialog open={deletePhotoDialogOpen} onOpenChange={setDeletePhotoDialogOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md mx-4">
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove Profile Photo</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-base sm:text-lg">Remove Profile Photo</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
                 Are you sure you want to remove your profile photo? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteProfilePhoto}>
                 Remove
               </AlertDialogAction>
@@ -967,15 +972,15 @@ function ProfilePageContent() {
 
         {/* Delete Resume Dialog */}
         <AlertDialog open={deleteResumeDialogOpen} onOpenChange={setDeleteResumeDialogOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md mx-4">
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove Resume</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-base sm:text-lg">Remove Resume</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
                 Are you sure you want to remove your resume? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteResume}>
                 Remove
               </AlertDialogAction>
@@ -1033,14 +1038,14 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>{initialData ? 'Edit' : 'Add'} Education</CardTitle>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="text-lg sm:text-xl">{initialData ? 'Edit' : 'Add'} Education</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="pt-0">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <div className="md:col-span-2">
                 <Label>Institution *</Label>
                 <Input
@@ -1203,14 +1208,14 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>{initialData ? 'Edit' : 'Add'} Experience</CardTitle>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="text-lg sm:text-xl">{initialData ? 'Edit' : 'Add'} Experience</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="pt-0">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <Label>Job Title *</Label>
                 <Input
@@ -1304,13 +1309,13 @@ function SkillForm({ onSave, onCancel }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Add Skill</CardTitle>
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="text-lg sm:text-xl">Add Skill</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="pt-0">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div>
               <Label>Skill Name *</Label>
               <Input

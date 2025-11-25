@@ -34,6 +34,37 @@ api.interceptors.response.use(
       if (typeof window !== 'undefined') {
         window.location.href = '/auth/login';
       }
+    } else if (error.response?.status === 403) {
+      // Handle blocked or deleted users
+      const code = error.response?.data?.code;
+      const errorMessage = error.response?.data?.error;
+
+      // Clear auth data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+
+      if (typeof window !== 'undefined') {
+        // Check if we're already on the login/register page
+        const isAuthPage = window.location.pathname.startsWith('/auth/');
+
+        if (isAuthPage) {
+          // If already on auth page (login/register), just reject the error
+          // The page will handle showing the error
+          return Promise.reject(error);
+        }
+
+        // Store the error message to display on login page
+        if (code === 'USER_BLOCKED') {
+          localStorage.setItem('auth_error', 'Your account has been blocked. Please contact support.');
+        } else if (code === 'USER_DELETED') {
+          localStorage.setItem('auth_error', 'Your account has been deleted. Please contact support.');
+        } else {
+          localStorage.setItem('auth_error', errorMessage || 'Access denied. Please login again.');
+        }
+
+        // Redirect to login only if not already on auth page
+        window.location.href = '/auth/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -138,4 +169,11 @@ export const jobNewsAPI = {
   deleteJobNews: (id: string) => axiosInstance.delete(`/job-news/${id}`),
   getMyJobNews: (params?: any) => axiosInstance.get('/job-news/user/my-news', { params }),
   toggleHelpful: (id: string) => axiosInstance.post(`/job-news/${id}/helpful`),
+};
+
+// Notification API
+export const notificationAPI = {
+  getNotifications: () => axiosInstance.get('/notifications'),
+  getUnreadCount: () => axiosInstance.get('/notifications/unread-count'),
+  markAsRead: (notificationId: string) => axiosInstance.delete(`/notifications/${notificationId}`),
 };

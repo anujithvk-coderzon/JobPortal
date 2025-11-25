@@ -14,6 +14,12 @@ import dashboardRoutes from './routes/dashboardRoutes';
 import jobNewsRoutes from './routes/jobNewsRoutes';
 import companyRoutes from './routes/companyRoutes';
 import testRoutes from './routes/testRoutes';
+import setupRoutes from './routes/setupRoutes';
+import adminAuthRoutes from './routes/adminAuthRoutes';
+import adminStatsRoutes from './routes/adminStatsRoutes';
+import adminUserRoutes from './routes/adminUserRoutes';
+import adminPostRoutes from './routes/adminPostRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -31,6 +37,12 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/job-news', jobNewsRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/setup', setupRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/stats', adminStatsRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/posts', adminPostRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Test routes (development only)
 if (process.env.NODE_ENV !== 'production') {

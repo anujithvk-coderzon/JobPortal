@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Navbar } from '@/components/Navbar';
+import { JobMatchScore } from '@/components/JobMatchScore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -706,7 +707,7 @@ ${companyName} Team`;
                   onClick={() => setSelectedApplication(application)}
                 >
                   <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-2 sm:gap-4">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <Avatar className="h-12 w-12 flex-shrink-0">
                           <AvatarImage
@@ -723,10 +724,13 @@ ${companyName} Team`;
                           </p>
                         </div>
                       </div>
-                      <Badge variant={getStatusBadgeVariant(application.status)} className="flex items-center gap-1 flex-shrink-0">
-                        {getStatusIcon(application.status)}
-                        <span className="hidden sm:inline">{getStatusLabel(application.status)}</span>
-                      </Badge>
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
+                        <JobMatchScore jobId={jobId} applicantId={application.applicant.id} variant="badge" />
+                        <Badge variant={getStatusBadgeVariant(application.status)} className="flex items-center gap-1">
+                          {getStatusIcon(application.status)}
+                          <span className="hidden sm:inline">{getStatusLabel(application.status)}</span>
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-3 sm:px-6 pt-0">

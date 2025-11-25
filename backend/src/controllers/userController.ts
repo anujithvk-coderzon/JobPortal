@@ -98,6 +98,24 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // If viewing another user's profile, apply privacy settings
+    const isOwnProfile = req.user?.userId === userId;
+    if (!isOwnProfile && user.profile && (user.profile as any).privacySettings) {
+      const privacy = (user.profile as any).privacySettings;
+
+      // Hide private fields
+      if (!privacy.email) {
+        user.email = '';
+        user.phone = '';
+      }
+      if (!privacy.phone) user.phone = '';
+      if (!privacy.location) user.location = '';
+      if (!privacy.bio && user.profile) user.profile.bio = '';
+      if (!privacy.skills && user.profile) user.profile.skills = [];
+      if (!privacy.experience && user.profile) user.profile.experiences = [];
+      if (!privacy.education && user.profile) user.profile.education = [];
+    }
+
     return res.status(200).json({
       success: true,
       data: user,
@@ -107,6 +125,174 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch profile',
+    });
+  }
+};
+
+export const getPublicProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'User ID is required',
+      });
+    }
+
+    // Fetch user with profile
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: {
+          include: {
+            skills: { orderBy: { createdAt: 'desc' } },
+            experiences: { orderBy: { startDate: 'desc' } },
+            education: { orderBy: { startDate: 'desc' } },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    // Apply privacy settings
+    const isOwnProfile = req.user?.userId === userId;
+    if (!isOwnProfile && user.profile && (user.profile as any).privacySettings) {
+      const privacy = (user.profile as any).privacySettings;
+
+      // Hide private fields
+      if (!privacy.email) {
+        user.email = '';
+        user.phone = '';
+      }
+      if (!privacy.phone) user.phone = '';
+      if (!privacy.location) user.location = '';
+      if (!privacy.bio && user.profile) user.profile.bio = '';
+      if (!privacy.skills && user.profile) user.profile.skills = [];
+      if (!privacy.experience && user.profile) user.profile.experiences = [];
+      if (!privacy.education && user.profile) user.profile.education = [];
+    }
+
+    // Fetch user's posts with pagination
+    const [posts, totalPosts] = await Promise.all([
+      prisma.jobNews.findMany({
+        where: {
+          userId,
+          moderationStatus: 'APPROVED',
+          isActive: true,
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          companyName: true,
+          location: true,
+          createdAt: true,
+          _count: {
+            select: {
+              helpfulVotes: true,
+            },
+          },
+        },
+      }),
+      prisma.jobNews.count({
+        where: {
+          userId,
+          moderationStatus: 'APPROVED',
+          isActive: true,
+        },
+      }),
+    ]);
+
+    // Calculate total helpful marks (credibility score)
+    const allPosts = await prisma.jobNews.findMany({
+      where: {
+        userId,
+        moderationStatus: 'APPROVED',
+        isActive: true,
+      },
+      select: {
+        _count: {
+          select: {
+            helpfulVotes: true,
+          },
+        },
+      },
+    });
+
+    const totalHelpfulMarks = allPosts.reduce(
+      (sum, post) => sum + post._count.helpfulVotes,
+      0
+    );
+
+    // Calculate credibility level
+    let credibilityLevel = 'Newbie';
+    let nextLevel = 'Contributor';
+    let nextLevelAt = 10;
+
+    if (totalHelpfulMarks >= 100) {
+      credibilityLevel = 'Authority';
+      nextLevel = 'Authority';
+      nextLevelAt = 100;
+    } else if (totalHelpfulMarks >= 50) {
+      credibilityLevel = 'Expert';
+      nextLevel = 'Authority';
+      nextLevelAt = 100;
+    } else if (totalHelpfulMarks >= 25) {
+      credibilityLevel = 'Trusted';
+      nextLevel = 'Expert';
+      nextLevelAt = 50;
+    } else if (totalHelpfulMarks >= 10) {
+      credibilityLevel = 'Contributor';
+      nextLevel = 'Trusted';
+      nextLevelAt = 25;
+    }
+
+    // Transform posts to include helpfulCount
+    const transformedPosts = posts.map((post) => ({
+      ...post,
+      helpfulCount: post._count.helpfulVotes,
+      _count: undefined,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          ...user,
+          credibilityScore: {
+            level: credibilityLevel,
+            score: totalHelpfulMarks,
+            nextLevel,
+            nextLevelAt,
+          },
+        },
+        posts: transformedPosts,
+        pagination: {
+          page,
+          limit,
+          total: totalPosts,
+          totalPages: Math.ceil(totalPosts / limit),
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Get public profile error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch public profile',
     });
   }
 };
@@ -901,6 +1087,84 @@ export const deleteResume = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to delete resume',
+    });
+  }
+};
+
+// Get user's own posts
+export const getMyPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string || '';
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      userId: req.user.userId,
+    };
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { companyName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Get posts with pagination
+    const [posts, total] = await Promise.all([
+      prisma.jobNews.findMany({
+        where,
+        include: {
+          helpfulVotes: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.jobNews.count({ where }),
+    ]);
+
+    // Format posts
+    const formattedPosts = posts.map(post => ({
+      id: post.id,
+      title: post.title,
+      description: post.description,
+      companyName: post.companyName,
+      location: post.location,
+      source: post.source,
+      externalLink: post.externalLink,
+      poster: post.poster,
+      video: post.video,
+      isActive: post.isActive,
+      helpfulCount: post.helpfulVotes.length,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      posts: formattedPosts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error: any) {
+    console.error('Get my posts error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch posts',
     });
   }
 };
