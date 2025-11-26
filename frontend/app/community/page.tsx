@@ -45,6 +45,7 @@ interface Post {
   externalLink?: string;
   poster?: string;
   video?: string;
+  videoAspectRatio?: string;
   createdAt: string;
   helpfulCount?: number;
   isHelpful?: boolean;
@@ -305,26 +306,29 @@ function CommunityPageContent() {
                     </p>
                   </CardHeader>
 
-                  {/* Media Section - Separate section with max-width like LinkedIn */}
-                  {(post.poster || post.video) && (
-                    <div className="px-6 py-3">
-                      {/* Poster Image */}
-                      {post.poster && (
-                        <div className="relative rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 mx-auto" style={{ maxWidth: '550px' }}>
-                          <img
-                            src={post.poster}
-                            alt="Post poster"
-                            className="w-full h-auto object-contain"
-                            style={{ maxHeight: '350px' }}
-                            loading="lazy"
-                          />
-                        </div>
-                      )}
+                  {/* Poster Image */}
+                  {post.poster && (
+                    <div className="px-4 sm:px-6 pb-3">
+                      <div className="relative rounded-lg overflow-hidden mx-auto" style={{ maxWidth: '600px' }}>
+                        <img
+                          src={post.poster}
+                          alt="Post poster"
+                          className="w-full h-auto"
+                          style={{ maxHeight: '60vh', objectFit: 'contain' }}
+                          loading="lazy"
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                      {/* Video */}
-                      {post.video && (
-                        <VideoPlayer videoUrl={post.video} title={post.title} maxWidth="550px" />
-                      )}
+                  {/* Video */}
+                  {post.video && (
+                    <div className="px-4 sm:px-6 pb-3">
+                      <VideoPlayer
+                        videoUrl={post.video}
+                        title={post.title}
+                        aspectRatio={post.videoAspectRatio as any || 'auto'}
+                      />
                     </div>
                   )}
 

@@ -167,18 +167,70 @@ interface VideoUploadResult {
   success: boolean;
   videoId?: string;
   videoUrl?: string;
+  aspectRatio?: string;
   error?: string;
 }
+
+interface VideoMetadata {
+  width?: number;
+  height?: number;
+  aspectRatio?: string;
+}
+
+/**
+ * Get video metadata from Bunny Stream
+ * @param videoId - Video ID (GUID)
+ * @returns Video metadata including dimensions
+ */
+export const getVideoMetadata = async (videoId: string): Promise<VideoMetadata | null> => {
+  try {
+    const response = await axios.get(
+      `https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`,
+      {
+        headers: {
+          AccessKey: BUNNY_STREAM_API_KEY,
+        },
+      }
+    );
+
+    const { width, height } = response.data;
+
+    if (width && height) {
+      // Determine aspect ratio based on dimensions
+      const ratio = width / height;
+      let aspectRatio = '16:9'; // default
+
+      if (Math.abs(ratio - 1) < 0.1) {
+        aspectRatio = '1:1';
+      } else if (Math.abs(ratio - 0.8) < 0.1) {
+        aspectRatio = '4:5';
+      } else if (Math.abs(ratio - 0.5625) < 0.1) {
+        aspectRatio = '9:16';
+      } else if (Math.abs(ratio - 1.7778) < 0.1) {
+        aspectRatio = '16:9';
+      }
+
+      return { width, height, aspectRatio };
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('Error getting video metadata:', error.message);
+    return null;
+  }
+};
 
 /**
  * Upload video to Bunny Stream
  * @param buffer - Video buffer
  * @param title - Video title
- * @returns Upload result with video ID and URL
+ * @param clientAspectRatio - Optional aspect ratio from client-side detection
+ * @returns Upload result with video ID, URL, and aspect ratio
  */
 export const uploadVideoToBunnyStream = async (
   buffer: Buffer,
-  title: string
+  title: string,
+  clientAspectRatio?: string
 ): Promise<VideoUploadResult> => {
   try {
     console.log('Uploading video to Bunny Stream:', { title, bufferSize: buffer.length });
@@ -219,10 +271,15 @@ export const uploadVideoToBunnyStream = async (
     // Video URL format: https://iframe.mediadelivery.net/embed/{libraryId}/{videoId}
     const videoUrl = `https://iframe.mediadelivery.net/embed/${BUNNY_STREAM_LIBRARY_ID}/${videoId}`;
 
+    // Use client-provided aspect ratio (detected during upload)
+    // Bunny takes time to process video, so we trust the client-side detection
+    const aspectRatio = clientAspectRatio || '16:9';
+
     return {
       success: true,
       videoId,
       videoUrl,
+      aspectRatio,
     };
   } catch (error: any) {
     console.error('Bunny Stream upload error:', {

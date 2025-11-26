@@ -34,7 +34,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     // Refresh pending count every 30 seconds
     const interval = setInterval(fetchPendingCount, 30000);
-    return () => clearInterval(interval);
+
+    // Listen for post moderation events to refresh count immediately
+    const handlePostModeration = () => fetchPendingCount();
+    window.addEventListener('post-moderated', handlePostModeration);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('post-moderated', handlePostModeration);
+    };
   }, []);
 
   const checkAuth = async () => {
@@ -48,7 +56,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const fetchPendingCount = async () => {
-    const response = await api.getPosts({ status: 'PENDING', limit: 1 });
+    const response = await api.getPosts({ status: 'PENDING', limit: 1 }) as { success: boolean; data?: { pagination: { total: number } } };
     if (response.success && response.data?.pagination) {
       setPendingCount(response.data.pagination.total);
     }

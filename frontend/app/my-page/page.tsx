@@ -34,6 +34,8 @@ import {
   X,
   Settings,
   TrendingUp,
+  Play,
+  ImageIcon,
 } from 'lucide-react';
 
 interface PrivacySettings {
@@ -61,6 +63,8 @@ interface Post {
   location?: string;
   helpfulCount: number;
   createdAt: string;
+  poster?: string;
+  video?: string;
 }
 
 export default function MyPage() {
@@ -159,8 +163,8 @@ export default function MyPage() {
       if (search) params.search = search;
 
       const response = await api.get('/job-news/user/my-news', { params });
-      const newPosts = response.data?.jobNews || [];
-      const pagination = response.data?.pagination || {};
+      const newPosts = response.data?.data?.jobNews || response.data?.jobNews || [];
+      const pagination = response.data?.data?.pagination || response.data?.pagination || {};
 
       if (page === 1) {
         setPosts(newPosts);
@@ -354,13 +358,14 @@ export default function MyPage() {
                 <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 <p className="text-xs sm:text-sm font-semibold truncate">Contact Info</p>
               </div>
-              <Switch
-                checked={privacySettings.email}
-                onCheckedChange={() => handlePrivacyToggle('email')}
-                disabled={savingPrivacy}
-                className="scale-90 sm:scale-100"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <div onClick={(e) => e.stopPropagation()}>
+                <Switch
+                  checked={privacySettings.email}
+                  onCheckedChange={() => handlePrivacyToggle('email')}
+                  disabled={savingPrivacy}
+                  className="scale-90 sm:scale-100"
+                />
+              </div>
             </div>
             <Badge variant={privacySettings.email ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
               {privacySettings.email ? 'Public' : 'Private'}
@@ -404,13 +409,14 @@ export default function MyPage() {
                   <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                   <p className="text-xs sm:text-sm font-semibold truncate">About</p>
                 </div>
-                <Switch
-                  checked={privacySettings.bio}
-                  onCheckedChange={() => handlePrivacyToggle('bio')}
-                  disabled={savingPrivacy}
-                  className="scale-90 sm:scale-100"
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Switch
+                    checked={privacySettings.bio}
+                    onCheckedChange={() => handlePrivacyToggle('bio')}
+                    disabled={savingPrivacy}
+                    className="scale-90 sm:scale-100"
+                  />
+                </div>
               </div>
               <Badge variant={privacySettings.bio ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
                 {privacySettings.bio ? 'Public' : 'Private'}
@@ -441,13 +447,14 @@ export default function MyPage() {
                   <p className="text-xs sm:text-sm font-semibold truncate">Skills</p>
                   <Badge variant="outline" className="text-[10px] h-4 px-1">{skills.length}</Badge>
                 </div>
-                <Switch
-                  checked={privacySettings.skills}
-                  onCheckedChange={() => handlePrivacyToggle('skills')}
-                  disabled={savingPrivacy}
-                  className="scale-90 sm:scale-100"
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Switch
+                    checked={privacySettings.skills}
+                    onCheckedChange={() => handlePrivacyToggle('skills')}
+                    disabled={savingPrivacy}
+                    className="scale-90 sm:scale-100"
+                  />
+                </div>
               </div>
               <Badge variant={privacySettings.skills ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
                 {privacySettings.skills ? 'Public' : 'Private'}
@@ -484,13 +491,14 @@ export default function MyPage() {
                   <p className="text-xs sm:text-sm font-semibold truncate">Experience</p>
                   <Badge variant="outline" className="text-[10px] h-4 px-1">{experiences.length}</Badge>
                 </div>
-                <Switch
-                  checked={privacySettings.experience}
-                  onCheckedChange={() => handlePrivacyToggle('experience')}
-                  disabled={savingPrivacy}
-                  className="scale-90 sm:scale-100"
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Switch
+                    checked={privacySettings.experience}
+                    onCheckedChange={() => handlePrivacyToggle('experience')}
+                    disabled={savingPrivacy}
+                    className="scale-90 sm:scale-100"
+                  />
+                </div>
               </div>
               <Badge variant={privacySettings.experience ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
                 {privacySettings.experience ? 'Public' : 'Private'}
@@ -526,13 +534,14 @@ export default function MyPage() {
                   <p className="text-xs sm:text-sm font-semibold truncate">Education</p>
                   <Badge variant="outline" className="text-[10px] h-4 px-1">{education.length}</Badge>
                 </div>
-                <Switch
-                  checked={privacySettings.education}
-                  onCheckedChange={() => handlePrivacyToggle('education')}
-                  disabled={savingPrivacy}
-                  className="scale-90 sm:scale-100"
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Switch
+                    checked={privacySettings.education}
+                    onCheckedChange={() => handlePrivacyToggle('education')}
+                    disabled={savingPrivacy}
+                    className="scale-90 sm:scale-100"
+                  />
+                </div>
               </div>
               <Badge variant={privacySettings.education ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
                 {privacySettings.education ? 'Public' : 'Private'}
@@ -680,13 +689,14 @@ export default function MyPage() {
                             <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                             <p className="text-xs sm:text-sm font-semibold truncate">Contact Info</p>
                           </div>
-                          <Switch
-                            checked={privacySettings.email}
-                            onCheckedChange={() => handlePrivacyToggle('email')}
-                            disabled={savingPrivacy}
-                            className="scale-90 sm:scale-100"
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Switch
+                              checked={privacySettings.email}
+                              onCheckedChange={() => handlePrivacyToggle('email')}
+                              disabled={savingPrivacy}
+                              className="scale-90 sm:scale-100"
+                            />
+                          </div>
                         </div>
                         <Badge variant={privacySettings.email ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
                           {privacySettings.email ? 'Public' : 'Private'}
@@ -932,31 +942,56 @@ export default function MyPage() {
                       {posts.map((post) => (
                         <Card
                           key={post.id}
-                          className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50 active:scale-[0.99]"
+                          className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50 active:scale-[0.99] overflow-hidden"
                           onClick={() => router.push(`/community/${post.id}`)}
                         >
-                          <CardContent className="p-3 sm:p-4">
-                            <h3 className="font-semibold mb-1.5 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base leading-snug">{post.title}</h3>
-                            <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2 leading-relaxed">{post.description}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                <span className="whitespace-nowrap">{timeAgo(post.createdAt)}</span>
+                          <div className="flex">
+                            {/* Media Thumbnail */}
+                            {(post.poster || post.video) && (
+                              <div className="relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 bg-muted">
+                                {post.poster ? (
+                                  <img
+                                    src={post.poster}
+                                    alt={post.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-muted">
+                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                )}
+                                {post.video && (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                    <div className="bg-white/90 rounded-full p-1.5">
+                                      <Play className="h-4 w-4 text-black fill-black" />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              {post.companyName && (
-                                <Badge variant="secondary" className="text-[10px] h-5">
-                                  <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                                  <span className="truncate max-w-[100px] sm:max-w-none">{post.companyName}</span>
-                                </Badge>
-                              )}
-                              {post.helpfulCount > 0 && (
-                                <Badge className="text-[10px] h-5 bg-blue-600">
-                                  <ThumbsUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                                  {post.helpfulCount}
-                                </Badge>
-                              )}
-                            </div>
-                          </CardContent>
+                            )}
+                            <CardContent className={`p-3 sm:p-4 flex-1 min-w-0 ${(post.poster || post.video) ? '' : ''}`}>
+                              <h3 className="font-semibold mb-1.5 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base leading-snug">{post.title}</h3>
+                              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2 leading-relaxed">{post.description}</p>
+                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  <span className="whitespace-nowrap">{timeAgo(post.createdAt)}</span>
+                                </div>
+                                {post.companyName && (
+                                  <Badge variant="secondary" className="text-[10px] h-5">
+                                    <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                                    <span className="truncate max-w-[100px] sm:max-w-none">{post.companyName}</span>
+                                  </Badge>
+                                )}
+                                {post.helpfulCount > 0 && (
+                                  <Badge className="text-[10px] h-5 bg-blue-600">
+                                    <ThumbsUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                                    {post.helpfulCount}
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </div>
                         </Card>
                       ))}
                     </div>

@@ -36,7 +36,7 @@ export default function UsersPage() {
     if (filter === 'blocked') params.isBlocked = true;
     if (filter === 'deleted') params.isDeleted = true;
 
-    const response = await api.getUsers(params);
+    const response = await api.getUsers(params) as { success: boolean; data?: { users: any[]; pagination: any } };
     if (response.success && response.data) {
       setUsers(response.data.users);
       setPagination(response.data.pagination);

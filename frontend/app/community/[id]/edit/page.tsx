@@ -39,6 +39,7 @@ export default function EditPostPage() {
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<string | null>(null);
   const [removePoster, setRemovePoster] = useState(false);
   const [removeVideo, setRemoveVideo] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
@@ -128,7 +129,7 @@ export default function EditPostPage() {
       return;
     }
 
-    // Validate aspect ratio (1.91:1 for professional LinkedIn-style posts)
+    // Validate aspect ratio - supports multiple LinkedIn-style ratios
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
 
@@ -137,14 +138,33 @@ export default function EditPostPage() {
       const height = img.height;
       const aspectRatio = width / height;
 
-      // LinkedIn standard: 1.91:1 (allows small tolerance of ±0.05)
-      const targetRatio = 1.91;
-      const tolerance = 0.05;
+      // Minimum width check (LinkedIn standard)
+      if (width < 200) {
+        toast({
+          title: 'Image Too Small',
+          description: 'Image width must be at least 200px.',
+          variant: 'destructive',
+        });
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
 
-      if (Math.abs(aspectRatio - targetRatio) > tolerance) {
+      // Supported aspect ratios like LinkedIn
+      const supportedRatios = [
+        { ratio: 1.91, name: 'Landscape (1.91:1)', example: '1200×628px' },
+        { ratio: 1, name: 'Square (1:1)', example: '1200×1200px' },
+        { ratio: 0.8, name: 'Portrait (4:5)', example: '1080×1350px' },
+      ];
+      const tolerance = 0.1;
+
+      const matchedRatio = supportedRatios.find(
+        (r) => Math.abs(aspectRatio - r.ratio) <= tolerance
+      );
+
+      if (!matchedRatio) {
         toast({
           title: 'Invalid Aspect Ratio',
-          description: `Poster must be 1.91:1 aspect ratio (e.g., 1200×628px). Your image is ${width}×${height}px (${aspectRatio.toFixed(2)}:1).`,
+          description: `Your image is ${width}×${height}px (${aspectRatio.toFixed(2)}:1). Supported: Landscape (1.91:1), Square (1:1), or Portrait (4:5).`,
           variant: 'destructive',
         });
         URL.revokeObjectURL(objectUrl);
@@ -189,17 +209,17 @@ export default function EditPostPage() {
       return;
     }
 
-    // Validate file size (50MB max)
-    if (file.size > 50 * 1024 * 1024) {
+    // Validate file size (200MB max)
+    if (file.size > 200 * 1024 * 1024) {
       toast({
         title: 'Error',
-        description: 'Video must be less than 50MB',
+        description: 'Video must be less than 200MB',
         variant: 'destructive',
       });
       return;
     }
 
-    // Validate aspect ratio (9:16 vertical or 16:9 horizontal for professional content)
+    // Validate aspect ratio - supports multiple LinkedIn-style ratios
     const video = document.createElement('video');
     const objectUrl = URL.createObjectURL(file);
 
@@ -208,18 +228,23 @@ export default function EditPostPage() {
       const height = video.videoHeight;
       const aspectRatio = width / height;
 
-      // Accepted ratios: 9:16 (0.5625) for vertical or 16:9 (1.7778) for horizontal
-      const verticalRatio = 9 / 16; // 0.5625
-      const horizontalRatio = 16 / 9; // 1.7778
-      const tolerance = 0.05;
+      // Supported aspect ratios like LinkedIn
+      const supportedRatios = [
+        { ratio: 16 / 9, name: 'Landscape (16:9)', example: '1920×1080px' },
+        { ratio: 1, name: 'Square (1:1)', example: '1080×1080px' },
+        { ratio: 4 / 5, name: 'Portrait (4:5)', example: '1080×1350px' },
+        { ratio: 9 / 16, name: 'Vertical (9:16)', example: '1080×1920px' },
+      ];
+      const tolerance = 0.1;
 
-      const isVertical = Math.abs(aspectRatio - verticalRatio) <= tolerance;
-      const isHorizontal = Math.abs(aspectRatio - horizontalRatio) <= tolerance;
+      const matchedRatio = supportedRatios.find(
+        (r) => Math.abs(aspectRatio - r.ratio) <= tolerance
+      );
 
-      if (!isVertical && !isHorizontal) {
+      if (!matchedRatio) {
         toast({
           title: 'Invalid Aspect Ratio',
-          description: `Video must be either 9:16 (vertical, e.g., 1080×1920px) or 16:9 (horizontal, e.g., 1920×1080px). Your video is ${width}×${height}px (${aspectRatio.toFixed(2)}:1).`,
+          description: `Your video is ${width}×${height}px (${aspectRatio.toFixed(2)}:1). Supported: 16:9, 1:1, 4:5, or 9:16.`,
           variant: 'destructive',
         });
         URL.revokeObjectURL(objectUrl);
@@ -229,6 +254,12 @@ export default function EditPostPage() {
       URL.revokeObjectURL(objectUrl);
       setVideoFile(file);
       setRemoveVideo(false);
+
+      // Store the detected aspect ratio for display
+      const ratioKey = matchedRatio.ratio === 16/9 ? '16:9' :
+                       matchedRatio.ratio === 1 ? '1:1' :
+                       matchedRatio.ratio === 4/5 ? '4:5' : '9:16';
+      setVideoAspectRatio(ratioKey);
 
       // Create preview
       const reader = new FileReader();
@@ -261,6 +292,7 @@ export default function EditPostPage() {
     setVideoFile(null);
     setVideoPreview(null);
     setCurrentVideo(null);
+    setVideoAspectRatio(null);
     setRemoveVideo(true);
   };
 
@@ -272,6 +304,7 @@ export default function EditPostPage() {
   const handleCancelNewVideo = () => {
     setVideoFile(null);
     setVideoPreview(null);
+    setVideoAspectRatio(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -342,6 +375,9 @@ export default function EditPostPage() {
         });
         payload.video = videoBase64;
         payload.videoMimeType = videoFile.type;
+        if (videoAspectRatio) {
+          payload.videoAspectRatio = videoAspectRatio;
+        }
       }
 
       await jobNewsAPI.updateJobNews(params.id as string, payload);
@@ -569,10 +605,10 @@ export default function EditPostPage() {
                         JPG, PNG or GIF (max 10MB)
                       </p>
                       <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-primary mb-1">📐 Required Aspect Ratio:</p>
-                        <p className="text-xs font-medium">1.91:1 (Landscape)</p>
+                        <p className="text-xs font-semibold text-primary mb-1">📐 Supported Aspect Ratios:</p>
+                        <p className="text-xs font-medium">Landscape (1.91:1) • Square (1:1) • Portrait (4:5)</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Recommended: 1200×628px or 1920×1005px
+                          Recommended: 1200×628, 1200×1200, or 1080×1350px
                         </p>
                       </div>
                     </label>
@@ -645,13 +681,13 @@ export default function EditPostPage() {
                       <Video className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                       <p className="font-medium mb-1">Upload Video</p>
                       <p className="text-xs text-muted-foreground mb-3">
-                        MP4, MOV or WebM (max 50MB)
+                        MP4, MOV or WebM (max 200MB)
                       </p>
                       <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-primary mb-1">📐 Required Aspect Ratio:</p>
-                        <p className="text-xs font-medium">9:16 (Vertical) or 16:9 (Horizontal)</p>
+                        <p className="text-xs font-semibold text-primary mb-1">📐 Supported Aspect Ratios:</p>
+                        <p className="text-xs font-medium">16:9 • 1:1 • 4:5 • 9:16</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Vertical: 1080×1920px • Horizontal: 1920×1080px
+                          1920×1080, 1080×1080, 1080×1350, or 1080×1920px
                         </p>
                       </div>
                     </label>

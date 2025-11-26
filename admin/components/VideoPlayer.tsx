@@ -8,6 +8,7 @@ interface VideoPlayerProps {
   title?: string;
   className?: string;
   aspectRatio?: '16:9' | '1:1' | '4:5' | '9:16' | 'auto';
+  autoPlay?: boolean;
 }
 
 // Aspect ratio values (height/width)
@@ -37,30 +38,34 @@ export function VideoPlayer({
   videoUrl,
   title,
   className = '',
-  aspectRatio = 'auto'
+  aspectRatio = 'auto',
+  autoPlay = false
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [detectedRatio, setDetectedRatio] = useState<string>(aspectRatio !== 'auto' ? aspectRatio : '16:9');
 
-  // Use provided aspect ratio or default
   useEffect(() => {
     if (aspectRatio !== 'auto') {
       setDetectedRatio(aspectRatio);
     }
   }, [aspectRatio]);
 
-  // Stop video by destroying and recreating iframe
+  useEffect(() => {
+    if (autoPlay) {
+      setIsPlaying(true);
+    }
+  }, [autoPlay]);
+
   const stopVideo = useCallback(() => {
     setIsPlaying(false);
     setIframeLoaded(false);
     setIframeKey(prev => prev + 1);
   }, []);
 
-  // Intersection Observer to detect when video scrolls out of view
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -80,7 +85,6 @@ export function VideoPlayer({
     return () => observer.disconnect();
   }, [isPlaying, stopVideo]);
 
-  // Handle play button click
   const handlePlayClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -88,12 +92,10 @@ export function VideoPlayer({
     setIframeLoaded(false);
   };
 
-  // Handle iframe load event
   const handleIframeLoad = () => {
     setIframeLoaded(true);
   };
 
-  // Get aspect ratio value
   const ratioValue = ASPECT_RATIOS[detectedRatio] || ASPECT_RATIOS['16:9'];
   const isPortrait = ratioValue > 1;
   const maxHeight = '60vh';
@@ -109,7 +111,6 @@ export function VideoPlayer({
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Aspect ratio container */}
       <div
         className="relative w-full rounded-lg overflow-hidden bg-black"
         style={{
@@ -119,7 +120,6 @@ export function VideoPlayer({
       >
         {!isPlaying ? (
           <>
-            {/* Thumbnail iframe - shows first frame */}
             <iframe
               key={`thumb-${iframeKey}`}
               src={buildIframeUrl(videoUrl, false)}
@@ -129,7 +129,6 @@ export function VideoPlayer({
               loading="lazy"
               style={{ pointerEvents: 'none' }}
             />
-            {/* Play button overlay */}
             <div
               className="absolute inset-0 flex items-center justify-center cursor-pointer group bg-black/5 hover:bg-black/20 transition-colors"
               onClick={handlePlayClick}
@@ -141,14 +140,12 @@ export function VideoPlayer({
           </>
         ) : (
           <>
-            {/* Loading indicator */}
             {!iframeLoaded && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
                 <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
               </div>
             )}
 
-            {/* Playing iframe with autoplay */}
             <iframe
               key={`play-${iframeKey}`}
               ref={iframeRef}

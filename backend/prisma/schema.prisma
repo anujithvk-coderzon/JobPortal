@@ -283,6 +283,7 @@ model JobNews {
   poster            String?            // CDN URL for poster image
   video             String?            // Bunny Stream video URL or ID
   videoId           String?            // Bunny Stream video ID for deletion
+  videoAspectRatio  String?            // Video aspect ratio (16:9, 1:1, 4:5, 9:16)
 
   // Moderation fields
   moderationStatus  ModerationStatus   @default(PENDING)

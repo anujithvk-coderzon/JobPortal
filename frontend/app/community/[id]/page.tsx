@@ -43,6 +43,7 @@ interface Post {
   externalLink?: string;
   poster?: string;
   video?: string;
+  videoAspectRatio?: '16:9' | '1:1' | '4:5' | '9:16';
   createdAt: string;
   helpfulCount?: number;
   user: {
@@ -299,26 +300,29 @@ export default function PostDetailPage() {
             </div>
           </CardHeader>
 
-          {/* Media Section - Separate section with max-width like LinkedIn */}
-          {(post.poster || post.video) && (
-            <div className="px-6 py-4 border-b">
-              {/* Poster Image */}
-              {post.poster && (
-                <div className="relative rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 mx-auto" style={{ maxWidth: '680px' }}>
-                  <img
-                    src={post.poster}
-                    alt={post.title}
-                    className="w-full h-auto object-contain"
-                    style={{ maxHeight: '450px' }}
-                    loading="lazy"
-                  />
-                </div>
-              )}
+          {/* Poster Image */}
+          {post.poster && (
+            <div className="px-4 sm:px-6 pb-4">
+              <div className="relative rounded-lg overflow-hidden mx-auto" style={{ maxWidth: '600px' }}>
+                <img
+                  src={post.poster}
+                  alt={post.title}
+                  className="w-full h-auto"
+                  style={{ maxHeight: '60vh', objectFit: 'contain' }}
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          )}
 
-              {/* Video */}
-              {post.video && (
-                <VideoPlayer videoUrl={post.video} title={post.title} maxWidth="680px" />
-              )}
+          {/* Video */}
+          {post.video && (
+            <div className="px-4 sm:px-6 pb-4">
+              <VideoPlayer
+                videoUrl={post.video}
+                title={post.title}
+                aspectRatio={post.videoAspectRatio || 'auto'}
+              />
             </div>
           )}
 

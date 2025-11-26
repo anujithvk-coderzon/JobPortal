@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { api } from '@/lib/api';
 import {
   Search,
-  Filter,
   CheckCircle2,
   XCircle,
   Clock,
@@ -13,17 +13,42 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
-  User,
   MapPin,
   Building2,
   ExternalLink,
   X,
   Shield,
-  Info,
+  Play,
+  ImageIcon,
+  FileText,
+  Calendar,
+  User,
+  MoreVertical,
+  Eye,
 } from 'lucide-react';
 
+interface Post {
+  id: string;
+  title: string;
+  description: string;
+  companyName?: string;
+  location?: string;
+  poster?: string;
+  video?: string;
+  videoAspectRatio?: string;
+  externalLink?: string;
+  moderationStatus: string;
+  rejectionReason?: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    profilePhoto?: string;
+  };
+}
+
 export default function PostsPage() {
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'PENDING' | 'APPROVED'>('PENDING');
@@ -31,19 +56,31 @@ export default function PostsPage() {
   const [rejectingPostId, setRejectingPostId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [videoModal, setVideoModal] = useState<{ url: string; title: string; aspectRatio?: string } | null>(null);
+  const [posterModal, setPosterModal] = useState<{ url: string; title: string } | null>(null);
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPosts();
   }, [filter]);
 
+  // Close mobile actions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setMobileActionsOpen(null);
+    if (mobileActionsOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [mobileActionsOpen]);
+
   const fetchPosts = async (page = 1) => {
     setLoading(true);
     const params: any = { page, limit: 20 };
-
     if (search) params.search = search;
     params.status = filter;
 
-    const response = await api.getPosts(params);
+    const response = await api.getPosts(params) as { success: boolean; data?: { posts: Post[]; pagination: any } };
     if (response.success && response.data) {
       setPosts(response.data.posts);
       setPagination(response.data.pagination);
@@ -58,14 +95,14 @@ export default function PostsPage() {
 
   const handleApprove = async (postId: string) => {
     if (!confirm('Approve this post?')) return;
-
     setActionLoading(postId);
     const response = await api.approvePost(postId);
     if (response.success) {
-      showToast('Post approved successfully');
+      showToast('Post approved successfully', 'success');
       fetchPosts(pagination?.page || 1);
+      window.dispatchEvent(new Event('post-moderated'));
     } else {
-      showToast(response.error || 'Failed to approve post');
+      showToast(response.error || 'Failed to approve post', 'error');
     }
     setActionLoading(null);
   };
@@ -77,16 +114,16 @@ export default function PostsPage() {
 
   const confirmReject = async () => {
     if (!rejectingPostId) return;
-
     setActionLoading(rejectingPostId);
     const response = await api.rejectPost(rejectingPostId, rejectionReason || undefined);
     if (response.success) {
-      showToast('Post rejected and deleted successfully');
+      showToast('Post rejected successfully', 'success');
       setRejectingPostId(null);
       setRejectionReason('');
       fetchPosts(pagination?.page || 1);
+      window.dispatchEvent(new Event('post-moderated'));
     } else {
-      showToast(response.error || 'Failed to reject post');
+      showToast(response.error || 'Failed to reject post', 'error');
     }
     setActionLoading(null);
   };
@@ -97,319 +134,434 @@ export default function PostsPage() {
   };
 
   const handleBlockUser = async (userId: string, postId: string) => {
-    if (!confirm('Are you sure you want to block this user? This will also reject their post.')) return;
-
+    if (!confirm('Block this user and reject their post?')) return;
     setActionLoading(postId);
     const blockResponse = await api.blockUser(userId, 'Posted inappropriate content');
     if (!blockResponse.success) {
-      showToast(blockResponse.error || 'Failed to block user');
+      showToast(blockResponse.error || 'Failed to block user', 'error');
       setActionLoading(null);
       return;
     }
-
     const rejectResponse = await api.rejectPost(postId);
     if (rejectResponse.success) {
-      showToast('User blocked and post rejected successfully');
+      showToast('User blocked and post rejected', 'success');
       fetchPosts(pagination?.page || 1);
+      window.dispatchEvent(new Event('post-moderated'));
     } else {
-      showToast('User blocked but failed to reject post');
+      showToast('User blocked but failed to reject post', 'error');
     }
     setActionLoading(null);
   };
 
   const handleDelete = async (postId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this post?')) return;
-
+    if (!confirm('Permanently delete this post?')) return;
     setActionLoading(postId);
     const response = await api.deletePost(postId);
     if (response.success) {
-      showToast('Post deleted successfully');
+      showToast('Post deleted successfully', 'success');
       fetchPosts(pagination?.page || 1);
+      window.dispatchEvent(new Event('post-moderated'));
     } else {
-      showToast(response.error || 'Failed to delete post');
+      showToast(response.error || 'Failed to delete post', 'error');
     }
     setActionLoading(null);
   };
 
-  const showToast = (message: string) => {
+  const showToast = (message: string, type: 'success' | 'error') => {
     alert(message);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
-            <Clock className="h-3 w-3" />
-            Pending
-          </span>
-        );
-      case 'APPROVED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">
-            <CheckCircle2 className="h-3 w-3" />
-            Approved
-          </span>
-        );
-      case 'REJECTED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 border border-red-200">
-            <XCircle className="h-3 w-3" />
-            Rejected
-          </span>
-        );
-      default:
-        return null;
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
+
+  const StatusBadge = ({ status }: { status: string }) => {
+    const config = {
+      PENDING: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: Clock, label: 'Pending Review' },
+      APPROVED: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle2, label: 'Approved' },
+      REJECTED: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: XCircle, label: 'Rejected' },
+    }[status] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: AlertCircle, label: status };
+
+    const Icon = config.icon;
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${config.bg} ${config.text} border ${config.border}`}>
+        <Icon className="h-3 w-3" />
+        <span className="hidden sm:inline">{config.label}</span>
+        <span className="sm:hidden">{status === 'PENDING' ? 'Pending' : config.label}</span>
+      </span>
+    );
+  };
+
+  const UserAvatar = ({ user }: { user: Post['user'] }) => (
+    <div className="flex items-center gap-2.5">
+      {user.profilePhoto ? (
+        <img
+          src={user.profilePhoto}
+          alt={user.name}
+          className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden');
+          }}
+        />
+      ) : null}
+      <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center ring-2 ring-white shadow-sm ${user.profilePhoto ? 'hidden' : ''}`}>
+        <span className="text-white text-xs font-bold">{user.name?.[0]?.toUpperCase() || 'U'}</span>
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+      </div>
+    </div>
+  );
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
-              Post Moderation
-            </h1>
-            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">
-              Review and moderate community posts
-            </p>
-          </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <Info className="h-4 w-4 text-yellow-600" />
-            <span className="text-sm font-medium text-yellow-900">
-              {pagination?.total || 0} {filter.toLowerCase()} posts
-            </span>
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 rounded-2xl p-4 sm:p-6 text-white shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold">Post Moderation</h1>
+                <p className="text-indigo-100 text-sm mt-0.5">Review and manage community content</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
+                <span className="text-2xl sm:text-3xl font-bold">{pagination?.total || 0}</span>
+                <span className="text-indigo-100 text-sm ml-2">{filter === 'PENDING' ? 'Awaiting Review' : 'Approved'}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Filters and Search */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search Form */}
-            <form onSubmit={handleSearch} className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by title or description..."
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  Search
-                </button>
+        {/* Filters & Search Card */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Filter Tabs */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setFilter('PENDING')}
+              className={`flex-1 sm:flex-none px-6 py-3.5 text-sm font-medium transition-all relative ${
+                filter === 'PENDING'
+                  ? 'text-amber-700 bg-amber-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span>Pending</span>
+                {filter === 'PENDING' && pagination?.total > 0 && (
+                  <span className="px-2 py-0.5 text-xs font-bold bg-amber-600 text-white rounded-full">
+                    {pagination.total}
+                  </span>
+                )}
               </div>
-            </form>
+              {filter === 'PENDING' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />
+              )}
+            </button>
+            <button
+              onClick={() => setFilter('APPROVED')}
+              className={`flex-1 sm:flex-none px-6 py-3.5 text-sm font-medium transition-all relative ${
+                filter === 'APPROVED'
+                  ? 'text-emerald-700 bg-emerald-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Approved</span>
+              </div>
+              {filter === 'APPROVED' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600" />
+              )}
+            </button>
+          </div>
 
-            {/* Filter Buttons */}
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-gray-400 hidden sm:block" />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setFilter('PENDING')}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    filter === 'PENDING'
-                      ? 'bg-yellow-600 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Pending
-                </button>
-                <button
-                  onClick={() => setFilter('APPROVED')}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    filter === 'APPROVED'
-                      ? 'bg-green-600 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Approved
-                </button>
-              </div>
-            </div>
+          {/* Search Bar */}
+          <div className="p-3 sm:p-4">
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search posts by title or description..."
+                className="w-full pl-10 pr-24 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              />
+              <button
+                type="submit"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
+              >
+                Search
+              </button>
+            </form>
           </div>
         </div>
 
         {/* Posts List */}
         {loading ? (
-          <div className="flex items-center justify-center min-h-[400px] bg-white rounded-2xl border border-gray-200">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-gray-600 font-medium">Loading posts...</p>
+          <div className="flex items-center justify-center py-20 bg-white rounded-xl border border-gray-200">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-gray-500 text-sm font-medium">Loading posts...</p>
             </div>
           </div>
         ) : posts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-gray-200 p-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="h-8 w-8 text-gray-400" />
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-gray-200">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <FileText className="h-7 w-7 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts found</h3>
-            <p className="text-gray-500 text-center">
-              Try adjusting your search or filter criteria
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No posts found</h3>
+            <p className="text-gray-500 text-sm text-center max-w-sm">
+              {search ? 'Try adjusting your search terms' : `No ${filter.toLowerCase()} posts at the moment`}
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {posts.map((post) => (
-              <div key={post.id} className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex flex-col lg:flex-row gap-4">
-                  {/* Post Content */}
-                  <div className="flex-1 min-w-0">
-                    {/* Title and Status */}
-                    <div className="flex flex-wrap items-center gap-3 mb-3">
-                      <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex-1 min-w-0">
+              <div
+                key={post.id}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+              >
+                {/* Post Header */}
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <StatusBadge status={post.moderationStatus} />
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(post.createdAt)}
+                        </span>
+                      </div>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 leading-snug line-clamp-2">
                         {post.title}
                       </h3>
-                      {getStatusBadge(post.moderationStatus)}
                     </div>
 
-                    {/* Description */}
-                    <p className="text-sm sm:text-base text-gray-600 mb-4 line-clamp-3 leading-relaxed">
-                      {post.description}
-                    </p>
+                    {/* Mobile Actions Toggle */}
+                    <div className="lg:hidden relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMobileActionsOpen(mobileActionsOpen === post.id ? null : post.id);
+                        }}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <MoreVertical className="h-5 w-5 text-gray-500" />
+                      </button>
 
-                    {/* Meta Information */}
-                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-4">
-                      {post.user && (
-                        <div className="flex items-center gap-2">
-                          {post.user.profilePhoto ? (
-                            <img
-                              src={post.user.profilePhoto}
-                              alt={post.user.name}
-                              className="w-6 h-6 rounded-full object-cover border border-gray-200"
-                              referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                              }}
-                            />
-                          ) : null}
-                          <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ${post.user.profilePhoto ? 'hidden' : ''}`}>
-                            <span className="text-white text-xs font-semibold">
-                              {post.user.name?.[0]?.toUpperCase() || 'U'}
-                            </span>
-                          </div>
-                          <span className="font-medium text-gray-700">{post.user.name}</span>
+                      {/* Mobile Actions Dropdown */}
+                      {mobileActionsOpen === post.id && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
+                          {post.moderationStatus === 'PENDING' ? (
+                            <>
+                              <button
+                                onClick={() => { handleApprove(post.id); setMobileActionsOpen(null); }}
+                                disabled={actionLoading === post.id}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Approve Post
+                              </button>
+                              <button
+                                onClick={() => { handleReject(post.id); setMobileActionsOpen(null); }}
+                                disabled={actionLoading === post.id}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+                              >
+                                <XCircle className="h-4 w-4" />
+                                Reject Post
+                              </button>
+                              <div className="my-1 border-t border-gray-100" />
+                              <button
+                                onClick={() => { handleBlockUser(post.user.id, post.id); setMobileActionsOpen(null); }}
+                                disabled={actionLoading === post.id}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
+                              >
+                                <Shield className="h-4 w-4" />
+                                Block User
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => { handleDelete(post.id); setMobileActionsOpen(null); }}
+                              disabled={actionLoading === post.id}
+                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete Post
+                            </button>
+                          )}
                         </div>
                       )}
-                      {post.companyName && (
-                        <>
-                          <span className="text-gray-300">•</span>
-                          <div className="flex items-center gap-1.5">
+                    </div>
+                  </div>
+
+                  {/* User Info */}
+                  <div className="flex items-center gap-4 mb-3">
+                    <UserAvatar user={post.user} />
+                    {(post.companyName || post.location) && (
+                      <div className="hidden sm:flex items-center gap-3 text-xs text-gray-500">
+                        {post.companyName && (
+                          <span className="flex items-center gap-1">
                             <Building2 className="h-3.5 w-3.5" />
-                            <span>{post.companyName}</span>
-                          </div>
-                        </>
+                            {post.companyName}
+                          </span>
+                        )}
+                        {post.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {post.location}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  <p className={`text-sm text-gray-600 leading-relaxed ${expandedPost === post.id ? '' : 'line-clamp-2'}`}>
+                    {post.description}
+                  </p>
+                  {post.description.length > 150 && (
+                    <button
+                      onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
+                      className="text-xs text-indigo-600 hover:text-indigo-700 font-medium mt-1"
+                    >
+                      {expandedPost === post.id ? 'Show less' : 'Read more'}
+                    </button>
+                  )}
+
+                  {/* Mobile Meta Info */}
+                  {(post.companyName || post.location) && (
+                    <div className="flex sm:hidden items-center gap-3 mt-3 text-xs text-gray-500">
+                      {post.companyName && (
+                        <span className="flex items-center gap-1">
+                          <Building2 className="h-3.5 w-3.5" />
+                          {post.companyName}
+                        </span>
                       )}
                       {post.location && (
-                        <>
-                          <span className="text-gray-300 hidden sm:inline">•</span>
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5" />
-                            <span>{post.location}</span>
-                          </div>
-                        </>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {post.location}
+                        </span>
                       )}
-                      <span className="text-gray-300 hidden sm:inline">•</span>
-                      <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                     </div>
+                  )}
+                </div>
 
-                    {/* External Link */}
+                {/* Actions Bar */}
+                <div className="px-4 sm:px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3">
+                  {/* Media & Link Buttons */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {post.poster && (
+                      <button
+                        onClick={() => setPosterModal({ url: post.poster!, title: post.title })}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors"
+                      >
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">View</span> Poster
+                      </button>
+                    )}
+                    {post.video && (
+                      <button
+                        onClick={() => setVideoModal({ url: post.video!, title: post.title, aspectRatio: post.videoAspectRatio })}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                      >
+                        <Play className="h-3.5 w-3.5" fill="currentColor" />
+                        <span className="hidden sm:inline">Watch</span> Video
+                      </button>
+                    )}
                     {post.externalLink && (
                       <a
                         href={post.externalLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors mb-4"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
-                        View External Link
+                        <span className="hidden sm:inline">External</span> Link
                       </a>
-                    )}
-
-                    {/* Rejection Reason */}
-                    {post.rejectionReason && (
-                      <div className="mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl">
-                        <p className="text-xs sm:text-sm text-red-800">
-                          <strong className="font-semibold">Rejection Reason:</strong> {post.rejectionReason}
-                        </p>
-                      </div>
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex lg:flex-col gap-2 lg:min-w-[140px]">
+                  {/* Desktop Actions */}
+                  <div className="hidden lg:flex items-center gap-2">
                     {post.moderationStatus === 'PENDING' ? (
                       <>
                         <button
                           onClick={() => handleApprove(post.id)}
                           disabled={actionLoading === post.id}
-                          className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all shadow-sm disabled:opacity-50"
                         >
                           {actionLoading === post.id ? (
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                           ) : (
                             <>
                               <CheckCircle2 className="h-4 w-4" />
-                              <span>Approve</span>
+                              Approve
                             </>
                           )}
                         </button>
                         <button
                           onClick={() => handleReject(post.id)}
                           disabled={actionLoading === post.id}
-                          className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-all disabled:opacity-50"
                         >
-                          {actionLoading === post.id ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <>
-                              <XCircle className="h-4 w-4" />
-                              <span>Reject</span>
-                            </>
-                          )}
+                          <XCircle className="h-4 w-4" />
+                          Reject
                         </button>
                         <button
                           onClick={() => handleBlockUser(post.user.id, post.id)}
                           disabled={actionLoading === post.id}
-                          className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all disabled:opacity-50"
                         >
-                          {actionLoading === post.id ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <>
-                              <Shield className="h-4 w-4" />
-                              <span className="hidden lg:inline">Block User</span>
-                              <span className="lg:hidden">Block</span>
-                            </>
-                          )}
+                          <Shield className="h-4 w-4" />
+                          Block
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={() => handleDelete(post.id)}
                         disabled={actionLoading === post.id}
-                        className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all disabled:opacity-50"
                       >
                         {actionLoading === post.id ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
                         ) : (
                           <>
                             <Trash2 className="h-4 w-4" />
-                            <span>Delete</span>
+                            Delete
                           </>
                         )}
                       </button>
                     )}
                   </div>
                 </div>
+
+                {/* Rejection Reason */}
+                {post.rejectionReason && (
+                  <div className="px-4 sm:px-5 py-3 bg-red-50 border-t border-red-100">
+                    <p className="text-xs text-red-800">
+                      <strong className="font-semibold">Rejection Reason:</strong> {post.rejectionReason}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -417,84 +569,171 @@ export default function PostsPage() {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
-            <div className="text-sm text-gray-600">
-              Showing <span className="font-semibold text-gray-900">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
-              <span className="font-semibold text-gray-900">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
-              <span className="font-semibold text-gray-900">{pagination.total}</span> posts
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchPosts(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Previous</span>
-              </button>
-              <div className="flex items-center gap-1">
-                <span className="px-4 py-2 text-sm font-semibold text-gray-900">
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-gray-600 order-2 sm:order-1">
+                Showing <span className="font-semibold text-gray-900">{((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+                <span className="font-semibold text-gray-900">{pagination.total}</span>
+              </p>
+              <div className="flex items-center gap-1 order-1 sm:order-2">
+                <button
+                  onClick={() => fetchPosts(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div className="flex items-center gap-1 px-2">
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => fetchPosts(pageNum)}
+                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                          pagination.page === pageNum
+                            ? 'bg-indigo-600 text-white'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => fetchPosts(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
               </div>
-              <button
-                onClick={() => fetchPosts(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
             </div>
           </div>
         )}
 
-        {/* Rejection Reason Modal */}
+        {/* Rejection Modal */}
         {rejectingPostId && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">Reject Post</h3>
-                  <button
-                    onClick={cancelReject}
-                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <X className="h-5 w-5 text-gray-500" />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <XCircle className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Reject Post</h3>
+                  </div>
+                  <button onClick={cancelReject} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
                   </button>
                 </div>
+              </div>
+              <div className="p-5">
                 <p className="text-sm text-gray-600 mb-4">
-                  Optionally provide a reason for rejection. This will be shown to the user as a notification.
+                  Provide a reason for rejection. This will be sent to the user as a notification.
                 </p>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Reason for rejection (optional)..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-400 bg-gray-50 hover:bg-white transition-colors"
+                  placeholder="Enter rejection reason (optional)..."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"
                   rows={4}
                 />
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={cancelReject}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 font-medium text-gray-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmReject}
-                    disabled={actionLoading === rejectingPostId}
-                    className="flex-1 px-4 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-medium transition-colors shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {actionLoading === rejectingPostId ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Rejecting...</span>
-                      </div>
-                    ) : (
-                      'Reject Post'
-                    )}
-                  </button>
-                </div>
+              </div>
+              <div className="p-5 bg-gray-50 border-t border-gray-100 flex gap-3">
+                <button
+                  onClick={cancelReject}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReject}
+                  disabled={actionLoading === rejectingPostId}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {actionLoading === rejectingPostId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Rejecting...
+                    </>
+                  ) : (
+                    'Reject Post'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Video Modal */}
+        {videoModal && (
+          <div
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setVideoModal(null)}
+          >
+            <div
+              className="relative w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900 truncate pr-4">{videoModal.title}</h3>
+                <button
+                  onClick={() => setVideoModal(null)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+              <div className="bg-black">
+                <VideoPlayer
+                  videoUrl={videoModal.url}
+                  title={videoModal.title}
+                  aspectRatio={(videoModal.aspectRatio as any) || 'auto'}
+                  autoPlay={true}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Poster Modal */}
+        {posterModal && (
+          <div
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setPosterModal(null)}
+          >
+            <div
+              className="relative bg-white rounded-2xl overflow-hidden shadow-2xl"
+              style={{ maxWidth: '90vw', maxHeight: '90vh' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900 truncate pr-4">{posterModal.title}</h3>
+                <button
+                  onClick={() => setPosterModal(null)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+              <div className="bg-gray-100 flex items-center justify-center p-4">
+                <img
+                  src={posterModal.url}
+                  alt={posterModal.title}
+                  className="max-w-full max-h-[75vh] object-contain rounded-lg"
+                />
               </div>
             </div>
           </div>

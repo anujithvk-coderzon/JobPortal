@@ -51,13 +51,68 @@ export const validateImageAspectRatio = async (
 
 /**
  * Validates poster image for job news posts
- * Professional LinkedIn-style posts: 1.91:1 aspect ratio
+ * Supports multiple aspect ratios like LinkedIn: 1.91:1, 1:1, 4:5
  * @param buffer Image buffer
  * @returns Validation result
  */
 export const validatePosterImage = async (buffer: Buffer) => {
-  const LINKEDIN_RATIO = 1.91; // Professional standard
-  return validateImageAspectRatio(buffer, LINKEDIN_RATIO);
+  const SUPPORTED_RATIOS = [
+    { ratio: 1.91, name: 'Landscape (1.91:1)' },
+    { ratio: 1, name: 'Square (1:1)' },
+    { ratio: 0.8, name: 'Portrait (4:5)' },
+  ];
+  const TOLERANCE = 0.1;
+
+  try {
+    const dimensions = sizeOf(buffer);
+
+    if (!dimensions.width || !dimensions.height) {
+      return {
+        valid: false,
+        error: 'Unable to determine image dimensions',
+      };
+    }
+
+    // Check minimum width (LinkedIn standard)
+    if (dimensions.width < 200) {
+      return {
+        valid: false,
+        width: dimensions.width,
+        height: dimensions.height,
+        error: 'Image width must be at least 200px',
+      };
+    }
+
+    const aspectRatio = dimensions.width / dimensions.height;
+
+    // Check if the aspect ratio matches any supported ratio
+    const matchedRatio = SUPPORTED_RATIOS.find(
+      (r) => Math.abs(aspectRatio - r.ratio) <= TOLERANCE
+    );
+
+    if (matchedRatio) {
+      return {
+        valid: true,
+        width: dimensions.width,
+        height: dimensions.height,
+        aspectRatio: parseFloat(aspectRatio.toFixed(2)),
+        format: matchedRatio.name,
+      };
+    }
+
+    return {
+      valid: false,
+      width: dimensions.width,
+      height: dimensions.height,
+      aspectRatio: parseFloat(aspectRatio.toFixed(2)),
+      error: `Invalid aspect ratio: ${aspectRatio.toFixed(2)}:1. Supported ratios: Landscape (1.91:1), Square (1:1), Portrait (4:5)`,
+    };
+  } catch (error: any) {
+    return {
+      valid: false,
+      error: `Failed to validate image: ${error.message}`,
+    };
+  }
 };
 
 /**
@@ -90,21 +145,29 @@ export const validateVideoAspectRatio = async (
  */
 export const MEDIA_CONSTRAINTS = {
   poster: {
-    aspectRatio: 1.91,
-    tolerance: 0.05,
+    // Support multiple aspect ratios like LinkedIn
+    aspectRatios: [
+      { ratio: 1.91, name: 'Landscape', recommended: '1200x628' },
+      { ratio: 1, name: 'Square', recommended: '1200x1200' },
+      { ratio: 0.8, name: 'Portrait (4:5)', recommended: '1080x1350' },
+    ],
+    tolerance: 0.1, // Increased tolerance for flexibility
     maxSize: 10 * 1024 * 1024, // 10MB
+    minWidth: 200, // LinkedIn minimum
     formats: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-    recommendedSizes: ['1200x628', '1920x1005'],
+    recommendedSizes: ['1200x628', '1200x1200', '1080x1350'],
   },
   video: {
-    verticalRatio: 9 / 16, // 0.5625
-    horizontalRatio: 16 / 9, // 1.7778
-    tolerance: 0.05,
-    maxSize: 50 * 1024 * 1024, // 50MB
+    // Support multiple aspect ratios like LinkedIn
+    aspectRatios: [
+      { ratio: 16 / 9, name: 'Landscape (16:9)', recommended: '1920x1080' },
+      { ratio: 1, name: 'Square (1:1)', recommended: '1080x1080' },
+      { ratio: 4 / 5, name: 'Portrait (4:5)', recommended: '1080x1350' },
+      { ratio: 9 / 16, name: 'Vertical (9:16)', recommended: '1080x1920' },
+    ],
+    tolerance: 0.1,
+    maxSize: 200 * 1024 * 1024, // 200MB
     formats: ['video/mp4', 'video/webm', 'video/quicktime'],
-    recommendedSizes: {
-      vertical: '1080x1920',
-      horizontal: '1920x1080',
-    },
+    recommendedSizes: ['1920x1080', '1080x1080', '1080x1350', '1080x1920'],
   },
 } as const;

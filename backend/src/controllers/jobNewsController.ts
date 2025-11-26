@@ -30,6 +30,7 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
       posterMimeType,
       video,
       videoMimeType,
+      videoAspectRatio,
     } = req.body;
 
     let posterUrl: string | undefined;
@@ -55,13 +56,15 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
     }
 
     // Handle video upload
+    let savedVideoAspectRatio = videoAspectRatio || null;
     if (video) {
       const buffer = Buffer.from(video, 'base64');
-      const uploadResult = await uploadVideoToBunnyStream(buffer, title);
+      const uploadResult = await uploadVideoToBunnyStream(buffer, title, videoAspectRatio);
 
       if (uploadResult.success && uploadResult.videoUrl && uploadResult.videoId) {
         videoUrl = uploadResult.videoUrl;
         videoId = uploadResult.videoId;
+        savedVideoAspectRatio = uploadResult.aspectRatio || videoAspectRatio || null;
       } else {
         console.error('Video upload failed:', uploadResult.error);
         // If poster was uploaded but video fails, delete the poster
@@ -90,6 +93,7 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
         poster: posterUrl,
         video: videoUrl,
         videoId,
+        videoAspectRatio: savedVideoAspectRatio,
         isActive: false, // Post is inactive until approved by admin
         moderationStatus: 'PENDING', // Default to pending moderation
       },
@@ -107,7 +111,7 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
     return res.status(201).json({
       success: true,
       data: jobNews,
-      message: 'Job news submitted successfully. It will be visible after admin approval.',
+      message: 'Your post has been submitted successfully. It will be live shortly!',
     });
   } catch (error: any) {
     console.error('Create job news error:', error);
@@ -427,6 +431,7 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
       posterMimeType,
       video,
       videoMimeType,
+      videoAspectRatio,
       removePoster,
       removeVideo,
     } = req.body;
@@ -434,6 +439,7 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
     let posterUrl = existingJobNews.poster;
     let videoUrl = existingJobNews.video;
     let videoId = existingJobNews.videoId;
+    let videoRatio = existingJobNews.videoAspectRatio;
 
     // Handle poster removal
     if (removePoster && existingJobNews.poster) {
@@ -475,6 +481,7 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
       await deleteVideoFromBunnyStream(existingJobNews.videoId);
       videoUrl = null;
       videoId = null;
+      videoRatio = null;
     }
 
     // Handle new video upload
@@ -490,6 +497,7 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
       if (uploadResult.success && uploadResult.videoUrl && uploadResult.videoId) {
         videoUrl = uploadResult.videoUrl;
         videoId = uploadResult.videoId;
+        videoRatio = videoAspectRatio || null;
       } else {
         return res.status(500).json({
           success: false,
@@ -511,6 +519,7 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
         poster: posterUrl,
         video: videoUrl,
         videoId: videoId,
+        videoAspectRatio: videoRatio,
       },
       include: {
         user: {
