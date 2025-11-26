@@ -215,18 +215,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Development Credentials */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">
-                  Development Credentials
-                </h4>
-                <div className="space-y-1 text-sm text-blue-800">
-                  <p className="font-mono">Email: admin@admin.com</p>
-                  <p className="font-mono">Password: Admin@123456</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Security Notice */}
