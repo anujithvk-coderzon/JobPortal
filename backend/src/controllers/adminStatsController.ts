@@ -20,11 +20,10 @@ export const getStats = async (req: AuthRequest, res: Response) => {
     ]);
 
     // Get post statistics
-    const [totalPosts, pendingPosts, approvedPosts, rejectedPosts] = await Promise.all([
+    const [totalPosts, pendingPosts, approvedPosts] = await Promise.all([
       prisma.jobNews.count(),
       prisma.jobNews.count({ where: { moderationStatus: 'PENDING' } }),
       prisma.jobNews.count({ where: { moderationStatus: 'APPROVED' } }),
-      prisma.jobNews.count({ where: { moderationStatus: 'REJECTED' } }),
     ]);
 
     return res.status(200).json({
@@ -40,7 +39,6 @@ export const getStats = async (req: AuthRequest, res: Response) => {
           total: totalPosts,
           pending: pendingPosts,
           approved: approvedPosts,
-          rejected: rejectedPosts,
         },
       },
     });

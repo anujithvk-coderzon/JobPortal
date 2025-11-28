@@ -11,7 +11,6 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  XCircle,
   TrendingUp,
   Activity,
 } from 'lucide-react';
@@ -115,16 +114,6 @@ export default function DashboardPage() {
       iconColor: 'text-green-600',
       trend: '+18%',
       trendUp: true,
-    },
-    {
-      title: 'Rejected Posts',
-      value: stats?.posts?.rejected || 0,
-      icon: XCircle,
-      gradient: 'from-red-500 to-red-600',
-      bgColor: 'bg-red-50',
-      iconColor: 'text-red-600',
-      trend: '-4%',
-      trendUp: false,
     },
   ];
 
@@ -247,13 +236,6 @@ export default function DashboardPage() {
                   <span className="text-gray-700 font-medium">Approved</span>
                 </div>
                 <span className="text-lg font-bold text-green-700">{stats?.posts?.approved || 0}</span>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-transparent rounded-xl border border-red-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                  <span className="text-gray-700 font-medium">Rejected</span>
-                </div>
-                <span className="text-lg font-bold text-red-700">{stats?.posts?.rejected || 0}</span>
               </div>
             </div>
           </div>
