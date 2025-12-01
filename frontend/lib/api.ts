@@ -31,6 +31,12 @@ api.interceptors.response.use(
       // Clear auth and redirect to login
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+
+      // Replace technical error message with user-friendly one
+      if (error.response?.data) {
+        error.response.data.error = 'Please log in to continue.';
+      }
+
       if (typeof window !== 'undefined') {
         window.location.href = '/auth/login';
       }

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
-import { getInitials, timeAgo } from '@/lib/utils';
+import { getInitials, timeAgo, getUserFriendlyErrorMessage } from '@/lib/utils';
 import { CredibilityBadge } from '@/components/CredibilityBadge';
 import {
   Mail,
@@ -93,9 +93,13 @@ export default function UserPublicProfile() {
       setHasMore(pagination.page < pagination.totalPages);
     } catch (error: any) {
       console.error('Error fetching public profile:', error);
+      const errorMessage = getUserFriendlyErrorMessage(
+        error.response?.data?.error,
+        error.response?.status
+      );
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to load profile',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
