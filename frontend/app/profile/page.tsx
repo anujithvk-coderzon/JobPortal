@@ -167,7 +167,7 @@ function ProfilePageContent() {
 
       await fetchUserProfile();
       triggerProfileUpdate();
-      toast({ title: 'Success', description: 'Profile updated successfully' });
+      toast({ title: 'Success', description: 'Profile updated successfully', variant: 'success' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update profile', variant: 'destructive' });
     } finally {
@@ -219,7 +219,7 @@ function ProfilePageContent() {
       triggerProfileUpdate();
       setShowEducationForm(false);
       setEditingItem(null);
-      toast({ title: 'Success', description: `Education ${editingItem ? 'updated' : 'added'} successfully` });
+      toast({ title: 'Success', description: `Education ${editingItem ? 'updated' : 'added'} successfully`, variant: 'success' });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -236,7 +236,7 @@ function ProfilePageContent() {
       await fetchUserProfile();
       triggerProfileUpdate();
       setDeleteEducationId(null);
-      toast({ title: 'Success', description: 'Education deleted successfully' });
+      toast({ title: 'Success', description: 'Education deleted successfully', variant: 'success' });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -256,7 +256,7 @@ function ProfilePageContent() {
       triggerProfileUpdate();
       setShowExperienceForm(false);
       setEditingItem(null);
-      toast({ title: 'Success', description: `Experience ${editingItem ? 'updated' : 'added'} successfully` });
+      toast({ title: 'Success', description: `Experience ${editingItem ? 'updated' : 'added'} successfully`, variant: 'success' });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -273,7 +273,7 @@ function ProfilePageContent() {
       await fetchUserProfile();
       triggerProfileUpdate();
       setDeleteExperienceId(null);
-      toast({ title: 'Success', description: 'Experience deleted successfully' });
+      toast({ title: 'Success', description: 'Experience deleted successfully', variant: 'success' });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -290,7 +290,7 @@ function ProfilePageContent() {
       await fetchUserProfile();
       triggerProfileUpdate();
       setShowSkillForm(false);
-      toast({ title: 'Success', description: 'Skill added successfully' });
+      toast({ title: 'Success', description: 'Skill added successfully', variant: 'success' });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -305,7 +305,7 @@ function ProfilePageContent() {
 
     await fetchUserProfile();
     triggerProfileUpdate();
-    toast({ title: 'Success', description: 'Skill deleted successfully' });
+    toast({ title: 'Success', description: 'Skill deleted successfully', variant: 'success' });
   };
 
   const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -357,6 +357,7 @@ function ProfilePageContent() {
         toast({
           title: 'Success',
           description: 'Profile photo uploaded successfully',
+          variant: 'success',
         });
       };
 
@@ -392,6 +393,7 @@ function ProfilePageContent() {
       toast({
         title: 'Success',
         description: 'Profile photo removed successfully',
+        variant: 'success',
       });
     } catch (error: any) {
       toast({
@@ -454,6 +456,7 @@ function ProfilePageContent() {
       toast({
         title: 'Success',
         description: 'Resume removed successfully',
+        variant: 'success',
       });
     } catch (error: any) {
       toast({

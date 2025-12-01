@@ -257,7 +257,7 @@ export default function MyPage() {
     setSavingPrivacy(true);
     try {
       await api.put('/users/privacy-settings', newSettings);
-      toast({ title: 'Success', description: 'Privacy settings updated' });
+      toast({ title: 'Success', description: 'Privacy settings updated', variant: 'success' });
     } catch (error) {
       console.error('Error updating privacy:', error);
       setPrivacySettings(privacySettings);

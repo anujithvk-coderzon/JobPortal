@@ -187,6 +187,7 @@ function PostJobPageContent() {
       toast({
         title: 'Success',
         description: 'Job posted successfully!',
+        variant: 'success',
       });
 
       router.push(`/jobs/${response.data.data.id}`);

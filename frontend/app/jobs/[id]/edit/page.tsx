@@ -192,6 +192,7 @@ export default function EditJobPage() {
       toast({
         title: 'Success',
         description: 'Job updated successfully!',
+        variant: 'success',
       });
 
       router.push(`/jobs/${jobId}`);

@@ -184,13 +184,15 @@ export default function JobApplicationsPage() {
         setError('Job not found');
       } else if (statusCode === 403) {
         setError('Access denied. Only the person who posted this job can view its applications.');
+      } else if (statusCode === 401) {
+        setError('Please log in to view applications.');
       } else {
         setError(errorMessage);
       }
 
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: statusCode === 401 ? 'Please log in to view applications.' : errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -310,6 +312,7 @@ ${companyName} Team`;
       toast({
         title: 'Success',
         description: 'Application status updated',
+        variant: 'success',
       });
     } catch (error: any) {
       toast({
@@ -382,6 +385,7 @@ ${companyName} Team`;
       toast({
         title: 'Success',
         description: 'Interview scheduled successfully',
+        variant: 'success',
       });
 
       setShowInterviewDialog(false);

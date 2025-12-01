@@ -82,6 +82,7 @@ export default function JobDetailPage() {
         toast({
           title: 'Success',
           description: 'Job removed from saved jobs',
+          variant: 'success',
         });
       } else {
         await jobAPI.saveJob(jobId);
@@ -89,6 +90,7 @@ export default function JobDetailPage() {
         toast({
           title: 'Success',
           description: 'Job saved successfully',
+          variant: 'success',
         });
       }
     } catch (error: any) {

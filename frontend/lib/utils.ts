@@ -63,3 +63,39 @@ export function timeAgo(date: string | Date): string {
     return formatDate(date);
   }
 }
+
+// Transform technical error messages to user-friendly messages
+export function getUserFriendlyErrorMessage(error: string | undefined, statusCode?: number): string {
+  if (!error) {
+    return 'Something went wrong. Please try again.';
+  }
+
+  const errorLower = error.toLowerCase();
+
+  // Authentication related errors
+  if (errorLower.includes('no token') || errorLower.includes('token provided')) {
+    return 'Please log in to continue.';
+  }
+  if (errorLower.includes('invalid token') || errorLower.includes('expired token')) {
+    return 'Your session has expired. Please log in again.';
+  }
+  if (errorLower.includes('unauthorized') || statusCode === 401) {
+    return 'Please log in to continue.';
+  }
+
+  // Network related errors
+  if (errorLower.includes('network') || errorLower.includes('connection')) {
+    return 'Connection error. Please check your internet and try again.';
+  }
+  if (errorLower.includes('timeout')) {
+    return 'Request timed out. Please try again.';
+  }
+
+  // Server errors
+  if (statusCode && statusCode >= 500) {
+    return 'Server error. Please try again later.';
+  }
+
+  // Return original message if it's already user-friendly
+  return error;
+}
