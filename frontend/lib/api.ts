@@ -183,3 +183,14 @@ export const notificationAPI = {
   getUnreadCount: () => axiosInstance.get('/notifications/unread-count'),
   markAsRead: (notificationId: string) => axiosInstance.delete(`/notifications/${notificationId}`),
 };
+
+// Follow API
+export const followAPI = {
+  followUser: (userId: string) => axiosInstance.post(`/follow/${userId}`),
+  unfollowUser: (userId: string) => axiosInstance.delete(`/follow/${userId}`),
+  getFollowing: (params?: any) => axiosInstance.get('/follow/following', { params }),
+  getFollowers: (params?: any) => axiosInstance.get('/follow/followers', { params }),
+  checkFollowStatus: (userId: string) => axiosInstance.get(`/follow/status/${userId}`),
+  getFollowCounts: (userId: string) => axiosInstance.get(`/follow/counts/${userId}`),
+  getSuggestedUsers: (params?: any) => axiosInstance.get('/follow/suggested', { params }),
+};

@@ -72,6 +72,8 @@ model User {
   jobNews       JobNews[]
   jobNewsHelpful JobNewsHelpful[]
   notifications Notification[]
+  followers     Follow[]      @relation("following")
+  following     Follow[]      @relation("follower")
 
   @@map("users")
 }
@@ -373,4 +375,17 @@ model Notification {
   createdAt       DateTime    @default(now())
 
   @@map("notifications")
+}
+
+// User follow system
+model Follow {
+  id              String      @id @default(uuid())
+  followerId      String
+  follower        User        @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId     String
+  following       User        @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+
+  @@unique([followerId, followingId])
+  @@map("follows")
 }

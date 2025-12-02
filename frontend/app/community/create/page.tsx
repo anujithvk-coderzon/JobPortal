@@ -308,6 +308,7 @@ export default function CreatePostPage() {
       toast({
         title: 'Success!',
         description: response.data.message || 'Your post has been submitted successfully. It will be live shortly!',
+        variant: 'success',
       });
 
       router.push('/my-page');

@@ -20,6 +20,7 @@ import adminStatsRoutes from './routes/adminStatsRoutes';
 import adminUserRoutes from './routes/adminUserRoutes';
 import adminPostRoutes from './routes/adminPostRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import followRoutes from './routes/followRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -43,6 +44,7 @@ app.use('/api/admin/stats', adminStatsRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/posts', adminPostRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/follow', followRoutes);
 
 // Test routes (development only)
 if (process.env.NODE_ENV !== 'production') {

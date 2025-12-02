@@ -9,18 +9,18 @@ export default function PrivacyPolicy() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-bold">Privacy Policy</h1>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="mb-6 md:mb-8">
+          <div className="flex items-center gap-3 mb-3 md:mb-4">
+            <Shield className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">Privacy Policy</h1>
           </div>
-          <p className="text-muted-foreground text-lg">
+          <p className="text-sm md:text-base text-muted-foreground">
             Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Introduction */}
           <Card>
             <CardHeader>
@@ -288,15 +288,15 @@ export default function PrivacyPolicy() {
                 If you have questions or concerns about this privacy policy or our data practices, please contact us:
               </p>
               <div className="space-y-2 text-muted-foreground">
-                <p><strong>Email:</strong> privacy@jobplatform.com</p>
+                <p><strong>Email:</strong> contact@coderzon.com</p>
                 <p><strong>Privacy Dashboard:</strong> Manage your privacy settings in your profile</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="mt-8 p-4 bg-muted rounded-lg">
-          <p className="text-sm text-muted-foreground text-center">
+        <div className="mt-6 md:mt-8 p-4 bg-muted rounded-lg">
+          <p className="text-xs md:text-sm text-muted-foreground text-center">
             By using our platform, you acknowledge that you have read and understood this Privacy Policy.
           </p>
         </div>

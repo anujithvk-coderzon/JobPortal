@@ -9,18 +9,18 @@ export default function TermsOfService() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Scale className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-bold">Terms of Service</h1>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="mb-6 md:mb-8">
+          <div className="flex items-center gap-3 mb-3 md:mb-4">
+            <Scale className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">Terms of Service</h1>
           </div>
-          <p className="text-muted-foreground text-lg">
+          <p className="text-sm md:text-base text-muted-foreground">
             Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Agreement to Terms */}
           <Card>
             <CardHeader>
@@ -428,15 +428,15 @@ export default function TermsOfService() {
                 If you have questions about these Terms of Service, please contact us:
               </p>
               <div className="space-y-2 text-muted-foreground">
-                <p><strong>Email:</strong> legal@jobplatform.com</p>
+                <p><strong>Email:</strong> contact@coderzon.com</p>
                 <p><strong>Support:</strong> Contact us through the platform help center</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="mt-8 p-4 bg-muted rounded-lg">
-          <p className="text-sm text-muted-foreground text-center">
+        <div className="mt-6 md:mt-8 p-4 bg-muted rounded-lg">
+          <p className="text-xs md:text-sm text-muted-foreground text-center">
             By using our platform, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
           </p>
         </div>

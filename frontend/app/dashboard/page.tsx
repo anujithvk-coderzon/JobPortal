@@ -68,7 +68,7 @@ interface CommunityPost {
 
 // Helper function to determine job status
 const getJobStatus = (job: any) => {
-  if (!job.isActive) return { label: 'Inactive', variant: 'secondary' as const, color: 'text-gray-500' };
+  if (!job.isActive) return { label: 'Inactive', variant: 'secondary' as const, color: 'text-muted-foreground' };
 
   if (job.applicationDeadline) {
     const deadline = new Date(job.applicationDeadline);
@@ -212,7 +212,7 @@ function DashboardPageContent() {
   // Prevent rendering for unauthenticated users
   if (!isHydrated || !isAuthenticated || !user || loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <Navbar />
         <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -228,15 +228,15 @@ function DashboardPageContent() {
   const recentApplicationsReceived = stats.recentApplicationsReceived || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto py-3 md:py-6 lg:py-8 px-2 md:px-4 lg:px-6 max-w-7xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Header */}
-        <div className="mb-4 md:mb-6 lg:mb-8">
-          <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 md:mb-2">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">
             Welcome back, {user.name?.split(' ')[0]}!
           </h1>
-          <p className="text-xs md:text-sm lg:text-base text-gray-600">
+          <p className="text-sm md:text-base text-muted-foreground">
             Here's an overview of your activity on the platform
           </p>
         </div>
@@ -246,12 +246,12 @@ function DashboardPageContent() {
           <ProfileCompletionCard
             user={user}
             profile={profileData}
-            className="mb-3 md:mb-6 lg:mb-8 shadow-md hover:shadow-lg transition-shadow"
+            className="mb-6 md:mb-8"
           />
         )}
 
         {/* Stats Overview Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-3 md:mb-6 lg:mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           {/* Job Seeker Stats */}
           <Card className="group hover:shadow-xl transition-all duration-300 border-l-4 border-l-blue-500 cursor-pointer" onClick={() => router.push('/applications')}>
             <CardHeader className="pb-1.5 md:pb-3 pt-3 md:pt-6">
@@ -259,15 +259,15 @@ function DashboardPageContent() {
                 <div className="p-1.5 md:p-2 bg-blue-50 rounded-lg">
                   <FileText className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-blue-600" />
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
               </div>
             </CardHeader>
             <CardContent className="pb-3 pt-2 md:pb-4 md:pt-3">
-              <div className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-0.5">{totalApplications}</div>
-              <p className="text-[11px] md:text-sm font-medium text-gray-600 mb-0.5">
+              <div className="text-xl md:text-2xl lg:text-3xl font-bold mb-0.5">{totalApplications}</div>
+              <p className="text-[11px] md:text-sm font-medium text-muted-foreground mb-0.5">
                 My Applications
               </p>
-              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
+              <p className="text-[10px] md:text-xs text-muted-foreground/70 leading-tight">
                 Total jobs applied
               </p>
             </CardContent>
@@ -279,15 +279,15 @@ function DashboardPageContent() {
                 <div className="p-1.5 md:p-2 bg-purple-50 rounded-lg">
                   <Briefcase className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-purple-600" />
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
               </div>
             </CardHeader>
             <CardContent className="pb-3 pt-2 md:pb-4 md:pt-3">
-              <div className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-0.5">{stats.savedJobsCount || 0}</div>
-              <p className="text-[11px] md:text-sm font-medium text-gray-600 mb-0.5">
+              <div className="text-xl md:text-2xl lg:text-3xl font-bold mb-0.5">{stats.savedJobsCount || 0}</div>
+              <p className="text-[11px] md:text-sm font-medium text-muted-foreground mb-0.5">
                 Saved Jobs
               </p>
-              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
+              <p className="text-[10px] md:text-xs text-muted-foreground/70 leading-tight">
                 Jobs saved for later
               </p>
             </CardContent>
@@ -300,15 +300,15 @@ function DashboardPageContent() {
                 <div className="p-1.5 md:p-2 bg-green-50 rounded-lg">
                   <TrendingUp className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-green-600" />
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
               </div>
             </CardHeader>
             <CardContent className="pb-3 pt-2 md:pb-4 md:pt-3">
-              <div className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-0.5">{totalJobs}</div>
-              <p className="text-[11px] md:text-sm font-medium text-gray-600 mb-0.5">
+              <div className="text-xl md:text-2xl lg:text-3xl font-bold mb-0.5">{totalJobs}</div>
+              <p className="text-[11px] md:text-sm font-medium text-muted-foreground mb-0.5">
                 Jobs Posted
               </p>
-              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
+              <p className="text-[10px] md:text-xs text-muted-foreground/70 leading-tight">
                 {stats.activeJobsCount || 0} currently active
               </p>
             </CardContent>
@@ -326,13 +326,13 @@ function DashboardPageContent() {
                     </span>
                   )}
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 group-hover:text-orange-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground group-hover:text-orange-600 group-hover:translate-x-1 transition-all" />
               </div>
             </CardHeader>
             <CardContent className="pb-3 pt-2 md:pb-4 md:pt-3">
               {/* Pending Applications - Main Focus */}
               <div className="flex items-baseline gap-2 mb-0.5">
-                <div className={`text-xl md:text-2xl lg:text-3xl font-bold ${pendingApplications > 0 ? 'text-orange-600' : 'text-gray-900'}`}>
+                <div className={`text-xl md:text-2xl lg:text-3xl font-bold ${pendingApplications > 0 ? 'text-orange-600' : ''}`}>
                   {pendingApplications}
                 </div>
                 {pendingApplications > 0 && (
@@ -341,10 +341,10 @@ function DashboardPageContent() {
                   </Badge>
                 )}
               </div>
-              <p className="text-[11px] md:text-sm font-medium text-gray-600 mb-0.5">
+              <p className="text-[11px] md:text-sm font-medium text-muted-foreground mb-0.5">
                 {pendingApplications === 1 ? 'Pending Application' : 'Pending Applications'}
               </p>
-              <p className="text-[10px] md:text-xs text-gray-500 leading-tight">
+              <p className="text-[10px] md:text-xs text-muted-foreground/70 leading-tight">
                 {totalApplicationsReceived} total from all posts
               </p>
             </CardContent>
@@ -353,7 +353,7 @@ function DashboardPageContent() {
 
         {/* Recent Pending Applications */}
         {pendingApplications > 0 && recentApplicationsReceived.length > 0 && (
-          <Card className="shadow-md hover:shadow-lg transition-shadow mb-3 md:mb-6 lg:mb-8 border-l-4 border-l-orange-500">
+          <Card className="mb-6 md:mb-8 border-l-4 border-l-orange-500">
             <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
               <div className="flex items-start justify-between gap-2 md:gap-3">
                 <div className="flex-1 min-w-0">
@@ -416,25 +416,25 @@ function DashboardPageContent() {
                       {/* Application Info */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1 md:gap-1.5 mb-0">
-                          <h4 className="font-medium text-[11px] md:text-xs lg:text-sm text-gray-900 truncate">
+                          <h4 className="font-medium text-[11px] md:text-xs lg:text-sm text-foreground truncate">
                             {application.applicant?.name || 'Unknown Applicant'}
                           </h4>
                           <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600 h-3.5 md:h-4 text-[8px] md:text-[9px] flex-shrink-0 px-1 md:px-1.5 py-0">
                             New
                           </Badge>
                         </div>
-                        <p className="text-[9px] md:text-[10px] lg:text-xs text-gray-600 truncate leading-tight mt-0.5">
+                        <p className="text-[9px] md:text-[10px] lg:text-xs text-muted-foreground truncate leading-tight mt-0.5">
                           <span className="hidden sm:inline">Applied for: </span>
                           <span className="font-medium">{application.job?.title}</span>
                         </p>
-                        <p className="text-[9px] md:text-[10px] text-gray-500 mt-0.5 leading-none">
+                        <p className="text-[9px] md:text-[10px] text-muted-foreground mt-0.5 leading-none">
                           {timeAgo(application.appliedAt)}
                         </p>
                       </div>
                     </div>
 
                     {/* Arrow */}
-                    <ChevronRight className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 group-hover:text-orange-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-1 md:ml-1.5" />
+                    <ChevronRight className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-muted-foreground group-hover:text-orange-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-1 md:ml-1.5" />
                   </div>
                 ))}
               </div>
@@ -455,9 +455,9 @@ function DashboardPageContent() {
         )}
 
         {/* Content Management */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6 mb-3 md:mb-6 lg:mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6 mb-6 md:mb-8">
           {/* My Companies */}
-          <Card className="shadow-md hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
               <div className="flex items-start justify-between gap-2 md:gap-3">
                 <div className="flex-1">
@@ -500,13 +500,13 @@ function DashboardPageContent() {
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-medium text-sm md:text-base text-gray-900 truncate">{company.name}</h4>
-                          <p className="text-xs text-gray-500">
+                          <h4 className="font-medium text-sm md:text-base text-foreground truncate">{company.name}</h4>
+                          <p className="text-xs text-muted-foreground">
                             {company._count?.jobs || 0} job{company._count?.jobs !== 1 ? 's' : ''}
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                      <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                     </div>
                   ))}
                   {companies.length > 5 && (
@@ -522,12 +522,12 @@ function DashboardPageContent() {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-6 md:py-8 text-gray-500">
+                <div className="text-center py-6 md:py-8 text-muted-foreground">
                   <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 rounded-full bg-blue-50 flex items-center justify-center">
                     <Building2 className="h-8 w-8 md:h-10 md:w-10 text-blue-300" />
                   </div>
                   <p className="text-xs md:text-sm font-medium mb-1">No companies yet</p>
-                  <p className="text-xs text-gray-400 mb-4">Create your first company profile</p>
+                  <p className="text-xs text-muted-foreground mb-4">Create your first company profile</p>
                   <Button
                     size="sm"
                     onClick={() => router.push('/company/create')}
@@ -542,7 +542,7 @@ function DashboardPageContent() {
           </Card>
 
           {/* Recent Jobs Posted */}
-          <Card className="shadow-md hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
               <div className="flex items-center gap-2 mb-1">
                 <Briefcase className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
@@ -561,14 +561,14 @@ function DashboardPageContent() {
                         onClick={() => router.push(`/jobs/${job.id}`)}
                       >
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-xs md:text-sm lg:text-base text-gray-900 truncate mb-0.5 md:mb-1">{job.title}</h4>
-                          <p className="text-[10px] md:text-xs lg:text-sm text-gray-600 mb-1.5 md:mb-2">
+                          <h4 className="font-medium text-xs md:text-sm lg:text-base text-foreground truncate mb-0.5 md:mb-1">{job.title}</h4>
+                          <p className="text-[10px] md:text-xs lg:text-sm text-muted-foreground mb-1.5 md:mb-2">
                             {job.company?.name || 'Company'}
                           </p>
                           <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
                             <div className="flex items-center gap-1">
-                              <Users className="h-2.5 w-2.5 md:h-3 md:w-3 text-gray-400" />
-                              <span className="text-[10px] md:text-xs text-gray-500">
+                              <Users className="h-2.5 w-2.5 md:h-3 md:w-3 text-muted-foreground" />
+                              <span className="text-[10px] md:text-xs text-muted-foreground">
                                 {job._count?.applications || 0} applicants
                               </span>
                             </div>
@@ -580,7 +580,7 @@ function DashboardPageContent() {
                             </Badge>
                           </div>
                         </div>
-                        <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-1.5 md:ml-2" />
+                        <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-muted-foreground group-hover:text-green-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-1.5 md:ml-2" />
                       </div>
                     ))}
                   </div>
@@ -596,12 +596,12 @@ function DashboardPageContent() {
                 </>
 
               ) : (
-                <div className="text-center py-6 md:py-8 text-gray-500">
+                <div className="text-center py-6 md:py-8 text-muted-foreground">
                   <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 rounded-full bg-green-50 flex items-center justify-center">
                     <Briefcase className="h-8 w-8 md:h-10 md:w-10 text-green-300" />
                   </div>
                   <p className="text-xs md:text-sm font-medium mb-1">No jobs posted yet</p>
-                  <p className="text-xs text-gray-400 mb-4">Start hiring by posting a job</p>
+                  <p className="text-xs text-muted-foreground mb-4">Start hiring by posting a job</p>
                   <Button
                     size="sm"
                     onClick={() => setShowCompanySelector(true)}
@@ -616,7 +616,7 @@ function DashboardPageContent() {
           </Card>
 
           {/* Community Posts */}
-          <Card className="shadow-md hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
               <div className="flex items-center gap-2 mb-1">
                 <Newspaper className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
@@ -635,14 +635,14 @@ function DashboardPageContent() {
                         onClick={() => router.push(`/community/${post.id}`)}
                       >
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-xs md:text-sm lg:text-base text-gray-900 line-clamp-1 mb-0.5 md:mb-1">{post.title}</h4>
-                          <p className="text-[10px] md:text-xs text-gray-600 line-clamp-2 mb-1.5 md:mb-2">
+                          <h4 className="font-medium text-xs md:text-sm lg:text-base text-foreground line-clamp-1 mb-0.5 md:mb-1">{post.title}</h4>
+                          <p className="text-[10px] md:text-xs text-muted-foreground line-clamp-2 mb-1.5 md:mb-2">
                             {post.description}
                           </p>
-                          <div className="flex flex-wrap items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-500">
+                          <div className="flex flex-wrap items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-muted-foreground">
                             {post.companyName && (
                               <div className="flex items-center gap-0.5 md:gap-1">
-                                <Building2 className="h-2.5 w-2.5 md:h-3 md:w-3 text-gray-400" />
+                                <Building2 className="h-2.5 w-2.5 md:h-3 md:w-3 text-muted-foreground" />
                                 <span className="truncate max-w-[80px] md:max-w-[100px]">
                                   {post.companyName}
                                 </span>
@@ -650,7 +650,7 @@ function DashboardPageContent() {
                             )}
                             {post.location && (
                               <div className="flex items-center gap-0.5 md:gap-1">
-                                <MapPin className="h-2.5 w-2.5 md:h-3 md:w-3 text-gray-400" />
+                                <MapPin className="h-2.5 w-2.5 md:h-3 md:w-3 text-muted-foreground" />
                                 <span className="truncate max-w-[60px] md:max-w-[80px]">
                                   {post.location}
                                 </span>
@@ -658,13 +658,13 @@ function DashboardPageContent() {
                             )}
                             {(post.helpfulCount || 0) > 0 && (
                               <div className="flex items-center gap-0.5 md:gap-1">
-                                <ThumbsUp className="h-2.5 w-2.5 md:h-3 md:w-3 text-gray-400" />
+                                <ThumbsUp className="h-2.5 w-2.5 md:h-3 md:w-3 text-muted-foreground" />
                                 <span>{post.helpfulCount}</span>
                               </div>
                             )}
                           </div>
                         </div>
-                        <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-1.5 md:ml-2" />
+                        <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-1.5 md:ml-2" />
                       </div>
                     ))}
                   </div>
@@ -680,12 +680,12 @@ function DashboardPageContent() {
                 </>
 
               ) : (
-                <div className="text-center py-6 md:py-8 text-gray-500">
+                <div className="text-center py-6 md:py-8 text-muted-foreground">
                   <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 rounded-full bg-purple-50 flex items-center justify-center">
                     <Newspaper className="h-8 w-8 md:h-10 md:w-10 text-purple-300" />
                   </div>
                   <p className="text-xs md:text-sm font-medium mb-1">No posts yet</p>
-                  <p className="text-xs text-gray-400 mb-4">Share your knowledge with the community</p>
+                  <p className="text-xs text-muted-foreground mb-4">Share your knowledge with the community</p>
                   <Button
                     size="sm"
                     onClick={() => router.push('/community/create')}
@@ -701,7 +701,7 @@ function DashboardPageContent() {
         </div>
 
         {/* Quick Actions */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow">
+        <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
@@ -720,10 +720,10 @@ function DashboardPageContent() {
                   <Briefcase className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-blue-600" />
                 </div>
                 <div className="text-left ml-2 md:ml-3 flex-1">
-                  <div className="font-semibold text-xs md:text-sm lg:text-base text-gray-900">Browse Jobs</div>
-                  <div className="text-[10px] md:text-xs text-gray-500">Find opportunities</div>
+                  <div className="font-semibold text-xs md:text-sm lg:text-base text-foreground">Browse Jobs</div>
+                  <div className="text-[10px] md:text-xs text-muted-foreground">Find opportunities</div>
                 </div>
-                <ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
               </Button>
 
               <Button
@@ -735,10 +735,10 @@ function DashboardPageContent() {
                   <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-green-600" />
                 </div>
                 <div className="text-left ml-2 md:ml-3 flex-1">
-                  <div className="font-semibold text-xs md:text-sm lg:text-base text-gray-900">Post a Job</div>
-                  <div className="text-[10px] md:text-xs text-gray-500">Hire talent</div>
+                  <div className="font-semibold text-xs md:text-sm lg:text-base text-foreground">Post a Job</div>
+                  <div className="text-[10px] md:text-xs text-muted-foreground">Hire talent</div>
                 </div>
-                <ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
               </Button>
 
               <Button
@@ -750,10 +750,10 @@ function DashboardPageContent() {
                   <Users className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-purple-600" />
                 </div>
                 <div className="text-left ml-2 md:ml-3 flex-1">
-                  <div className="font-semibold text-xs md:text-sm lg:text-base text-gray-900">Update Profile</div>
-                  <div className="text-[10px] md:text-xs text-gray-500">Keep info current</div>
+                  <div className="font-semibold text-xs md:text-sm lg:text-base text-foreground">Update Profile</div>
+                  <div className="text-[10px] md:text-xs text-muted-foreground">Keep info current</div>
                 </div>
-                <ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
               </Button>
             </div>
           </CardContent>
@@ -773,7 +773,7 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-background">
           <div className="flex items-center justify-center min-h-screen">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>

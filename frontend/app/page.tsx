@@ -431,9 +431,6 @@ export default function HomePage() {
               </ul>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 Job Portal. All rights reserved.</p>
-          </div>
         </div>
       </footer>
 

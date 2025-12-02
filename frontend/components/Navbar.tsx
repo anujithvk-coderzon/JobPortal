@@ -156,7 +156,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+    <nav className="border-b bg-background sticky top-0 z-50 shadow-sm">
       <div className="w-full mx-auto px-3 sm:px-4 md:px-6 lg:px-8 max-w-7xl">
         <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Left: Logo + Desktop Navigation */}

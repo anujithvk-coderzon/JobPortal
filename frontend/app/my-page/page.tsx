@@ -575,7 +575,7 @@ export default function MyPage() {
       <Navbar />
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="container mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 h-full py-3 sm:py-4 lg:py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full py-4 md:py-6">
           {/* Desktop: Two Column Layout | Mobile: Single Column */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 h-full">
 
@@ -938,7 +938,7 @@ export default function MyPage() {
                   </Card>
                 ) : (
                   <>
-                    <div className="space-y-2.5 sm:space-y-3">
+                    <div className="space-y-3 md:space-y-4">
                       {posts.map((post) => (
                         <Card
                           key={post.id}

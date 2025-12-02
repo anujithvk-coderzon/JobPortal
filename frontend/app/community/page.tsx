@@ -9,11 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { jobNewsAPI } from '@/lib/api';
+import { jobNewsAPI, followAPI } from '@/lib/api';
 import { timeAgo, getInitials } from '@/lib/utils';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { CredibilityBadgeCompact } from '@/components/CredibilityBadge';
+import { FollowingDrawer } from '@/components/FollowingDrawer';
+import { FollowButton } from '@/components/FollowButton';
+import { useAuthStore } from '@/store/authStore';
 import {
   Search,
   MapPin,
@@ -26,6 +30,7 @@ import {
   ThumbsUp,
   Eye,
   Award,
+  Users,
 } from 'lucide-react';
 
 interface CredibilityScore {
@@ -61,6 +66,7 @@ function CommunityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { isAuthenticated } = useAuthStore();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,23 +83,76 @@ function CommunityPageContent() {
     location: searchParams.get('location') || '',
   });
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  // Follow/Filter state
+  const [activeTab, setActiveTab] = useState<'all' | 'following'>('all');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
+  const [followingLoaded, setFollowingLoaded] = useState(false);
 
-  const fetchPosts = async () => {
+  // Fetch following IDs first when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchFollowingIds();
+    } else {
+      setFollowingLoaded(true);
+    }
+  }, [isAuthenticated]);
+
+  // Fetch posts when tab, filters, or followingIds change
+  useEffect(() => {
+    // If on following tab but followingIds not loaded yet, wait
+    if (activeTab === 'following' && !followingLoaded) {
+      return;
+    }
+    fetchPosts(activeTab, followingIds);
+  }, [activeTab, selectedUserId, followingIds, followingLoaded]);
+
+  const fetchFollowingIds = async () => {
+    try {
+      const response = await followAPI.getFollowing({ limit: 100 });
+      setFollowingIds(response.data.users.map((u: any) => u.id));
+    } catch (error) {
+      console.error('Error fetching following:', error);
+    } finally {
+      setFollowingLoaded(true);
+    }
+  };
+
+  // Callback when follow status changes (from FollowButton in posts)
+  const handleFollowChange = (userId: string, isFollowing: boolean) => {
+    if (isFollowing) {
+      setFollowingIds((prev) => [...prev, userId]);
+    } else {
+      setFollowingIds((prev) => prev.filter((id) => id !== userId));
+    }
+  };
+
+  const fetchPosts = async (currentTab: 'all' | 'following' = 'all', currentFollowingIds: string[] = []) => {
     setLoading(true);
     try {
       const params: any = {
-        page: pagination.page,
+        page: 1,
         limit: pagination.limit,
       };
 
       if (filters.search) params.search = filters.search;
       if (filters.location) params.location = filters.location;
 
+      // Filter by specific user if selected from sidebar
+      if (selectedUserId) {
+        params.userId = selectedUserId;
+      }
+
       const response = await jobNewsAPI.getAllJobNews(params);
-      setPosts(response.data.data.jobNews);
+      let fetchedPosts = response.data.data.jobNews;
+
+      // Filter to only show posts from followed users if on "following" tab
+      if (currentTab === 'following' && !selectedUserId) {
+        fetchedPosts = fetchedPosts.filter((post: Post) => currentFollowingIds.includes(post.user.id));
+      }
+
+      setPosts(fetchedPosts);
       setPagination(response.data.data.pagination);
     } catch (error: any) {
       toast({
@@ -109,7 +168,7 @@ function CommunityPageContent() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (pagination.page === 1) {
-      fetchPosts();
+      fetchPosts(activeTab, followingIds);
     } else {
       setPagination({ ...pagination, page: 1 });
     }
@@ -128,7 +187,14 @@ function CommunityPageContent() {
       if (filters.location) params.location = filters.location;
 
       const response = await jobNewsAPI.getAllJobNews(params);
-      setPosts([...posts, ...response.data.data.jobNews]);
+      let newPosts = response.data.data.jobNews;
+
+      // Filter for following tab
+      if (activeTab === 'following' && !selectedUserId) {
+        newPosts = newPosts.filter((post: Post) => followingIds.includes(post.user.id));
+      }
+
+      setPosts([...posts, ...newPosts]);
       setPagination(response.data.data.pagination);
     } catch (error: any) {
       toast({
@@ -168,13 +234,25 @@ function CommunityPageContent() {
     }
   };
 
+  const handleFilterByUser = (userId: string | null) => {
+    setSelectedUserId(userId);
+    if (userId) {
+      setActiveTab('all'); // Reset to all when filtering by specific user
+    }
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab as 'all' | 'following');
+    setSelectedUserId(null); // Clear user filter when changing tabs
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Header */}
-        <div className="mb-6 md:mb-8">
+        {/* Header - scrolls away */}
+        <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Community</h1>
           <p className="text-sm md:text-base text-muted-foreground mb-3">
             Share and discover job leads, career tips, industry insights, and articles
@@ -190,53 +268,116 @@ function CommunityPageContent() {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <form onSubmit={handleSearch} className="flex gap-2 sm:gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 flex-shrink-0" />
-              <Input
-                placeholder="Search posts..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="pl-9 sm:pl-10 h-10 sm:h-11 text-sm sm:text-base"
-              />
+      {/* Sticky Search Bar - sticks below navbar */}
+      <div className="sticky top-[56px] md:top-16 z-40 bg-background border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="space-y-3">
+            <form onSubmit={handleSearch} className="flex gap-2 sm:gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 flex-shrink-0" />
+                <Input
+                  placeholder="Search posts..."
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  className="pl-9 sm:pl-10 h-10 sm:h-11 text-sm sm:text-base"
+                />
+              </div>
+              <Button type="submit" className="w-auto h-10 sm:h-11 px-4 sm:px-6 md:px-8 text-sm sm:text-base">
+                <span className="hidden sm:inline">Search</span>
+                <Search className="h-4 w-4 sm:hidden" />
+              </Button>
+            </form>
+
+            {/* Filter Tabs and Mobile Following Button */}
+            <div className="flex items-center justify-between gap-4">
+              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
+                <TabsList className="h-9">
+                  <TabsTrigger value="all" className="text-xs sm:text-sm px-3 sm:px-4">
+                    All Posts
+                  </TabsTrigger>
+                  <TabsTrigger value="following" className="text-xs sm:text-sm px-3 sm:px-4" disabled={!isAuthenticated}>
+                    Following
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Following list button to open drawer - all screen sizes */}
+              {isAuthenticated && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5"
+                  onClick={() => setDrawerOpen(true)}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>{followingIds.length}</span>
+                </Button>
+              )}
             </div>
-            <Button type="submit" className="w-auto h-10 sm:h-11 px-4 sm:px-6 md:px-8 text-sm sm:text-base">
-              <span className="hidden sm:inline">Search</span>
-              <Search className="h-4 w-4 sm:hidden" />
-            </Button>
-          </form>
-        </div>
 
-        {/* Posts List */}
-        {loading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-5 bg-muted rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-4 bg-muted rounded w-full mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-2/3"></div>
+            {/* Show selected user filter indicator */}
+            {selectedUserId && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Filtering by user:</span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelectedUserId(null)}
+                  className="h-7"
+                >
+                  Clear filter ×
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+        {/* Main Content */}
+        <div>
+            {/* Posts List */}
+            {loading ? (
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardHeader>
+                      <div className="h-5 bg-muted rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-muted rounded w-1/2"></div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-4 bg-muted rounded w-full mb-2"></div>
+                      <div className="h-4 bg-muted rounded w-2/3"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : posts.length === 0 ? (
+              <Card>
+                <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 py-20 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    {activeTab === 'following'
+                      ? (followingIds.length === 0 ? "You're not following anyone yet" : 'No posts from people you follow')
+                      : 'No posts found'}
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    {activeTab === 'following'
+                      ? (followingIds.length === 0
+                          ? 'Start following users to see their posts here! Check out the suggested users on the right.'
+                          : 'The users you follow haven\'t posted anything yet.')
+                      : 'Try adjusting your search or be the first to share something!'}
+                  </p>
+                  {activeTab === 'following' && followingIds.length === 0 && (
+                    <Button variant="outline" onClick={() => setActiveTab('all')}>
+                      Browse All Posts
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        ) : posts.length === 0 ? (
-          <Card>
-            <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 py-20 text-center">
-              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">No posts found</h3>
-              <p className="text-muted-foreground mb-4">
-                Try adjusting your search or be the first to share something!
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
+            ) : (
           <>
             <div className="space-y-3 md:space-y-4">
               {posts.map((post) => (
@@ -254,7 +395,7 @@ function CommunityPageContent() {
                           <AvatarFallback className="text-xs">{getInitials(post.user.name)}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-sm font-medium truncate">{post.user.name}</p>
                             <button
                               onClick={(e) => {
@@ -265,6 +406,15 @@ function CommunityPageContent() {
                             >
                               View Profile
                             </button>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <FollowButton
+                                userId={post.user.id}
+                                size="sm"
+                                showIcon={false}
+                                className="h-6 text-xs px-2"
+                                onFollowChange={(isFollowing) => handleFollowChange(post.user.id, isFollowing)}
+                              />
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
@@ -421,10 +571,20 @@ function CommunityPageContent() {
                   )}
                 </Button>
               </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Following Drawer - all screen sizes */}
+      <FollowingDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onFilterByUser={handleFilterByUser}
+        selectedUserId={selectedUserId}
+        onFollowChange={handleFollowChange}
+      />
     </div>
   );
 }
