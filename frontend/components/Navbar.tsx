@@ -106,9 +106,10 @@ export function Navbar() {
       setNotifications(prev => prev.filter(n => n.id !== notification.id));
       setUnreadCount(prev => Math.max(0, prev - 1));
 
-      // Don't navigate for rejected posts (they're deleted)
-      // Only navigate to post if it exists and is NOT a rejection notification
-      if (notification.postId && notification.type !== 'POST_REJECTED') {
+      // Don't navigate for rejected or deleted posts (they no longer exist)
+      // Only navigate to post if it exists and is NOT a rejection/deletion notification
+      const noNavigationTypes = ['POST_REJECTED', 'POST_DELETED'];
+      if (notification.postId && !noNavigationTypes.includes(notification.type)) {
         router.push(`/community/${notification.postId}`);
       }
     } catch (error) {
@@ -488,6 +489,11 @@ export function Navbar() {
                                 {notification.type === 'POST_REJECTED' && (
                                   <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded flex-shrink-0">
                                     REJECTED
+                                  </span>
+                                )}
+                                {notification.type === 'POST_DELETED' && (
+                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded flex-shrink-0">
+                                    REMOVED
                                   </span>
                                 )}
                               </div>

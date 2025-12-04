@@ -129,6 +129,7 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
       limit = 10,
       search,
       location,
+      followingOnly,
     } = req.query as any;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -138,6 +139,16 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
       isActive: true,
       moderationStatus: 'APPROVED', // Only show approved posts
     };
+
+    // Filter to only show posts from users the current user follows
+    if (followingOnly === 'true' && req.user) {
+      const following = await prisma.follow.findMany({
+        where: { followerId: req.user.userId },
+        select: { followingId: true },
+      });
+      const followingIds = following.map(f => f.followingId);
+      where.userId = { in: followingIds };
+    }
 
     if (search) {
       where.OR = [

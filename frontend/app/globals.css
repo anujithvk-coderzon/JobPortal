@@ -56,6 +56,30 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Remove all focus rings and outlines globally */
+  *:focus,
+  *:focus-visible,
+  *:focus-within {
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+  }
+
+  /* Specific overrides for form elements */
+  input:focus,
+  textarea:focus,
+  select:focus,
+  button:focus,
+  a:focus,
+  [role="button"]:focus,
+  [tabindex]:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+  }
 }
 
 @layer utilities {

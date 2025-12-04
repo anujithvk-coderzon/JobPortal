@@ -188,6 +188,37 @@ class AdminApi {
       body: JSON.stringify({ reason }),
     });
   }
+
+  // Flagged posts endpoints
+  async getFlaggedPosts(params?: { page?: number; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.set('page', params.page.toString());
+    if (params?.limit) queryParams.set('limit', params.limit.toString());
+
+    const query = queryParams.toString();
+    return this.request(`/admin/posts/flagged/list${query ? `?${query}` : ''}`);
+  }
+
+  async getFlaggedPostsCount() {
+    return this.request('/admin/posts/flagged/count');
+  }
+
+  async getFlaggedPostDetails(postId: string) {
+    return this.request(`/admin/posts/flagged/${postId}`);
+  }
+
+  async dismissReports(postId: string) {
+    return this.request(`/admin/posts/flagged/${postId}/dismiss`, {
+      method: 'PUT',
+    });
+  }
+
+  async deleteFlaggedPost(postId: string, reason?: string) {
+    return this.request(`/admin/posts/flagged/${postId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    });
+  }
 }
 
 export const api = new AdminApi();

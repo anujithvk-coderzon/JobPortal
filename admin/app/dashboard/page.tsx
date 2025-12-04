@@ -13,14 +13,20 @@ import {
   CheckCircle2,
   TrendingUp,
   Activity,
+  Flag,
+  AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
+  const [flaggedCount, setFlaggedCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    fetchFlaggedCount();
   }, []);
 
   const fetchStats = async () => {
@@ -29,6 +35,13 @@ export default function DashboardPage() {
       setStats(response.data);
     }
     setLoading(false);
+  };
+
+  const fetchFlaggedCount = async () => {
+    const response = await api.getFlaggedPostsCount() as { success: boolean; data?: { count: number } };
+    if (response.success && response.data) {
+      setFlaggedCount(response.data.count);
+    }
   };
 
   if (loading) {
@@ -115,6 +128,18 @@ export default function DashboardPage() {
       trend: '+18%',
       trendUp: true,
     },
+    {
+      title: 'Flagged Posts',
+      value: flaggedCount,
+      icon: Flag,
+      gradient: 'from-red-500 to-red-600',
+      bgColor: 'bg-red-50',
+      iconColor: 'text-red-600',
+      trend: '',
+      trendUp: false,
+      isAlert: flaggedCount > 0,
+      href: '/flagged',
+    },
   ];
 
   return (
@@ -138,29 +163,42 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-          {statCards.map((card) => {
+          {statCards.map((card: any) => {
             const Icon = card.icon;
+            const CardWrapper = card.href ? Link : 'div';
+            const wrapperProps = card.href ? { href: card.href } : {};
+
             return (
-              <div
+              <CardWrapper
                 key={card.title}
-                className="group bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 lg:p-6 hover:shadow-xl hover:border-gray-300 transition-all duration-300 cursor-pointer"
+                {...wrapperProps}
+                className={`group bg-white rounded-2xl border p-4 sm:p-5 lg:p-6 hover:shadow-xl transition-all duration-300 cursor-pointer ${
+                  card.isAlert
+                    ? 'border-red-300 bg-red-50/30 hover:border-red-400'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
               >
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
-                  <div className={`p-2 sm:p-3 ${card.bgColor} rounded-xl group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`p-2 sm:p-3 ${card.bgColor} rounded-xl group-hover:scale-110 transition-transform duration-300 ${card.isAlert ? 'animate-pulse' : ''}`}>
                     <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${card.iconColor}`} />
                   </div>
-                  {/* <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
-                    card.trendUp ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                  }`}>
-                    <TrendingUp className={`h-3 w-3 ${card.trendUp ? '' : 'rotate-180'}`} />
-                    <span className="text-xs font-semibold">{card.trend}</span>
-                  </div> */}
+                  {card.isAlert && (
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-100 text-red-700">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span className="text-xs font-semibold">Action Needed</span>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{card.title}</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{card.title}</p>
+                    <p className={`text-2xl sm:text-3xl font-bold ${card.isAlert ? 'text-red-700' : 'text-gray-900'}`}>{card.value.toLocaleString()}</p>
+                  </div>
+                  {card.href && (
+                    <ArrowRight className={`h-5 w-5 ${card.isAlert ? 'text-red-400' : 'text-gray-400'} group-hover:translate-x-1 transition-transform`} />
+                  )}
                 </div>
-              </div>
+              </CardWrapper>
             );
           })}
         </div>
@@ -237,6 +275,28 @@ export default function DashboardPage() {
                 </div>
                 <span className="text-lg font-bold text-green-700">{stats?.posts?.approved || 0}</span>
               </div>
+              <Link
+                href="/flagged"
+                className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-md ${
+                  flaggedCount > 0
+                    ? 'bg-gradient-to-r from-red-50 to-red-100/50 border-red-200 hover:border-red-300'
+                    : 'bg-gradient-to-r from-gray-50 to-transparent border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${flaggedCount > 0 ? 'bg-red-600 animate-pulse' : 'bg-gray-400'}`}></div>
+                  <span className="text-gray-700 font-medium">Flagged Posts</span>
+                  {flaggedCount > 0 && (
+                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
+                      Needs Review
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-lg font-bold ${flaggedCount > 0 ? 'text-red-700' : 'text-gray-500'}`}>{flaggedCount}</span>
+                  <ArrowRight className={`h-4 w-4 ${flaggedCount > 0 ? 'text-red-400' : 'text-gray-400'}`} />
+                </div>
+              </Link>
             </div>
           </div>
         </div>

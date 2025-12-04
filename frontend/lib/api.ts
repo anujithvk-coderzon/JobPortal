@@ -194,3 +194,11 @@ export const followAPI = {
   getFollowCounts: (userId: string) => axiosInstance.get(`/follow/counts/${userId}`),
   getSuggestedUsers: (params?: any) => axiosInstance.get('/follow/suggested', { params }),
 };
+
+// Report API
+export const reportAPI = {
+  reportPost: (postId: string, data: { reason: string; description?: string }) =>
+    axiosInstance.post(`/reports/${postId}`, data),
+  checkReportStatus: (postId: string) => axiosInstance.get(`/reports/status/${postId}`),
+  getReportReasons: () => axiosInstance.get('/reports/reasons'),
+};

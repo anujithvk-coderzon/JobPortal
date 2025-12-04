@@ -14,6 +14,7 @@ import {
   Shield,
   Bell,
   ChevronRight,
+  Flag,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -26,17 +27,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [admin, setAdmin] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const [flaggedCount, setFlaggedCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     checkAuth();
     fetchPendingCount();
+    fetchFlaggedCount();
 
-    // Refresh pending count every 30 seconds
-    const interval = setInterval(fetchPendingCount, 30000);
+    // Refresh counts every 30 seconds
+    const interval = setInterval(() => {
+      fetchPendingCount();
+      fetchFlaggedCount();
+    }, 30000);
 
     // Listen for post moderation events to refresh count immediately
-    const handlePostModeration = () => fetchPendingCount();
+    const handlePostModeration = () => {
+      fetchPendingCount();
+      fetchFlaggedCount();
+    };
     window.addEventListener('post-moderated', handlePostModeration);
 
     return () => {
@@ -62,6 +71,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   };
 
+  const fetchFlaggedCount = async () => {
+    const response = await api.getFlaggedPostsCount() as { success: boolean; data?: { count: number } };
+    if (response.success && response.data) {
+      setFlaggedCount(response.data.count);
+    }
+  };
+
   const handleLogout = async () => {
     await api.logout();
     router.push('/login');
@@ -84,18 +100,28 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       href: '/dashboard',
       icon: LayoutDashboard,
       badge: null,
+      badgeColor: null,
     },
     {
       name: 'Users',
       href: '/users',
       icon: Users,
       badge: null,
+      badgeColor: null,
     },
     {
       name: 'Posts',
       href: '/posts',
       icon: FileText,
       badge: pendingCount > 0 ? pendingCount : null,
+      badgeColor: 'bg-amber-500',
+    },
+    {
+      name: 'Flagged Posts',
+      href: '/flagged',
+      icon: Flag,
+      badge: flaggedCount > 0 ? flaggedCount : null,
+      badgeColor: 'bg-red-500',
     },
   ];
 
@@ -175,7 +201,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <span>{item.name}</span>
                   </div>
                   {item.badge && (
-                    <div className="flex items-center justify-center min-w-[28px] h-[28px] bg-red-500 rounded-full shadow-lg animate-pulse">
+                    <div className={`flex items-center justify-center min-w-[28px] h-[28px] ${item.badgeColor || 'bg-red-500'} rounded-full shadow-lg animate-pulse`}>
                       <span className="text-xs font-bold text-white px-2">
                         {item.badge > 99 ? '99+' : item.badge}
                       </span>

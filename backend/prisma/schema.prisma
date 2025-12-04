@@ -49,6 +49,14 @@ enum ModerationStatus {
   REJECTED
 }
 
+enum ReportReason {
+  SPAM
+  MISLEADING
+  INAPPROPRIATE
+  HARASSMENT
+  OTHER
+}
+
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
@@ -74,6 +82,7 @@ model User {
   notifications Notification[]
   followers     Follow[]      @relation("following")
   following     Follow[]      @relation("follower")
+  postReports   PostReport[]
 
   @@map("users")
 }
@@ -300,6 +309,7 @@ model JobNews {
 
   // Relations
   helpfulVotes      JobNewsHelpful[]
+  reports           PostReport[]
 
   @@map("job_news")
 }
@@ -388,4 +398,19 @@ model Follow {
 
   @@unique([followerId, followingId])
   @@map("follows")
+}
+
+// Post reporting system
+model PostReport {
+  id              String        @id @default(uuid())
+  postId          String
+  post            JobNews       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporterId      String
+  reporter        User          @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason          ReportReason
+  description     String?       // Additional details, especially for "OTHER" reason
+  createdAt       DateTime      @default(now())
+
+  @@unique([postId, reporterId])  // One report per user per post
+  @@map("post_reports")
 }

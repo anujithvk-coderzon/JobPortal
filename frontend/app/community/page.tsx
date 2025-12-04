@@ -17,6 +17,7 @@ import { VideoPlayer } from '@/components/VideoPlayer';
 import { CredibilityBadgeCompact } from '@/components/CredibilityBadge';
 import { FollowingDrawer } from '@/components/FollowingDrawer';
 import { FollowButton } from '@/components/FollowButton';
+import { ReportModal } from '@/components/ReportModal';
 import { useAuthStore } from '@/store/authStore';
 import {
   Search,
@@ -31,6 +32,7 @@ import {
   Eye,
   Award,
   Users,
+  Flag,
 } from 'lucide-react';
 
 interface CredibilityScore {
@@ -66,7 +68,7 @@ function CommunityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +92,10 @@ function CommunityPageContent() {
   const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [followingLoaded, setFollowingLoaded] = useState(false);
 
+  // Report modal state
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportingPost, setReportingPost] = useState<{ id: string; title: string } | null>(null);
+
   // Fetch following IDs first when authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -99,14 +105,10 @@ function CommunityPageContent() {
     }
   }, [isAuthenticated]);
 
-  // Fetch posts when tab, filters, or followingIds change
+  // Fetch posts when tab or filters change
   useEffect(() => {
-    // If on following tab but followingIds not loaded yet, wait
-    if (activeTab === 'following' && !followingLoaded) {
-      return;
-    }
-    fetchPosts(activeTab, followingIds);
-  }, [activeTab, selectedUserId, followingIds, followingLoaded]);
+    fetchPosts(activeTab);
+  }, [activeTab, selectedUserId]);
 
   const fetchFollowingIds = async () => {
     try {
@@ -128,7 +130,7 @@ function CommunityPageContent() {
     }
   };
 
-  const fetchPosts = async (currentTab: 'all' | 'following' = 'all', currentFollowingIds: string[] = []) => {
+  const fetchPosts = async (currentTab: 'all' | 'following' = 'all') => {
     setLoading(true);
     try {
       const params: any = {
@@ -144,13 +146,13 @@ function CommunityPageContent() {
         params.userId = selectedUserId;
       }
 
-      const response = await jobNewsAPI.getAllJobNews(params);
-      let fetchedPosts = response.data.data.jobNews;
-
-      // Filter to only show posts from followed users if on "following" tab
+      // Use backend filtering for following tab
       if (currentTab === 'following' && !selectedUserId) {
-        fetchedPosts = fetchedPosts.filter((post: Post) => currentFollowingIds.includes(post.user.id));
+        params.followingOnly = 'true';
       }
+
+      const response = await jobNewsAPI.getAllJobNews(params);
+      const fetchedPosts = response.data.data.jobNews;
 
       setPosts(fetchedPosts);
       setPagination(response.data.data.pagination);
@@ -186,13 +188,13 @@ function CommunityPageContent() {
       if (filters.search) params.search = filters.search;
       if (filters.location) params.location = filters.location;
 
-      const response = await jobNewsAPI.getAllJobNews(params);
-      let newPosts = response.data.data.jobNews;
-
-      // Filter for following tab
+      // Use backend filtering for following tab
       if (activeTab === 'following' && !selectedUserId) {
-        newPosts = newPosts.filter((post: Post) => followingIds.includes(post.user.id));
+        params.followingOnly = 'true';
       }
+
+      const response = await jobNewsAPI.getAllJobNews(params);
+      const newPosts = response.data.data.jobNews;
 
       setPosts([...posts, ...newPosts]);
       setPagination(response.data.data.pagination);
@@ -244,6 +246,20 @@ function CommunityPageContent() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab as 'all' | 'following');
     setSelectedUserId(null); // Clear user filter when changing tabs
+  };
+
+  const handleReportClick = (post: Post, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast({
+        title: 'Login Required',
+        description: 'Please log in to report posts.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setReportingPost({ id: post.id, title: post.title });
+    setReportModalOpen(true);
   };
 
   return (
@@ -535,6 +551,18 @@ function CommunityPageContent() {
                             External Link
                           </Button>
                         )}
+                        {/* Don't show report button for user's own posts */}
+                        {user?.id !== post.user.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                            onClick={(e) => handleReportClick(post, e)}
+                          >
+                            <Flag className="h-3 w-3 mr-1.5" />
+                            Report
+                          </Button>
+                        )}
                       </div>
                       <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors whitespace-nowrap hidden sm:inline">
                         Read more →
@@ -585,6 +613,16 @@ function CommunityPageContent() {
         selectedUserId={selectedUserId}
         onFollowChange={handleFollowChange}
       />
+
+      {/* Report Modal */}
+      {reportingPost && (
+        <ReportModal
+          postId={reportingPost.id}
+          postTitle={reportingPost.title}
+          open={reportModalOpen}
+          onOpenChange={setReportModalOpen}
+        />
+      )}
     </div>
   );
 }

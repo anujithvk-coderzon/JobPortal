@@ -51,13 +51,6 @@ export function FollowingDrawer({ open, onOpenChange, onFilterByUser, selectedUs
   };
 
   const handleUserClick = (userId: string) => {
-    if (onFilterByUser) {
-      onFilterByUser(selectedUserId === userId ? null : userId);
-      onOpenChange(false);
-    }
-  };
-
-  const handleViewProfile = (userId: string) => {
     router.push(`/user/${userId}`);
     onOpenChange(false);
   };
@@ -92,38 +85,24 @@ export function FollowingDrawer({ open, onOpenChange, onFilterByUser, selectedUs
               </p>
             </div>
           ) : (
-            <div className="p-2">
+            <div className="p-3 space-y-2">
               {following.map((user) => (
                 <div
                   key={user.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                    selectedUserId === user.id
-                      ? 'bg-primary/10 border border-primary/30'
-                      : 'hover:bg-muted'
-                  }`}
+                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all active:scale-[0.98] bg-muted/30 border border-border hover:bg-muted/60 hover:border-muted-foreground/20"
                   onClick={() => handleUserClick(user.id)}
                 >
-                  <Avatar className="h-10 w-10 flex-shrink-0">
+                  <Avatar className="h-12 w-12 flex-shrink-0 border-2 border-background shadow-sm">
                     <AvatarImage src={user.profilePhoto || undefined} />
-                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    <AvatarFallback className="text-sm font-medium">{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{user.name}</p>
+                    <p className="font-semibold truncate">{user.name}</p>
                     {user.headline && (
-                      <p className="text-sm text-muted-foreground truncate">{user.headline}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{user.headline}</p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewProfile(user.id);
-                    }}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 </div>
               ))}
             </div>
