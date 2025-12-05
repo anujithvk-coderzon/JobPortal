@@ -170,7 +170,7 @@ function CommunityPageContent() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (pagination.page === 1) {
-      fetchPosts(activeTab, followingIds);
+      fetchPosts(activeTab);
     } else {
       setPagination({ ...pagination, page: 1 });
     }

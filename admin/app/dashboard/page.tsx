@@ -165,19 +165,14 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {statCards.map((card: any) => {
             const Icon = card.icon;
-            const CardWrapper = card.href ? Link : 'div';
-            const wrapperProps = card.href ? { href: card.href } : {};
+            const cardClassName = `group bg-white rounded-2xl border p-4 sm:p-5 lg:p-6 hover:shadow-xl transition-all duration-300 cursor-pointer ${
+              card.isAlert
+                ? 'border-red-300 bg-red-50/30 hover:border-red-400'
+                : 'border-gray-200 hover:border-gray-300'
+            }`;
 
-            return (
-              <CardWrapper
-                key={card.title}
-                {...wrapperProps}
-                className={`group bg-white rounded-2xl border p-4 sm:p-5 lg:p-6 hover:shadow-xl transition-all duration-300 cursor-pointer ${
-                  card.isAlert
-                    ? 'border-red-300 bg-red-50/30 hover:border-red-400'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
+            const cardContent = (
+              <>
                 <div className="flex items-start justify-between mb-3 sm:mb-4">
                   <div className={`p-2 sm:p-3 ${card.bgColor} rounded-xl group-hover:scale-110 transition-transform duration-300 ${card.isAlert ? 'animate-pulse' : ''}`}>
                     <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${card.iconColor}`} />
@@ -198,7 +193,17 @@ export default function DashboardPage() {
                     <ArrowRight className={`h-5 w-5 ${card.isAlert ? 'text-red-400' : 'text-gray-400'} group-hover:translate-x-1 transition-transform`} />
                   )}
                 </div>
-              </CardWrapper>
+              </>
+            );
+
+            return card.href ? (
+              <Link key={card.title} href={card.href} className={cardClassName}>
+                {cardContent}
+              </Link>
+            ) : (
+              <div key={card.title} className={cardClassName}>
+                {cardContent}
+              </div>
             );
           })}
         </div>
