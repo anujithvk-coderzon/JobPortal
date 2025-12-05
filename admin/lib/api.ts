@@ -219,6 +219,40 @@ class AdminApi {
       body: JSON.stringify({ reason }),
     });
   }
+
+  // Soft delete management endpoints
+  async getSoftDeletedPosts(params?: { page?: number; limit?: number; search?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.set('page', params.page.toString());
+    if (params?.limit) queryParams.set('limit', params.limit.toString());
+    if (params?.search) queryParams.set('search', params.search);
+
+    const query = queryParams.toString();
+    return this.request(`/admin/posts/deleted/list${query ? `?${query}` : ''}`);
+  }
+
+  async getSoftDeletedPostsCount() {
+    return this.request('/admin/posts/deleted/count');
+  }
+
+  async softDeletePost(postId: string, reason?: string) {
+    return this.request(`/admin/posts/${postId}/soft-delete`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async restorePost(postId: string) {
+    return this.request(`/admin/posts/${postId}/restore`, {
+      method: 'PUT',
+    });
+  }
+
+  async permanentDeletePost(postId: string) {
+    return this.request(`/admin/posts/${postId}/permanent`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new AdminApi();

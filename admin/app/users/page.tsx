@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import { showToast } from '@/components/Toast';
 import { api } from '@/lib/api';
 import {
   Search,
@@ -14,6 +15,7 @@ import {
   AlertCircle,
   CheckCircle,
   Info,
+  X,
 } from 'lucide-react';
 
 export default function UsersPage() {
@@ -23,6 +25,8 @@ export default function UsersPage() {
   const [filter, setFilter] = useState<'all' | 'blocked' | 'deleted'>('all');
   const [pagination, setPagination] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [blockingUserId, setBlockingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -49,13 +53,17 @@ export default function UsersPage() {
     fetchUsers(1);
   };
 
-  const handleBlock = async (userId: string) => {
-    if (!confirm('Are you sure you want to block this user?')) return;
+  const handleBlock = (userId: string) => {
+    setBlockingUserId(userId);
+  };
 
-    setActionLoading(userId);
-    const response = await api.blockUser(userId);
+  const confirmBlock = async () => {
+    if (!blockingUserId) return;
+    setActionLoading(blockingUserId);
+    const response = await api.blockUser(blockingUserId);
     if (response.success) {
       showToast('User blocked successfully', 'success');
+      setBlockingUserId(null);
       fetchUsers(pagination?.page || 1);
     } else {
       showToast(response.error || 'Failed to block user', 'error');
@@ -75,13 +83,17 @@ export default function UsersPage() {
     setActionLoading(null);
   };
 
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+  const handleDelete = (userId: string) => {
+    setDeletingUserId(userId);
+  };
 
-    setActionLoading(userId);
-    const response = await api.deleteUser(userId);
+  const confirmDelete = async () => {
+    if (!deletingUserId) return;
+    setActionLoading(deletingUserId);
+    const response = await api.deleteUser(deletingUserId);
     if (response.success) {
       showToast('User deleted successfully', 'success');
+      setDeletingUserId(null);
       fetchUsers(pagination?.page || 1);
     } else {
       showToast(response.error || 'Failed to delete user', 'error');
@@ -89,10 +101,6 @@ export default function UsersPage() {
     setActionLoading(null);
   };
 
-  const showToast = (message: string, type: 'success' | 'error') => {
-    // Simple alert for now - can be replaced with a toast library
-    alert(message);
-  };
 
   const getStatusBadge = (user: any) => {
     if (user.isDeleted) {
@@ -470,6 +478,113 @@ export default function UsersPage() {
                 <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="h-4 w-4" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Block User Modal */}
+        {blockingUserId && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="p-4 sm:p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-yellow-100 rounded-lg">
+                      <UserX className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Block User</h3>
+                  </div>
+                  <button onClick={() => setBlockingUserId(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5">
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to block this user? They will no longer be able to access the platform or create new posts.
+                </p>
+              </div>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                <button
+                  onClick={() => setBlockingUserId(null)}
+                  className="w-full sm:flex-1 px-4 py-2.5 sm:py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBlock}
+                  disabled={actionLoading === blockingUserId}
+                  className="w-full sm:flex-1 px-4 py-2.5 sm:py-2.5 text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {actionLoading === blockingUserId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Blocking...
+                    </>
+                  ) : (
+                    <>
+                      <UserX className="h-4 w-4" />
+                      Block User
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete User Modal */}
+        {deletingUserId && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="p-4 sm:p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
+                      <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Delete User</h3>
+                  </div>
+                  <button onClick={() => setDeletingUserId(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5">
+                <p className="text-sm text-gray-600 mb-3">
+                  Are you sure you want to delete this user? This action cannot be undone.
+                </p>
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>Warning:</strong> All user data and posts will be permanently removed.
+                  </p>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                <button
+                  onClick={() => setDeletingUserId(null)}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={actionLoading === deletingUserId}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {actionLoading === deletingUserId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete User
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

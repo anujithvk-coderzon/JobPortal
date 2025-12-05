@@ -23,6 +23,7 @@ import {
   Pencil,
   Trash2,
   ThumbsUp,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -63,6 +64,7 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isHelpful, setIsHelpful] = useState(false);
   const [helpfulCount, setHelpfulCount] = useState(0);
   const [updatingHelpful, setUpdatingHelpful] = useState(false);
@@ -127,18 +129,20 @@ export default function PostDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-      return;
-    }
+  const handleDelete = () => {
+    setShowDeleteModal(true);
+  };
 
+  const confirmDelete = async () => {
     setDeleting(true);
     try {
       await jobNewsAPI.deleteJobNews(params.id as string);
       toast({
         title: 'Success',
         description: 'Post deleted successfully.',
+        variant: 'success',
       });
+      setShowDeleteModal(false);
       router.push('/community');
     } catch (error: any) {
       console.error('Error deleting post:', error);
@@ -403,6 +407,65 @@ export default function PostDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+            <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                    <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Delete Post</h3>
+                </div>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 sm:p-5">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Are you sure you want to delete this post? This action cannot be undone.
+              </p>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-800 dark:text-red-300">
+                  <strong>Warning:</strong> All data associated with this post will be permanently removed.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 sm:p-5 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Delete Post
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

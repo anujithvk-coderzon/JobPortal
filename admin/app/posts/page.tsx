@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { showToast } from '@/components/Toast';
 import { api } from '@/lib/api';
 import {
   Search,
@@ -55,6 +56,10 @@ export default function PostsPage() {
   const [pagination, setPagination] = useState<any>(null);
   const [rejectingPostId, setRejectingPostId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [deletionReason, setDeletionReason] = useState('');
+  const [approvingPostId, setApprovingPostId] = useState<string | null>(null);
+  const [blockingUser, setBlockingUser] = useState<{ userId: string; postId: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [videoModal, setVideoModal] = useState<{ url: string; title: string; aspectRatio?: string } | null>(null);
   const [posterModal, setPosterModal] = useState<{ url: string; title: string } | null>(null);
@@ -93,12 +98,17 @@ export default function PostsPage() {
     fetchPosts(1);
   };
 
-  const handleApprove = async (postId: string) => {
-    if (!confirm('Approve this post?')) return;
-    setActionLoading(postId);
-    const response = await api.approvePost(postId);
+  const handleApprove = (postId: string) => {
+    setApprovingPostId(postId);
+  };
+
+  const confirmApprove = async () => {
+    if (!approvingPostId) return;
+    setActionLoading(approvingPostId);
+    const response = await api.approvePost(approvingPostId);
     if (response.success) {
       showToast('Post approved successfully', 'success');
+      setApprovingPostId(null);
       fetchPosts(pagination?.page || 1);
       window.dispatchEvent(new Event('post-moderated'));
     } else {
@@ -133,18 +143,23 @@ export default function PostsPage() {
     setRejectionReason('');
   };
 
-  const handleBlockUser = async (userId: string, postId: string) => {
-    if (!confirm('Block this user and reject their post?')) return;
-    setActionLoading(postId);
-    const blockResponse = await api.blockUser(userId, 'Posted inappropriate content');
+  const handleBlockUser = (userId: string, postId: string) => {
+    setBlockingUser({ userId, postId });
+  };
+
+  const confirmBlockUser = async () => {
+    if (!blockingUser) return;
+    setActionLoading(blockingUser.postId);
+    const blockResponse = await api.blockUser(blockingUser.userId, 'Posted inappropriate content');
     if (!blockResponse.success) {
       showToast(blockResponse.error || 'Failed to block user', 'error');
       setActionLoading(null);
       return;
     }
-    const rejectResponse = await api.rejectPost(postId);
+    const rejectResponse = await api.rejectPost(blockingUser.postId);
     if (rejectResponse.success) {
       showToast('User blocked and post rejected', 'success');
+      setBlockingUser(null);
       fetchPosts(pagination?.page || 1);
       window.dispatchEvent(new Event('post-moderated'));
     } else {
@@ -153,12 +168,19 @@ export default function PostsPage() {
     setActionLoading(null);
   };
 
-  const handleDelete = async (postId: string) => {
-    if (!confirm('Permanently delete this post?')) return;
-    setActionLoading(postId);
-    const response = await api.deletePost(postId);
+  const handleSoftDelete = async (postId: string) => {
+    setDeletingPostId(postId);
+    setDeletionReason('');
+  };
+
+  const confirmSoftDelete = async () => {
+    if (!deletingPostId) return;
+    setActionLoading(deletingPostId);
+    const response = await api.softDeletePost(deletingPostId, deletionReason || undefined);
     if (response.success) {
-      showToast('Post deleted successfully', 'success');
+      showToast('Post soft deleted successfully', 'success');
+      setDeletingPostId(null);
+      setDeletionReason('');
       fetchPosts(pagination?.page || 1);
       window.dispatchEvent(new Event('post-moderated'));
     } else {
@@ -167,9 +189,11 @@ export default function PostsPage() {
     setActionLoading(null);
   };
 
-  const showToast = (message: string, type: 'success' | 'error') => {
-    alert(message);
+  const cancelSoftDelete = () => {
+    setDeletingPostId(null);
+    setDeletionReason('');
   };
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -387,6 +411,14 @@ export default function PostsPage() {
                                 <XCircle className="h-4 w-4" />
                                 Reject Post
                               </button>
+                              <button
+                                onClick={() => { handleSoftDelete(post.id); setMobileActionsOpen(null); }}
+                                disabled={actionLoading === post.id}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </button>
                               <div className="my-1 border-t border-gray-100" />
                               <button
                                 onClick={() => { handleBlockUser(post.user.id, post.id); setMobileActionsOpen(null); }}
@@ -399,12 +431,12 @@ export default function PostsPage() {
                             </>
                           ) : (
                             <button
-                              onClick={() => { handleDelete(post.id); setMobileActionsOpen(null); }}
+                              onClick={() => { handleSoftDelete(post.id); setMobileActionsOpen(null); }}
                               disabled={actionLoading === post.id}
                               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
                             >
                               <Trash2 className="h-4 w-4" />
-                              Delete Post
+                              Delete
                             </button>
                           )}
                         </div>
@@ -527,6 +559,14 @@ export default function PostsPage() {
                           Reject
                         </button>
                         <button
+                          onClick={() => handleSoftDelete(post.id)}
+                          disabled={actionLoading === post.id}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-all disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </button>
+                        <button
                           onClick={() => handleBlockUser(post.user.id, post.id)}
                           disabled={actionLoading === post.id}
                           className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all disabled:opacity-50"
@@ -537,7 +577,7 @@ export default function PostsPage() {
                       </>
                     ) : (
                       <button
-                        onClick={() => handleDelete(post.id)}
+                        onClick={() => handleSoftDelete(post.id)}
                         disabled={actionLoading === post.id}
                         className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all disabled:opacity-50"
                       >
@@ -560,6 +600,26 @@ export default function PostsPage() {
                     <p className="text-xs text-red-800">
                       <strong className="font-semibold">Rejection Reason:</strong> {post.rejectionReason}
                     </p>
+                  </div>
+                )}
+
+                {/* Mobile Action Bar for Approved Posts */}
+                {post.moderationStatus === 'APPROVED' && (
+                  <div className="lg:hidden px-4 sm:px-5 py-3 bg-gray-50 border-t border-gray-100">
+                    <button
+                      onClick={() => handleSoftDelete(post.id)}
+                      disabled={actionLoading === post.id}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-700 bg-white hover:bg-red-50 border border-red-200 rounded-lg transition-all disabled:opacity-50"
+                    >
+                      {actionLoading === post.id ? (
+                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>
@@ -624,22 +684,22 @@ export default function PostsPage() {
 
         {/* Rejection Modal */}
         {rejectingPostId && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-              <div className="p-5 border-b border-gray-100">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-5 border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-100 rounded-lg">
-                      <XCircle className="h-5 w-5 text-amber-600" />
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-amber-100 rounded-lg">
+                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Reject Post</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Reject Post</h3>
                   </div>
                   <button onClick={cancelReject} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
                     <X className="h-5 w-5 text-gray-400" />
                   </button>
                 </div>
               </div>
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 <p className="text-sm text-gray-600 mb-4">
                   Provide a reason for rejection. This will be sent to the user as a notification.
                 </p>
@@ -647,21 +707,21 @@ export default function PostsPage() {
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="Enter rejection reason (optional)..."
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"
-                  rows={4}
+                  className="w-full px-3 sm:px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"
+                  rows={3}
                 />
               </div>
-              <div className="p-5 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                 <button
                   onClick={cancelReject}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmReject}
                   disabled={actionLoading === rejectingPostId}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {actionLoading === rejectingPostId ? (
                     <>
@@ -670,6 +730,168 @@ export default function PostsPage() {
                     </>
                   ) : (
                     'Reject Post'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Approve Modal */}
+        {approvingPostId && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="p-4 sm:p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-emerald-100 rounded-lg">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Approve Post</h3>
+                  </div>
+                  <button onClick={() => setApprovingPostId(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5">
+                <p className="text-sm text-gray-600">
+                  This post will be published and visible to all users. Make sure the content follows community guidelines.
+                </p>
+              </div>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                <button
+                  onClick={() => setApprovingPostId(null)}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmApprove}
+                  disabled={actionLoading === approvingPostId}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {actionLoading === approvingPostId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Approve
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Block User Modal */}
+        {blockingUser && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="p-4 sm:p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
+                      <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Block User</h3>
+                  </div>
+                  <button onClick={() => setBlockingUser(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5">
+                <p className="text-sm text-gray-600 mb-3">
+                  This will block the user and reject their post. The user will no longer be able to access the platform.
+                </p>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <strong>Warning:</strong> This action can be reversed from the Users page.
+                  </p>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                <button
+                  onClick={() => setBlockingUser(null)}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBlockUser}
+                  disabled={actionLoading === blockingUser.postId}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {actionLoading === blockingUser.postId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Blocking...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="h-4 w-4" />
+                      Block User
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Modal */}
+        {deletingPostId && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
+                      <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Delete Post</h3>
+                  </div>
+                  <button onClick={cancelSoftDelete} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5">
+                <p className="text-sm text-gray-600 mb-4">
+                  This will hide the post from all users. It can be restored later from the Deleted Posts section.
+                </p>
+                <textarea
+                  value={deletionReason}
+                  onChange={(e) => setDeletionReason(e.target.value)}
+                  placeholder="Enter reason for deletion (optional but recommended)..."
+                  className="w-full px-3 sm:px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                <button
+                  onClick={cancelSoftDelete}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmSoftDelete}
+                  disabled={actionLoading === deletingPostId}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {actionLoading === deletingPostId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
                   )}
                 </button>
               </div>

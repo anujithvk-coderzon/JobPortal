@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+import ToastContainer from './Toast';
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +16,7 @@ import {
   Bell,
   ChevronRight,
   Flag,
+  Trash2,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -28,23 +30,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [flaggedCount, setFlaggedCount] = useState(0);
+  const [deletedCount, setDeletedCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     checkAuth();
     fetchPendingCount();
     fetchFlaggedCount();
+    fetchDeletedCount();
 
     // Refresh counts every 30 seconds
     const interval = setInterval(() => {
       fetchPendingCount();
       fetchFlaggedCount();
+      fetchDeletedCount();
     }, 30000);
 
     // Listen for post moderation events to refresh count immediately
     const handlePostModeration = () => {
       fetchPendingCount();
       fetchFlaggedCount();
+      fetchDeletedCount();
     };
     window.addEventListener('post-moderated', handlePostModeration);
 
@@ -75,6 +81,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const response = await api.getFlaggedPostsCount() as { success: boolean; data?: { count: number } };
     if (response.success && response.data) {
       setFlaggedCount(response.data.count);
+    }
+  };
+
+  const fetchDeletedCount = async () => {
+    const response = await api.getSoftDeletedPostsCount() as { success: boolean; data?: { count: number } };
+    if (response.success && response.data) {
+      setDeletedCount(response.data.count);
     }
   };
 
@@ -122,6 +135,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       icon: Flag,
       badge: flaggedCount > 0 ? flaggedCount : null,
       badgeColor: 'bg-red-500',
+    },
+    {
+      name: 'Deleted Posts',
+      href: '/deleted',
+      icon: Trash2,
+      badge: deletedCount > 0 ? deletedCount : null,
+      badgeColor: 'bg-gray-500',
     },
   ];
 
@@ -282,6 +302,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Toast Container */}
+      <ToastContainer />
     </div>
   );
 }

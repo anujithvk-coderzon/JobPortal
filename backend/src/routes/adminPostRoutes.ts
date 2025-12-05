@@ -10,6 +10,11 @@ import {
   dismissReports,
   deleteFlaggedPost,
   getFlaggedPostsCount,
+  softDeletePost,
+  getSoftDeletedPosts,
+  getSoftDeletedPostsCount,
+  restorePost,
+  permanentDeletePost,
 } from '../controllers/adminPostController';
 import { authenticateAdmin } from '../middleware/auth';
 
@@ -21,6 +26,13 @@ router.get('/:postId', authenticateAdmin, getPostDetails);
 router.put('/:postId/approve', authenticateAdmin, approvePost);
 router.put('/:postId/reject', authenticateAdmin, rejectPost);
 router.delete('/:postId', authenticateAdmin, deletePost);
+
+// Soft delete management
+router.get('/deleted/list', authenticateAdmin, getSoftDeletedPosts);
+router.get('/deleted/count', authenticateAdmin, getSoftDeletedPostsCount);
+router.put('/:postId/soft-delete', authenticateAdmin, softDeletePost);
+router.put('/:postId/restore', authenticateAdmin, restorePost);
+router.delete('/:postId/permanent', authenticateAdmin, permanentDeletePost);
 
 // Flagged posts management
 router.get('/flagged/list', authenticateAdmin, getFlaggedPosts);

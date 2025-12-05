@@ -25,8 +25,10 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
     const status = req.query.status as string;
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: any = {};
+    // Build where clause - exclude soft-deleted posts from regular view
+    const where: any = {
+      isDeleted: false,
+    };
 
     if (search) {
       where.OR = [
@@ -682,6 +684,400 @@ export const getFlaggedPostsCount = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to get flagged posts count',
+    });
+  }
+};
+
+// Soft delete a post (hide from everyone but keep in database)
+export const softDeletePost = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const { postId } = req.params;
+    const { reason } = req.body;
+
+    const post = await prisma.jobNews.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        error: 'Post not found',
+      });
+    }
+
+    if (post.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        error: 'Post is already deleted',
+      });
+    }
+
+    // Soft delete the post
+    const updatedPost = await prisma.jobNews.update({
+      where: { id: postId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: req.admin.adminId,
+        deletionReason: reason || null,
+        isActive: false,
+      },
+    });
+
+    // Log the action
+    await prisma.postModeration.create({
+      data: {
+        postId,
+        adminId: req.admin.adminId,
+        action: 'SOFT_DELETE',
+        reason: reason || null,
+      },
+    });
+
+    // Create notification for the post owner
+    await prisma.notification.create({
+      data: {
+        userId: post.userId,
+        type: 'POST_DELETED',
+        title: 'Post Removed',
+        message: reason
+          ? `Your post "${post.title}" was removed. Reason: ${reason}`
+          : `Your post "${post.title}" was removed by a moderator.`,
+        postId: postId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: updatedPost,
+      message: 'Post soft deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Soft delete post error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to soft delete post',
+    });
+  }
+};
+
+// Get all soft-deleted posts with user context info
+export const getSoftDeletedPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string || '';
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      isDeleted: true,
+    };
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { companyName: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [posts, total] = await Promise.all([
+      prisma.jobNews.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { deletedAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profilePhoto: true,
+              isBlocked: true,
+              isDeleted: true,
+              createdAt: true,
+            },
+          },
+          _count: {
+            select: {
+              helpfulVotes: true,
+              reports: true,
+            },
+          },
+        },
+      }),
+      prisma.jobNews.count({ where }),
+    ]);
+
+    // Get additional user context (total posts and credibility score) for each unique user
+    const userIds = [...new Set(posts.map((p) => p.userId))];
+    const userContextMap = new Map();
+
+    for (const userId of userIds) {
+      // Get total posts count for this user
+      const totalPosts = await prisma.jobNews.count({
+        where: { userId },
+      });
+
+      // Get approved active posts for credibility calculation
+      const userPosts = await prisma.jobNews.findMany({
+        where: {
+          userId,
+          moderationStatus: 'APPROVED',
+          isActive: true,
+          isDeleted: false,
+        },
+        select: {
+          _count: {
+            select: {
+              helpfulVotes: true,
+            },
+          },
+        },
+      });
+
+      const totalHelpfulMarks = userPosts.reduce(
+        (sum, post) => sum + post._count.helpfulVotes,
+        0
+      );
+
+      let credibilityLevel = 'Newbie';
+      if (totalHelpfulMarks >= 100) {
+        credibilityLevel = 'Authority';
+      } else if (totalHelpfulMarks >= 50) {
+        credibilityLevel = 'Expert';
+      } else if (totalHelpfulMarks >= 25) {
+        credibilityLevel = 'Trusted';
+      } else if (totalHelpfulMarks >= 10) {
+        credibilityLevel = 'Contributor';
+      }
+
+      // Get deleted posts count for this user
+      const deletedPostsCount = await prisma.jobNews.count({
+        where: { userId, isDeleted: true },
+      });
+
+      userContextMap.set(userId, {
+        totalPosts,
+        deletedPostsCount,
+        credibilityScore: totalHelpfulMarks,
+        credibilityLevel,
+      });
+    }
+
+    // Enrich posts with user context
+    const enrichedPosts = posts.map((post) => ({
+      ...post,
+      userContext: userContextMap.get(post.userId),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        posts: enrichedPosts,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Get soft deleted posts error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch deleted posts',
+    });
+  }
+};
+
+// Get count of soft-deleted posts
+export const getSoftDeletedPostsCount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const count = await prisma.jobNews.count({
+      where: { isDeleted: true },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: { count },
+    });
+  } catch (error: any) {
+    console.error('Get soft deleted posts count error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get deleted posts count',
+    });
+  }
+};
+
+// Restore a soft-deleted post
+export const restorePost = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const { postId } = req.params;
+
+    const post = await prisma.jobNews.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        error: 'Post not found',
+      });
+    }
+
+    if (!post.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        error: 'Post is not deleted',
+      });
+    }
+
+    // Restore the post
+    const updatedPost = await prisma.jobNews.update({
+      where: { id: postId },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+        deletedBy: null,
+        deletionReason: null,
+        isActive: true,
+      },
+    });
+
+    // Log the action
+    await prisma.postModeration.create({
+      data: {
+        postId,
+        adminId: req.admin.adminId,
+        action: 'RESTORE',
+      },
+    });
+
+    // Create notification for the post owner
+    await prisma.notification.create({
+      data: {
+        userId: post.userId,
+        type: 'POST_RESTORED',
+        title: 'Post Restored',
+        message: `Your post "${post.title}" has been restored and is now visible again.`,
+        postId: postId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: updatedPost,
+      message: 'Post restored successfully',
+    });
+  } catch (error: any) {
+    console.error('Restore post error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to restore post',
+    });
+  }
+};
+
+// Permanently delete a soft-deleted post (removes from database and media)
+export const permanentDeletePost = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const { postId } = req.params;
+
+    const post = await prisma.jobNews.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        error: 'Post not found',
+      });
+    }
+
+    if (!post.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        error: 'Post must be soft-deleted first before permanent deletion',
+      });
+    }
+
+    // Log the action before deletion
+    await prisma.postModeration.create({
+      data: {
+        postId,
+        adminId: req.admin.adminId,
+        action: 'PERMANENT_DELETE',
+      },
+    });
+
+    // Delete media files from Bunny
+    if (post.poster) {
+      const filename = extractFilenameFromUrl(post.poster);
+      if (filename) {
+        await deleteFromBunny(filename);
+      }
+    }
+
+    if (post.videoId) {
+      await deleteVideoFromBunnyStream(post.videoId);
+    }
+
+    // Delete the post from database
+    await prisma.jobNews.delete({
+      where: { id: postId },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Post permanently deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Permanent delete post error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to permanently delete post',
     });
   }
 };

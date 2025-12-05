@@ -304,6 +304,12 @@ model JobNews {
 
   isActive          Boolean            @default(true)
 
+  // Soft delete fields
+  isDeleted         Boolean            @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?            // Admin ID who deleted
+  deletionReason    String?
+
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { showToast } from '@/components/Toast';
 import { api } from '@/lib/api';
 import {
   Flag,
@@ -90,6 +91,7 @@ export default function FlaggedPostsPage() {
   const [mobileActionsOpen, setMobileActionsOpen] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ postId: string; title: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
+  const [dismissingPostId, setDismissingPostId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchFlaggedPosts();
@@ -116,12 +118,17 @@ export default function FlaggedPostsPage() {
     setLoading(false);
   };
 
-  const handleDismiss = async (postId: string) => {
-    if (!confirm('Dismiss all reports for this post? The post will remain visible.')) return;
-    setActionLoading(postId);
-    const response = await api.dismissReports(postId) as any;
+  const handleDismiss = (postId: string) => {
+    setDismissingPostId(postId);
+  };
+
+  const confirmDismiss = async () => {
+    if (!dismissingPostId) return;
+    setActionLoading(dismissingPostId);
+    const response = await api.dismissReports(dismissingPostId) as any;
     if (response.success) {
       showToast('Reports dismissed successfully', 'success');
+      setDismissingPostId(null);
       fetchFlaggedPosts(pagination?.page || 1);
       // Dispatch event to update sidebar badge count
       window.dispatchEvent(new CustomEvent('post-moderated'));
@@ -146,10 +153,6 @@ export default function FlaggedPostsPage() {
       showToast(response.error || 'Failed to delete post', 'error');
     }
     setActionLoading(null);
-  };
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    alert(message);
   };
 
   const formatDate = (dateString: string) => {
@@ -664,6 +667,57 @@ export default function FlaggedPostsPage() {
                   alt={posterModal.title}
                   className="max-w-full max-h-[75vh] object-contain rounded-lg"
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dismiss Reports Modal */}
+        {dismissingPostId && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+              <div className="p-4 sm:p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-emerald-100 rounded-lg">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Dismiss Reports</h3>
+                  </div>
+                  <button onClick={() => setDismissingPostId(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5">
+                <p className="text-sm text-gray-600">
+                  Dismiss all reports for this post? The post will remain visible to all users and reporters will not be notified.
+                </p>
+              </div>
+              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                <button
+                  onClick={() => setDismissingPostId(null)}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDismiss}
+                  disabled={actionLoading === dismissingPostId}
+                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {actionLoading === dismissingPostId ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Dismissing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Dismiss Reports
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

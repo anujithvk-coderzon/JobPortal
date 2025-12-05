@@ -137,6 +137,7 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
 
     const where: any = {
       isActive: true,
+      isDeleted: false, // Exclude soft-deleted posts
       moderationStatus: 'APPROVED', // Only show approved posts
     };
 
@@ -315,12 +316,15 @@ export const getJobNewsById = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Check if post is approved (unless it's the owner viewing their own post)
-    if (jobNews.moderationStatus !== 'APPROVED' && jobNews.userId !== req.user?.userId) {
-      return res.status(404).json({
-        success: false,
-        error: 'Job news not found',
-      });
+    // Check if post is approved and not deleted (unless it's the owner viewing their own post)
+    const isOwner = jobNews.userId === req.user?.userId;
+    if (!isOwner) {
+      if (jobNews.moderationStatus !== 'APPROVED' || jobNews.isDeleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Job news not found',
+        });
+      }
     }
 
     // Calculate helpful count and check if current user marked as helpful
