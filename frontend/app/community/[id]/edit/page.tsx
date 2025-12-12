@@ -175,6 +175,13 @@ export default function EditPostPage() {
       setPosterFile(file);
       setRemovePoster(false);
 
+      // Clear video if poster is selected (mutual exclusion)
+      setVideoFile(null);
+      setVideoPreview(null);
+      setVideoAspectRatio(null);
+      setCurrentVideo(null);
+      setRemoveVideo(true);
+
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -254,6 +261,12 @@ export default function EditPostPage() {
       URL.revokeObjectURL(objectUrl);
       setVideoFile(file);
       setRemoveVideo(false);
+
+      // Clear poster if video is selected (mutual exclusion)
+      setPosterFile(null);
+      setPosterPreview(null);
+      setCurrentPoster(null);
+      setRemovePoster(true);
 
       // Store the detected aspect ratio for display
       const ratioKey = matchedRatio.ratio === 16/9 ? '16:9' :
@@ -551,6 +564,13 @@ export default function EditPostPage() {
                 </p>
               </div>
 
+              {/* Media Section Note */}
+              <div className="space-y-2">
+                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md border border-amber-200">
+                  Note: You can have either a poster image OR a video, but not both.
+                </p>
+              </div>
+
               {/* Poster Image Upload (Optional) */}
               <div className="space-y-2">
                 <Label htmlFor="poster">Poster Image (Optional)</Label>
@@ -589,28 +609,38 @@ export default function EditPostPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                  <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    currentVideo || videoFile || videoPreview
+                      ? 'border-gray-200 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                      : 'hover:border-primary/50 cursor-pointer'
+                  }`}>
                     <input
                       type="file"
                       id="poster"
                       accept="image/*"
                       onChange={handlePosterUpload}
-                      disabled={loading}
+                      disabled={loading || !!currentVideo || !!videoFile || !!videoPreview}
                       className="hidden"
                     />
-                    <label htmlFor="poster" className="cursor-pointer">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="font-medium mb-1">Upload Poster Image</p>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        JPG, PNG or GIF (max 10MB)
-                      </p>
-                      <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-primary mb-1">📐 Supported Aspect Ratios:</p>
-                        <p className="text-xs font-medium">Landscape (1.91:1) • Square (1:1) • Portrait (4:5)</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Recommended: 1200×628, 1200×1200, or 1080×1350px
-                        </p>
-                      </div>
+                    <label htmlFor="poster" className={currentVideo || videoFile || videoPreview ? 'cursor-not-allowed' : 'cursor-pointer'}>
+                      <ImageIcon className={`h-12 w-12 mx-auto mb-3 ${currentVideo || videoFile || videoPreview ? 'text-gray-400' : 'text-muted-foreground'}`} />
+                      {currentVideo || videoFile || videoPreview ? (
+                        <p className="font-medium mb-1 text-gray-500">Video selected - remove video to upload image</p>
+                      ) : (
+                        <>
+                          <p className="font-medium mb-1">Upload Poster Image</p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            JPG, PNG or GIF (max 10MB)
+                          </p>
+                          <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
+                            <p className="text-xs font-semibold text-primary mb-1">📐 Supported Aspect Ratios:</p>
+                            <p className="text-xs font-medium">Landscape (1.91:1) • Square (1:1) • Portrait (4:5)</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Recommended: 1200×628, 1200×1200, or 1080×1350px
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </label>
                   </div>
                 )}
@@ -668,28 +698,38 @@ export default function EditPostPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                  <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    currentPoster || posterFile || posterPreview
+                      ? 'border-gray-200 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                      : 'hover:border-primary/50 cursor-pointer'
+                  }`}>
                     <input
                       type="file"
                       id="video"
                       accept="video/*"
                       onChange={handleVideoUpload}
-                      disabled={loading}
+                      disabled={loading || !!currentPoster || !!posterFile || !!posterPreview}
                       className="hidden"
                     />
-                    <label htmlFor="video" className="cursor-pointer">
-                      <Video className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="font-medium mb-1">Upload Video</p>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        MP4, MOV or WebM (max 200MB)
-                      </p>
-                      <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-primary mb-1">📐 Supported Aspect Ratios:</p>
-                        <p className="text-xs font-medium">16:9 • 1:1 • 4:5 • 9:16</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          1920×1080, 1080×1080, 1080×1350, or 1080×1920px
-                        </p>
-                      </div>
+                    <label htmlFor="video" className={currentPoster || posterFile || posterPreview ? 'cursor-not-allowed' : 'cursor-pointer'}>
+                      <Video className={`h-12 w-12 mx-auto mb-3 ${currentPoster || posterFile || posterPreview ? 'text-gray-400' : 'text-muted-foreground'}`} />
+                      {currentPoster || posterFile || posterPreview ? (
+                        <p className="font-medium mb-1 text-gray-500">Image selected - remove image to upload video</p>
+                      ) : (
+                        <>
+                          <p className="font-medium mb-1">Upload Video</p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            MP4, MOV or WebM (max 200MB)
+                          </p>
+                          <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
+                            <p className="text-xs font-semibold text-primary mb-1">📐 Supported Aspect Ratios:</p>
+                            <p className="text-xs font-medium">16:9 • 1:1 • 4:5 • 9:16</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              1920×1080, 1080×1080, 1080×1350, or 1080×1920px
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </label>
                   </div>
                 )}

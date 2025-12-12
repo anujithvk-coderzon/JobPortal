@@ -123,6 +123,11 @@ export default function CreatePostPage() {
       URL.revokeObjectURL(objectUrl);
       setPosterFile(file);
 
+      // Clear video if poster is selected (mutual exclusion)
+      setVideoFile(null);
+      setVideoPreview(null);
+      setVideoAspectRatio(null);
+
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -201,6 +206,10 @@ export default function CreatePostPage() {
 
       URL.revokeObjectURL(objectUrl);
       setVideoFile(file);
+
+      // Clear poster if video is selected (mutual exclusion)
+      setPosterFile(null);
+      setPosterPreview(null);
 
       // Store the detected aspect ratio for display
       const ratioKey = matchedRatio.ratio === 16/9 ? '16:9' :
@@ -548,10 +557,13 @@ export default function CreatePostPage() {
 
               {/* Media Uploads */}
               <div className="border-t border-blue-100 pt-6">
-                <h3 className="text-sm font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                   <div className="h-6 w-1 bg-blue-300 rounded-full"></div>
                   Media <span className="text-xs font-normal text-muted-foreground">(Optional - Make your post stand out!)</span>
                 </h3>
+                <p className="text-xs text-amber-600 mb-4 bg-amber-50 px-3 py-2 rounded-md border border-amber-200">
+                  Note: You can upload either a poster image OR a video, but not both.
+                </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Poster Image Upload */}
@@ -581,30 +593,42 @@ export default function CreatePostPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="border-2 border-dashed border-blue-200 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer group">
+                      <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+                        videoFile || videoPreview
+                          ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                          : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer group'
+                      }`}>
                         <input
                           type="file"
                           id="poster"
                           accept="image/*"
                           onChange={handlePosterUpload}
-                          disabled={loading}
+                          disabled={loading || !!videoFile || !!videoPreview}
                           className="hidden"
                         />
-                        <label htmlFor="poster" className="cursor-pointer block">
-                          <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-200 transition-colors">
-                            <ImageIcon className="h-6 w-6 text-blue-600" />
+                        <label htmlFor="poster" className={videoFile || videoPreview ? 'cursor-not-allowed' : 'cursor-pointer block'}>
+                          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${
+                            videoFile || videoPreview ? 'bg-gray-200' : 'bg-blue-100 group-hover:bg-blue-200'
+                          }`}>
+                            <ImageIcon className={`h-6 w-6 ${videoFile || videoPreview ? 'text-gray-400' : 'text-blue-600'}`} />
                           </div>
-                          <p className="font-medium text-sm text-blue-900 mb-1">Click to upload image</p>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            JPG, PNG or GIF (max 10MB)
-                          </p>
-                          <div className="mt-3 pt-3 border-t border-blue-200">
-                            <p className="text-xs font-semibold text-blue-700 mb-1">📐 Supported Aspect Ratios:</p>
-                            <p className="text-xs text-blue-600 font-medium">Landscape (1.91:1) • Square (1:1) • Portrait (4:5)</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Recommended: 1200×628, 1200×1200, or 1080×1350px
-                            </p>
-                          </div>
+                          {videoFile || videoPreview ? (
+                            <p className="font-medium text-sm text-gray-500 mb-1">Video selected - remove video to upload image</p>
+                          ) : (
+                            <>
+                              <p className="font-medium text-sm text-blue-900 mb-1">Click to upload image</p>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                JPG, PNG or GIF (max 10MB)
+                              </p>
+                              <div className="mt-3 pt-3 border-t border-blue-200">
+                                <p className="text-xs font-semibold text-blue-700 mb-1">📐 Supported Aspect Ratios:</p>
+                                <p className="text-xs text-blue-600 font-medium">Landscape (1.91:1) • Square (1:1) • Portrait (4:5)</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Recommended: 1200×628, 1200×1200, or 1080×1350px
+                                </p>
+                              </div>
+                            </>
+                          )}
                         </label>
                       </div>
                     )}
@@ -637,30 +661,42 @@ export default function CreatePostPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="border-2 border-dashed border-blue-200 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer group">
+                      <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+                        posterFile || posterPreview
+                          ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                          : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer group'
+                      }`}>
                         <input
                           type="file"
                           id="video"
                           accept="video/*"
                           onChange={handleVideoUpload}
-                          disabled={loading}
+                          disabled={loading || !!posterFile || !!posterPreview}
                           className="hidden"
                         />
-                        <label htmlFor="video" className="cursor-pointer block">
-                          <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-200 transition-colors">
-                            <Video className="h-6 w-6 text-blue-600" />
+                        <label htmlFor="video" className={posterFile || posterPreview ? 'cursor-not-allowed' : 'cursor-pointer block'}>
+                          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${
+                            posterFile || posterPreview ? 'bg-gray-200' : 'bg-blue-100 group-hover:bg-blue-200'
+                          }`}>
+                            <Video className={`h-6 w-6 ${posterFile || posterPreview ? 'text-gray-400' : 'text-blue-600'}`} />
                           </div>
-                          <p className="font-medium text-sm text-blue-900 mb-1">Click to upload video</p>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            MP4, MOV or WebM (max 200MB)
-                          </p>
-                          <div className="mt-3 pt-3 border-t border-blue-200">
-                            <p className="text-xs font-semibold text-blue-700 mb-1">📐 Supported Aspect Ratios:</p>
-                            <p className="text-xs text-blue-600 font-medium">16:9 • 1:1 • 4:5 • 9:16</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              1920×1080, 1080×1080, 1080×1350, or 1080×1920px
-                            </p>
-                          </div>
+                          {posterFile || posterPreview ? (
+                            <p className="font-medium text-sm text-gray-500 mb-1">Image selected - remove image to upload video</p>
+                          ) : (
+                            <>
+                              <p className="font-medium text-sm text-blue-900 mb-1">Click to upload video</p>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                MP4, MOV or WebM (max 200MB)
+                              </p>
+                              <div className="mt-3 pt-3 border-t border-blue-200">
+                                <p className="text-xs font-semibold text-blue-700 mb-1">📐 Supported Aspect Ratios:</p>
+                                <p className="text-xs text-blue-600 font-medium">16:9 • 1:1 • 4:5 • 9:16</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  1920×1080, 1080×1080, 1080×1350, or 1080×1920px
+                                </p>
+                              </div>
+                            </>
+                          )}
                         </label>
                       </div>
                     )}

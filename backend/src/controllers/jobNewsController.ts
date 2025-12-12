@@ -33,6 +33,14 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
       videoAspectRatio,
     } = req.body;
 
+    // Validate mutual exclusion: only poster OR video, not both
+    if (poster && video) {
+      return res.status(400).json({
+        success: false,
+        error: 'You can only upload either a poster image or a video, not both.',
+      });
+    }
+
     let posterUrl: string | undefined;
     let videoUrl: string | undefined;
     let videoId: string | undefined;
@@ -450,6 +458,18 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
       removePoster,
       removeVideo,
     } = req.body;
+
+    // Calculate what the final media state will be after the update
+    const willHavePoster = poster || (existingJobNews.poster && !removePoster);
+    const willHaveVideo = video || (existingJobNews.video && !removeVideo);
+
+    // Validate mutual exclusion: only poster OR video, not both
+    if (willHavePoster && willHaveVideo) {
+      return res.status(400).json({
+        success: false,
+        error: 'You can only have either a poster image or a video, not both.',
+      });
+    }
 
     let posterUrl = existingJobNews.poster;
     let videoUrl = existingJobNews.video;
