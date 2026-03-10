@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { authAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { Briefcase, Loader2, User, Building2 } from 'lucide-react';
+import { Briefcase, Loader2, User, Building2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -22,9 +22,12 @@ export default function RegisterPage() {
   const { setAuth } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [canResend, setCanResend] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -358,30 +361,52 @@ export default function RegisterPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                      disabled={loading}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -409,7 +434,29 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-                  <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+                  {/* Terms and Privacy Agreement */}
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      id="agreeTerms"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      disabled={loading}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
+                    <label htmlFor="agreeTerms" className="text-xs md:text-sm text-muted-foreground cursor-pointer select-none">
+                      I agree to the{' '}
+                      <Link href="/terms" target="_blank" className="text-primary hover:underline font-medium">
+                        Terms of Service
+                      </Link>{' '}
+                      and{' '}
+                      <Link href="/privacy" target="_blank" className="text-primary hover:underline font-medium">
+                        Privacy Policy
+                      </Link>
+                    </label>
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={loading || googleLoading || !agreedToTerms}>
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -440,7 +487,7 @@ export default function RegisterPage() {
                   variant="outline"
                   className="w-full"
                   onClick={handleGoogleSignUp}
-                  disabled={loading || googleLoading}
+                  disabled={loading || googleLoading || !agreedToTerms}
                 >
                   {googleLoading ? (
                     <>
@@ -483,16 +530,6 @@ export default function RegisterPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs md:text-sm text-muted-foreground mt-4 md:mt-6">
-          By creating an account, you agree to our{' '}
-          <Link href="/terms" className="hover:text-foreground underline">
-            Terms
-          </Link>{' '}
-          and{' '}
-          <Link href="/privacy" className="hover:text-foreground underline">
-            Privacy Policy
-          </Link>
-        </p>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   extractFilenameFromUrl,
   deleteVideoFromBunnyStream,
 } from '../utils/bunnyStorage';
+import { cacheInvalidate, cacheInvalidatePattern, CacheKeys } from '../utils/cache';
 
 // Report threshold - posts with this many reports will be flagged for admin review
 const REPORT_THRESHOLD = 5;
@@ -173,6 +174,16 @@ export const approvePost = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidate(CacheKeys.jobNewsById(postId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+      cacheInvalidatePattern(`jobnews:my:${post.userId}:*`),
+      cacheInvalidatePattern(`user:public:${post.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(post.userId)),
+    ]);
+
     return res.status(200).json({
       success: true,
       data: post,
@@ -251,6 +262,17 @@ export const rejectPost = async (req: AuthRequest, res: Response) => {
       where: { id: postId },
     });
 
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidate(CacheKeys.jobNewsById(postId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+      cacheInvalidatePattern(`jobnews:my:${post.userId}:*`),
+      cacheInvalidatePattern(`user:public:${post.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(post.userId)),
+      cacheInvalidate(CacheKeys.unreadCount(post.userId)),
+    ]);
+
     return res.status(200).json({
       success: true,
       message: 'Post rejected and deleted successfully',
@@ -312,6 +334,15 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
     await prisma.jobNews.delete({
       where: { id: postId },
     });
+
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidate(CacheKeys.jobNewsById(postId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+      cacheInvalidatePattern(`jobnews:my:${post.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(post.userId)),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -635,6 +666,16 @@ export const deleteFlaggedPost = async (req: AuthRequest, res: Response) => {
       where: { id: postId },
     });
 
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidate(CacheKeys.jobNewsById(postId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+      cacheInvalidatePattern(`jobnews:my:${post.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(post.userId)),
+      cacheInvalidate(CacheKeys.unreadCount(post.userId)),
+    ]);
+
     return res.status(200).json({
       success: true,
       message: 'Post and all associated reports deleted successfully',
@@ -753,6 +794,17 @@ export const softDeletePost = async (req: AuthRequest, res: Response) => {
         postId: postId,
       },
     });
+
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidate(CacheKeys.jobNewsById(postId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+      cacheInvalidatePattern(`jobnews:my:${post.userId}:*`),
+      cacheInvalidatePattern(`user:public:${post.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(post.userId)),
+      cacheInvalidate(CacheKeys.unreadCount(post.userId)),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -999,6 +1051,17 @@ export const restorePost = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidate(CacheKeys.jobNewsById(postId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+      cacheInvalidatePattern(`jobnews:my:${post.userId}:*`),
+      cacheInvalidatePattern(`user:public:${post.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(post.userId)),
+      cacheInvalidate(CacheKeys.unreadCount(post.userId)),
+    ]);
+
     return res.status(200).json({
       success: true,
       data: updatedPost,
@@ -1068,6 +1131,15 @@ export const permanentDeletePost = async (req: AuthRequest, res: Response) => {
     await prisma.jobNews.delete({
       where: { id: postId },
     });
+
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidate(CacheKeys.jobNewsById(postId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+      cacheInvalidatePattern(`jobnews:my:${post.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(post.userId)),
+    ]);
 
     return res.status(200).json({
       success: true,

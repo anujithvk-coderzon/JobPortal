@@ -3,6 +3,7 @@ import prisma from '../config/database';
 import { AuthRequest } from '../types';
 import { sendInterviewScheduledEmail, sendRejectionEmail, sendHiredEmail } from '../services/emailService';
 import { uploadToBunny, generateOfferLetterFilename } from '../utils/bunnyStorage';
+import { cacheInvalidate, cacheInvalidatePattern, CacheKeys } from '../utils/cache';
 
 export const applyToJob = async (req: AuthRequest, res: Response) => {
   try {
@@ -102,6 +103,14 @@ export const applyToJob = async (req: AuthRequest, res: Response) => {
       // Ignore errors if job wasn't saved
       console.log('Job was not in saved list or already removed');
     }
+
+    // Invalidate relevant caches
+    await Promise.all([
+      cacheInvalidate(CacheKeys.jobById(jobId)),
+      cacheInvalidatePattern(`jobs:saved:${req.user.userId}:*`),
+      cacheInvalidatePattern(`dashboard:${req.user.userId}`),
+      cacheInvalidatePattern(`dashboard:${job.userId}`),
+    ]);
 
     return res.status(201).json({
       success: true,
@@ -527,6 +536,12 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response) =
       },
     });
 
+    // Invalidate dashboard caches for both employer and applicant
+    await Promise.all([
+      cacheInvalidatePattern(`dashboard:${req.user.userId}`),
+      cacheInvalidatePattern(`dashboard:${application.applicantId}`),
+    ]);
+
     // Send appropriate email based on status (non-blocking)
     if (status === 'INTERVIEW_SCHEDULED') {
       // Send interview scheduled email
@@ -624,6 +639,12 @@ export const withdrawApplication = async (req: AuthRequest, res: Response) => {
     await prisma.application.delete({
       where: { id: applicationId },
     });
+
+    // Invalidate relevant caches
+    await Promise.all([
+      cacheInvalidate(CacheKeys.jobById(application.jobId)),
+      cacheInvalidatePattern(`dashboard:${req.user.userId}`),
+    ]);
 
     return res.status(200).json({
       success: true,

@@ -98,6 +98,7 @@ export interface Job {
   salaryMin?: number;
   salaryMax?: number;
   salaryCurrency?: string;
+  showSalary?: boolean;
   numberOfOpenings: number;
   applicationDeadline?: string;
   isActive: boolean;

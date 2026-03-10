@@ -14,6 +14,7 @@ import {
   updateEducation,
   deleteEducation,
   updateCompany,
+  updatePrivacySettings,
   uploadProfilePhoto,
   deleteProfilePhoto,
   uploadResume,
@@ -22,6 +23,7 @@ import {
 } from '../controllers/userController';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
+import { uploadLimiter, writeLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
@@ -72,6 +74,9 @@ router.post(
 router.put('/education/:educationId', authenticate, updateEducation);
 router.delete('/education/:educationId', authenticate, deleteEducation);
 
+// Privacy settings
+router.put('/privacy-settings', authenticate, updatePrivacySettings);
+
 // Company routes
 router.put(
   '/company',
@@ -86,6 +91,7 @@ router.put(
 router.post(
   '/profile-photo',
   authenticate,
+  uploadLimiter,
   validate([
     body('image').notEmpty().withMessage('Image data is required'),
   ]),
@@ -97,6 +103,7 @@ router.delete('/profile-photo', authenticate, deleteProfilePhoto);
 router.post(
   '/resume',
   authenticate,
+  uploadLimiter,
   validate([
     body('file').notEmpty().withMessage('File data is required'),
   ]),

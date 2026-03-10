@@ -21,12 +21,10 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { jobAPI } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { CurrencySelect } from '@/components/CurrencySelect';
 import {
   EMPLOYMENT_TYPE_OPTIONS,
   EXPERIENCE_LEVEL_OPTIONS,
   LOCATION_TYPE_OPTIONS,
-  CURRENCY_OPTIONS,
 } from '@/lib/constants';
 import { Loader2, Plus, X, Save, ArrowLeft } from 'lucide-react';
 
@@ -49,7 +47,8 @@ export default function EditJobPage() {
     location: '',
     salaryMin: '',
     salaryMax: '',
-    salaryCurrency: 'USD',
+    salaryCurrency: 'INR',
+    showSalary: true,
     numberOfOpenings: '1',
     applicationDeadline: '',
     isActive: true,
@@ -98,7 +97,8 @@ export default function EditJobPage() {
         location: job.location || '',
         salaryMin: job.salaryMin?.toString() || '',
         salaryMax: job.salaryMax?.toString() || '',
-        salaryCurrency: job.salaryCurrency || 'USD',
+        salaryCurrency: job.salaryCurrency || 'INR',
+        showSalary: job.showSalary ?? true,
         numberOfOpenings: job.numberOfOpenings?.toString() || '1',
         applicationDeadline: job.applicationDeadline
           ? new Date(job.applicationDeadline).toISOString().split('T')[0]
@@ -178,6 +178,7 @@ export default function EditJobPage() {
         salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : undefined,
         salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : undefined,
         salaryCurrency: formData.salaryCurrency,
+        showSalary: formData.showSalary,
         numberOfOpenings: parseInt(formData.numberOfOpenings),
         applicationDeadline: formData.applicationDeadline || undefined,
         responsibilities: responsibilities.filter((r) => r.trim() !== ''),
@@ -365,11 +366,12 @@ export default function EditJobPage() {
                     id="applicationDeadline"
                     type="date"
                     min={new Date().toISOString().split('T')[0]}
+                    max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                     value={formData.applicationDeadline}
                     onChange={(e) => handleInputChange('applicationDeadline', e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Must be a future date
+                    Optional - Maximum 30 days from today
                   </p>
                 </div>
               </div>
@@ -408,39 +410,52 @@ export default function EditJobPage() {
               <CardDescription>Salary range for this position</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="salaryMin">Minimum Salary</Label>
+                  <Label htmlFor="salaryMin">Minimum Salary (₹)</Label>
                   <Input
                     id="salaryMin"
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.salaryMin}
-                    onChange={(e) => handleInputChange('salaryMin', e.target.value)}
-                    placeholder="50000"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      handleInputChange('salaryMin', val);
+                    }}
+                    placeholder="e.g. 300000"
+                    className="[appearance:textfield]"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="salaryMax">Maximum Salary</Label>
+                  <Label htmlFor="salaryMax">Maximum Salary (₹)</Label>
                   <Input
                     id="salaryMax"
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.salaryMax}
-                    onChange={(e) => handleInputChange('salaryMax', e.target.value)}
-                    placeholder="80000"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="salaryCurrency">Currency</Label>
-                  <CurrencySelect
-                    value={formData.salaryCurrency}
-                    onValueChange={(value) => handleInputChange('salaryCurrency', value)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      handleInputChange('salaryMax', val);
+                    }}
+                    placeholder="e.g. 600000"
+                    className="[appearance:textfield]"
                   />
                 </div>
               </div>
+              {(formData.salaryMin || formData.salaryMax) && (
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label htmlFor="showSalary" className="text-sm font-medium">Show salary in job post</Label>
+                    <p className="text-xs text-muted-foreground">When off, salary won&apos;t be visible to applicants</p>
+                  </div>
+                  <Switch
+                    id="showSalary"
+                    checked={formData.showSalary}
+                    onCheckedChange={(checked) => handleInputChange('showSalary', checked)}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 

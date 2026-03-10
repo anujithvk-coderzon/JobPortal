@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { generalLimiter } from './middleware/rateLimiter';
 
 // Load environment variables
 dotenv.config();
@@ -10,15 +12,15 @@ import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import jobRoutes from './routes/jobRoutes';
 import applicationRoutes from './routes/applicationRoutes';
-import dashboardRoutes from './routes/dashboardRoutes';
 import jobNewsRoutes from './routes/jobNewsRoutes';
 import companyRoutes from './routes/companyRoutes';
 import testRoutes from './routes/testRoutes';
-import setupRoutes from './routes/setupRoutes';
+// Setup routes removed - first admin auto-registers as SUPER_ADMIN
 import adminAuthRoutes from './routes/adminAuthRoutes';
 import adminStatsRoutes from './routes/adminStatsRoutes';
 import adminUserRoutes from './routes/adminUserRoutes';
 import adminPostRoutes from './routes/adminPostRoutes';
+import adminManagementRoutes from './routes/adminManagementRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import followRoutes from './routes/followRoutes';
 import reportRoutes from './routes/reportRoutes';
@@ -43,22 +45,25 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+
+// Global rate limit: 100 requests per minute per IP
+app.use('/api', generalLimiter);
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
-app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/job-news', jobNewsRoutes);
 app.use('/api/companies', companyRoutes);
-app.use('/api/setup', setupRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/stats', adminStatsRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/posts', adminPostRoutes);
+app.use('/api/admin/admins', adminManagementRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/reports', reportRoutes);

@@ -13,10 +13,10 @@ export function formatDate(date: string | Date) {
   })
 }
 
-export function formatSalary(min?: number, max?: number, currency: string = 'USD') {
+export function formatSalary(min?: number, max?: number, currency: string = 'INR') {
   if (!min && !max) return 'Not specified';
 
-  const formatter = new Intl.NumberFormat('en-US', {
+  const formatter = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 0,

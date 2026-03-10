@@ -5,6 +5,7 @@ import {
   getReportReasons,
 } from '../controllers/reportController';
 import { authenticate } from '../middleware/auth';
+import { reportLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.use(authenticate);
 router.get('/reasons', getReportReasons);
 
 // Report a post
-router.post('/:postId', reportPost);
+router.post('/:postId', reportLimiter, reportPost);
 
 // Check if user has reported a post
 router.get('/status/:postId', checkReportStatus);

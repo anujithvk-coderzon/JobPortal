@@ -8,48 +8,87 @@ interface ApiResponse<T = any> {
 }
 
 class AdminApi {
-  private token: string | null = null;
+  private isRefreshing = false;
+  private refreshPromise: Promise<boolean> | null = null;
 
-  constructor() {
+  private getToken(): string | null {
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('admin_token');
+      return localStorage.getItem('admin_token');
     }
+    return null;
   }
 
   setToken(token: string) {
-    this.token = token;
     if (typeof window !== 'undefined') {
       localStorage.setItem('admin_token', token);
     }
   }
 
   clearToken() {
-    this.token = null;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('admin_token');
     }
   }
 
+  private async refreshAccessToken(): Promise<boolean> {
+    try {
+      // Refresh token is sent automatically via httpOnly cookie, no body needed
+      const response = await fetch(`${API_URL}/admin/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success && data.data?.token) {
+        this.setToken(data.data.token);
+        return true;
+      }
+    } catch {}
+
+    return false;
+  }
+
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isRetry = false
   ): Promise<ApiResponse<T>> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    const token = this.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     try {
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include',
       });
 
       const data = await response.json();
+
+      // Auto-refresh on 401 (token expired)
+      if (response.status === 401 && !isRetry && !endpoint.includes('/login') && !endpoint.includes('/refresh-token')) {
+        if (!this.isRefreshing) {
+          this.isRefreshing = true;
+          this.refreshPromise = this.refreshAccessToken();
+        }
+
+        const refreshed = await this.refreshPromise;
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+
+        if (refreshed) {
+          return this.request<T>(endpoint, options, true);
+        }
+      }
 
       if (!response.ok) {
         return {
@@ -68,6 +107,26 @@ class AdminApi {
   }
 
   // Auth endpoints
+  async checkSetupStatus() {
+    return this.request<{ setupRequired: boolean }>('/admin/auth/setup-status');
+  }
+
+  async register(email: string, password: string, name: string) {
+    const response = await this.request<{ admin: any; token: string }>(
+      '/admin/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name }),
+      }
+    );
+
+    if (response.success && response.data) {
+      this.setToken(response.data.token);
+    }
+
+    return response;
+  }
+
   async login(email: string, password: string) {
     const response = await this.request<{ admin: any; token: string }>(
       '/admin/auth/login',
@@ -77,7 +136,7 @@ class AdminApi {
       }
     );
 
-    if (response.success && response.data?.token) {
+    if (response.success && response.data) {
       this.setToken(response.data.token);
     }
 
@@ -86,6 +145,13 @@ class AdminApi {
 
   async getMe() {
     return this.request('/admin/auth/me');
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('/admin/auth/change-password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
   }
 
   async logout() {
@@ -250,6 +316,36 @@ class AdminApi {
 
   async permanentDeletePost(postId: string) {
     return this.request(`/admin/posts/${postId}/permanent`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Admin management endpoints (SUPER_ADMIN only)
+  async getAdmins() {
+    return this.request('/admin/admins');
+  }
+
+  async createAdmin(data: { email: string; password: string; name: string }) {
+    return this.request('/admin/admins', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deactivateAdmin(adminId: string) {
+    return this.request(`/admin/admins/${adminId}/deactivate`, {
+      method: 'PUT',
+    });
+  }
+
+  async activateAdmin(adminId: string) {
+    return this.request(`/admin/admins/${adminId}/activate`, {
+      method: 'PUT',
+    });
+  }
+
+  async deleteAdmin(adminId: string) {
+    return this.request(`/admin/admins/${adminId}`, {
       method: 'DELETE',
     });
   }

@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate, optionalAuthenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { body } from 'express-validator';
+import { writeLimiter } from '../middleware/rateLimiter';
 import {
   createJobNews,
   getAllJobNews,
@@ -28,13 +29,13 @@ const jobNewsValidation = [
 router.get('/', optionalAuthenticate, getAllJobNews);
 
 // Protected routes (must come before /:id to avoid conflicts)
-router.post('/', authenticate, validate(jobNewsValidation), createJobNews);
+router.post('/', authenticate, writeLimiter, validate(jobNewsValidation), createJobNews);
 router.get('/user/my-news', authenticate, getMyJobNews);
 router.post('/:id/helpful', authenticate, toggleHelpful);
 
 // Dynamic routes (must come last)
 router.get('/:id', optionalAuthenticate, getJobNewsById);
-router.put('/:id', authenticate, validate(jobNewsValidation), updateJobNews);
-router.delete('/:id', authenticate, deleteJobNews);
+router.put('/:id', authenticate, writeLimiter, validate(jobNewsValidation), updateJobNews);
+router.delete('/:id', authenticate, writeLimiter, deleteJobNews);
 
 export default router;

@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Flag,
   Trash2,
+  UserCog,
+  KeyRound,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -142,6 +144,24 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       icon: Trash2,
       badge: deletedCount > 0 ? deletedCount : null,
       badgeColor: 'bg-gray-500',
+    },
+    ...(admin?.role === 'SUPER_ADMIN'
+      ? [
+          {
+            name: 'Admins',
+            href: '/admins',
+            icon: UserCog,
+            badge: null,
+            badgeColor: null,
+          },
+        ]
+      : []),
+    {
+      name: 'Change Password',
+      href: '/settings',
+      icon: KeyRound,
+      badge: null,
+      badgeColor: null,
     },
   ];
 

@@ -21,13 +21,13 @@ import {
   Briefcase,
   Building2,
   Clock,
-  DollarSign,
   Users,
   Calendar,
   BookmarkPlus,
   Bookmark,
   Loader2,
   ArrowLeft,
+  Trash2,
 } from 'lucide-react';
 
 export default function JobDetailPage() {
@@ -101,6 +101,29 @@ export default function JobDetailPage() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDeleteJob = async () => {
+    if (!confirm('Are you sure you want to delete this job? This cannot be undone.')) return;
+    setDeleteLoading(true);
+    try {
+      await jobAPI.deleteJob(jobId);
+      toast({
+        title: 'Job Deleted',
+        description: 'The job has been deleted successfully.',
+      });
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to delete job',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -198,9 +221,8 @@ export default function JobDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   <Badge>{getEmploymentTypeLabel(job.employmentType)}</Badge>
                   <Badge variant="secondary">{getExperienceLevelLabel(job.experienceLevel)}</Badge>
-                  {job.salaryMin && job.salaryMax && (
+                  {job.salaryMin && job.salaryMax && job.showSalary !== false && (
                     <Badge variant="outline">
-                      <DollarSign className="h-3 w-3 mr-1" />
                       {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
                     </Badge>
                   )}
@@ -213,14 +235,25 @@ export default function JobDetailPage() {
               </div>
               <div className="flex flex-col gap-2 md:w-auto w-full">
                 {user && user.id === job.userId ? (
-                  // Show edit button for job author
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push(`/jobs/${job.id}/edit`)}
-                    className="w-full md:w-auto"
-                  >
-                    Edit Job
-                  </Button>
+                  // Show edit/delete buttons for job author
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/jobs/${job.id}/edit`)}
+                      className="w-full md:w-auto"
+                    >
+                      Edit Job
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteJob}
+                      disabled={deleteLoading}
+                      className="w-full md:w-auto"
+                    >
+                      {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                      Delete Job
+                    </Button>
+                  </>
                 ) : (
                   // Show apply/save buttons for everyone else
                   <>

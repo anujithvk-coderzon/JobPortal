@@ -19,7 +19,7 @@ import {
   Plus,
   Briefcase,
   Clock,
-  DollarSign,
+  Trash2,
   ArrowLeft,
   Linkedin,
   Twitter,
@@ -32,7 +32,8 @@ import {
   Loader2,
   ExternalLink,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, jobAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -64,6 +65,7 @@ interface Job {
   salaryMin: number | null;
   salaryMax: number | null;
   salaryCurrency: string | null;
+  showSalary?: boolean;
   isActive: boolean;
   createdAt: string;
   _count?: {
@@ -81,6 +83,8 @@ export default function CompanyDetailPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const { toast } = useToast();
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 5,
@@ -149,15 +153,35 @@ export default function CompanyDetailPage() {
     fetchCompanyJobs(nextPage);
   };
 
-  const formatSalary = (min: number | null, max: number | null, currency: string | null) => {
-    if (!min && !max) return 'Not specified';
-    const curr = currency || 'USD';
-    if (min && max) {
-      return `${curr} ${min.toLocaleString()} - ${max.toLocaleString()}`;
+  const handleDeleteJob = async (jobId: string) => {
+    if (!confirm('Are you sure you want to delete this job? This cannot be undone.')) return;
+    setDeletingJobId(jobId);
+    try {
+      await jobAPI.deleteJob(jobId);
+      setJobs((prev) => prev.filter((j) => j.id !== jobId));
+      toast({ title: 'Job Deleted', description: 'The job has been deleted successfully.' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to delete job',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingJobId(null);
     }
-    if (min) return `${curr} ${min.toLocaleString()}+`;
-    if (max) return `Up to ${curr} ${max.toLocaleString()}`;
-    return 'Not specified';
+  };
+
+  const formatSalary = (min: number | null, max: number | null, currency: string | null) => {
+    if (!min && !max) return null;
+    const curr = currency || 'INR';
+    const locale = curr === 'INR' ? 'en-IN' : 'en-US';
+    const symbol = curr === 'INR' ? '₹' : '$';
+    if (min && max) {
+      return `${symbol}${min.toLocaleString(locale)} - ${symbol}${max.toLocaleString(locale)}`;
+    }
+    if (min) return `${symbol}${min.toLocaleString(locale)}+`;
+    if (max) return `Up to ${symbol}${max.toLocaleString(locale)}`;
+    return null;
   };
 
   const formatDate = (dateString: string) => {
@@ -552,10 +576,12 @@ export default function CompanyDetailPage() {
                           </div>
                         )}
 
-                        <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-600">
-                          <DollarSign className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 flex-shrink-0" />
-                          <span className="truncate">{formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}</span>
-                        </div>
+                        {job.showSalary !== false && formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency) && (
+                          <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-600">
+                            <Briefcase className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}</span>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-600">
                           <Clock className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 flex-shrink-0" />
@@ -616,6 +642,19 @@ export default function CompanyDetailPage() {
                         >
                           <Edit className="h-3 w-3 md:h-3.5 md:w-3.5 md:mr-1.5" />
                           <span className="hidden md:inline">Edit</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteJob(job.id)}
+                          disabled={deletingJobId === job.id}
+                          className="h-8 md:h-9 px-2 md:px-3 text-[10px] md:text-xs"
+                        >
+                          {deletingJobId === job.id ? (
+                            <Loader2 className="h-3 w-3 md:h-3.5 md:w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                          )}
                         </Button>
                       </div>
                     </CardContent>

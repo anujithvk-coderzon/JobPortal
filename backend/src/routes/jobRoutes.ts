@@ -16,12 +16,13 @@ import {
 } from '../controllers/jobController';
 import { authenticate, optionalAuthenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
+import { writeLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
 // Public routes (optional authentication for match sorting)
 router.get('/', optionalAuthenticate, getAllJobs);
-router.get('/company/:companyId', getCompanyJobs);
+router.get('/company/:companyId', optionalAuthenticate, getCompanyJobs);
 
 // Job detail route (public, but shows extra info if authenticated)
 router.get('/job/:jobId', optionalAuthenticate, getJobById);
@@ -32,6 +33,7 @@ router.get('/saved', authenticate, getSavedJobs);
 router.post(
   '/',
   authenticate,
+  writeLimiter,
   validate([
     body('title').notEmpty().withMessage('Job title is required'),
     body('description').notEmpty().withMessage('Job description is required'),
@@ -51,12 +53,14 @@ router.post(
 router.put(
   '/:jobId',
   authenticate,
+  writeLimiter,
   updateJob
 );
 
 router.delete(
   '/:jobId',
   authenticate,
+  writeLimiter,
   deleteJob
 );
 

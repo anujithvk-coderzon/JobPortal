@@ -8,6 +8,7 @@ interface AuthState {
   isHydrated: boolean;
   profileUpdateTrigger: number;
   setAuth: (user: User, token: string) => void;
+  setTokens: (token: string) => void;
   logout: () => void;
   updateUser: (user: User) => void;
   triggerProfileUpdate: () => void;
@@ -24,23 +25,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (user, token) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
     }
     set({ user, token, isAuthenticated: true });
+  },
+
+  setTokens: (token) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('token', token);
+    }
+    set({ token });
   },
 
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
-      localStorage.removeItem('user');
     }
     set({ user: null, token: null, isAuthenticated: false });
   },
 
   updateUser: (user) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('user', JSON.stringify(user));
-    }
     set({ user });
   },
 
@@ -48,20 +51,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     set((state) => ({ profileUpdateTrigger: state.profileUpdateTrigger + 1 }));
   },
 
-  hydrate: () => {
+  hydrate: async () => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
-      const userStr = localStorage.getItem('user');
 
-      if (token && userStr) {
+      if (token) {
+        // Set token immediately so API calls work
+        set({ token, isAuthenticated: true });
+
         try {
-          const user = JSON.parse(userStr);
-          set({ user, token, isAuthenticated: true, isHydrated: true });
+          // Fetch full user profile from API (no user data in localStorage)
+          const { default: axiosInstance } = await import('@/lib/api');
+          const response = await axiosInstance.get('/users/profile');
+          const user = response.data.data;
+          set({ user, isAuthenticated: true, isHydrated: true });
         } catch (e) {
-          console.error('Failed to parse user from localStorage');
+          // Token expired — interceptor will try refresh via httpOnly cookie
+          // If refresh also fails, forceLogout handles cleanup
+          console.error('Failed to fetch user profile during hydration');
           localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          set({ isHydrated: true });
+          set({ user: null, token: null, isAuthenticated: false, isHydrated: true });
         }
       } else {
         set({ isHydrated: true });

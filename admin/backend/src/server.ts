@@ -6,7 +6,6 @@ import userRoutes from './routes/userRoutes';
 import postRoutes from './routes/postRoutes';
 import statsRoutes from './routes/statsRoutes';
 import adminManagementRoutes from './routes/adminManagementRoutes';
-import setupRoutes from './routes/setupRoutes';
 
 dotenv.config();
 
@@ -21,7 +20,6 @@ app.use(cors({
 app.use(express.json());
 
 // Routes
-app.use('/api/setup', setupRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);

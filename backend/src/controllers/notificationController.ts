@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import prisma from '../config/database';
 import { AuthRequest } from '../types';
+import { cacheGet, cacheInvalidate, TTL, CacheKeys } from '../utils/cache';
 
 export const getNotifications = async (req: AuthRequest, res: Response) => {
   try {
@@ -51,6 +52,9 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Invalidate unread count cache
+    await cacheInvalidate(CacheKeys.unreadCount(req.user.userId));
+
     return res.status(200).json({
       success: true,
       message: 'Notification deleted successfully',
@@ -73,12 +77,17 @@ export const getUnreadCount = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const count = await prisma.notification.count({
-      where: {
-        userId: req.user.userId,
-        isRead: false,
-      },
-    });
+    const userId = req.user.userId;
+    const count = await cacheGet(
+      CacheKeys.unreadCount(userId),
+      () => prisma.notification.count({
+        where: {
+          userId,
+          isRead: false,
+        },
+      }),
+      TTL.SHORT
+    );
 
     return res.status(200).json({
       success: true,

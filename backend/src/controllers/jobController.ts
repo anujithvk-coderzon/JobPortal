@@ -3,6 +3,7 @@ import prisma from '../config/database';
 import { AuthRequest, SearchParams } from '../types';
 import { calculateJobMatch, calculateJobMatches } from '../services/jobMatchingService';
 import { parseSearchQuery } from '../utils/searchParser';
+import { cacheGet, cacheInvalidate, cacheInvalidatePattern, TTL, CacheKeys, hashQuery } from '../utils/cache';
 
 export const createJob = async (req: AuthRequest, res: Response) => {
   try {
@@ -27,6 +28,7 @@ export const createJob = async (req: AuthRequest, res: Response) => {
       salaryMin,
       salaryMax,
       salaryCurrency,
+      showSalary,
       numberOfOpenings,
       applicationDeadline,
       companyId,
@@ -59,6 +61,21 @@ export const createJob = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Validate application deadline (max 30 days from today)
+    if (applicationDeadline) {
+      const deadline = new Date(applicationDeadline);
+      const maxDeadline = new Date();
+      maxDeadline.setDate(maxDeadline.getDate() + 30);
+      maxDeadline.setHours(23, 59, 59, 999);
+
+      if (deadline > maxDeadline) {
+        return res.status(400).json({
+          success: false,
+          error: 'Application deadline cannot be more than 30 days from today',
+        });
+      }
+    }
+
     const job = await prisma.job.create({
       data: {
         companyId,
@@ -79,7 +96,8 @@ export const createJob = async (req: AuthRequest, res: Response) => {
         location,
         salaryMin: salaryMin ? parseInt(salaryMin) : null,
         salaryMax: salaryMax ? parseInt(salaryMax) : null,
-        salaryCurrency: salaryCurrency || 'USD',
+        salaryCurrency: salaryCurrency || 'INR',
+        showSalary: showSalary !== undefined ? showSalary : true,
         numberOfOpenings: numberOfOpenings ? parseInt(numberOfOpenings) : 1,
         applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : null,
       },
@@ -94,6 +112,14 @@ export const createJob = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Invalidate job listing caches
+    await Promise.all([
+      cacheInvalidatePattern('jobs:all:*'),
+      cacheInvalidatePattern(`jobs:company:${companyId}:*`),
+      cacheInvalidatePattern(`jobs:my:${req.user.userId}:*`),
+      cacheInvalidatePattern(`dashboard:${req.user.userId}`),
+    ]);
 
     return res.status(201).json({
       success: true,
@@ -429,35 +455,40 @@ export const getJobById = async (req: AuthRequest, res: Response) => {
   try {
     const { jobId } = req.params;
 
-    const job = await prisma.job.findUnique({
-      where: { id: jobId },
-      include: {
-        company: {
-          select: {
-            id: true,
-            name: true,
-            logo: true,
-            location: true,
-            industry: true,
-            companySize: true,
-            website: true,
-            about: true,
+    // Cache the core job data (shared across all users)
+    const job = await cacheGet(
+      CacheKeys.jobById(jobId),
+      () => prisma.job.findUnique({
+        where: { id: jobId },
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              location: true,
+              industry: true,
+              companySize: true,
+              website: true,
+              about: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          _count: {
+            select: {
+              applications: true,
+            },
           },
         },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        _count: {
-          select: {
-            applications: true,
-          },
-        },
-      },
-    });
+      }),
+      TTL.LONG
+    );
 
     if (!job) {
       return res.status(404).json({
@@ -466,28 +497,29 @@ export const getJobById = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Check if user has applied (if authenticated)
+    // Check if user has applied (if authenticated) - not cached as it's user-specific
     let hasApplied = false;
     let isSaved = false;
     if (req.user) {
-      const application = await prisma.application.findUnique({
-        where: {
-          jobId_applicantId: {
-            jobId: jobId,
-            applicantId: req.user.userId,
+      const [application, savedJob] = await Promise.all([
+        prisma.application.findUnique({
+          where: {
+            jobId_applicantId: {
+              jobId: jobId,
+              applicantId: req.user.userId,
+            },
           },
-        },
-      });
+        }),
+        prisma.savedJob.findUnique({
+          where: {
+            userId_jobId: {
+              userId: req.user.userId,
+              jobId: jobId,
+            },
+          },
+        }),
+      ]);
       hasApplied = !!application;
-
-      const savedJob = await prisma.savedJob.findUnique({
-        where: {
-          userId_jobId: {
-            userId: req.user.userId,
-            jobId: jobId,
-          },
-        },
-      });
       isSaved = !!savedJob;
     }
 
@@ -563,10 +595,26 @@ export const updateJob = async (req: AuthRequest, res: Response) => {
       salaryMin,
       salaryMax,
       salaryCurrency,
+      showSalary,
       numberOfOpenings,
       applicationDeadline,
       isActive,
     } = req.body;
+
+    // Validate application deadline (max 30 days from today)
+    if (applicationDeadline) {
+      const deadline = new Date(applicationDeadline);
+      const maxDeadline = new Date();
+      maxDeadline.setDate(maxDeadline.getDate() + 30);
+      maxDeadline.setHours(23, 59, 59, 999);
+
+      if (deadline > maxDeadline) {
+        return res.status(400).json({
+          success: false,
+          error: 'Application deadline cannot be more than 30 days from today',
+        });
+      }
+    }
 
     const job = await prisma.job.update({
       where: { id: jobId },
@@ -588,6 +636,7 @@ export const updateJob = async (req: AuthRequest, res: Response) => {
         salaryMin: salaryMin ? parseInt(salaryMin) : undefined,
         salaryMax: salaryMax ? parseInt(salaryMax) : undefined,
         salaryCurrency,
+        showSalary: showSalary !== undefined ? showSalary : undefined,
         numberOfOpenings: numberOfOpenings ? parseInt(numberOfOpenings) : undefined,
         applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : undefined,
         isActive,
@@ -602,6 +651,15 @@ export const updateJob = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Invalidate relevant caches
+    await Promise.all([
+      cacheInvalidate(CacheKeys.jobById(jobId)),
+      cacheInvalidatePattern('jobs:all:*'),
+      cacheInvalidatePattern(`jobs:company:${existingJob.companyId}:*`),
+      cacheInvalidatePattern(`jobs:my:${req.user.userId}:*`),
+      cacheInvalidatePattern(`dashboard:${req.user.userId}`),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -650,6 +708,15 @@ export const deleteJob = async (req: AuthRequest, res: Response) => {
     await prisma.job.delete({
       where: { id: jobId },
     });
+
+    // Invalidate relevant caches
+    await Promise.all([
+      cacheInvalidate(CacheKeys.jobById(jobId)),
+      cacheInvalidatePattern('jobs:all:*'),
+      cacheInvalidatePattern(`jobs:company:${existingJob.companyId}:*`),
+      cacheInvalidatePattern(`jobs:my:${req.user.userId}:*`),
+      cacheInvalidatePattern(`dashboard:${req.user.userId}`),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -765,17 +832,27 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Check if requester is the company owner
+    const companyRecord = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { userId: true },
+    });
+
+    const isOwner = req.user?.userId && companyRecord?.userId === req.user.userId;
+
+    // Owner sees all jobs; others see only active, non-expired jobs
+    const jobWhereClause: any = { companyId };
+    if (!isOwner) {
+      jobWhereClause.isActive = true;
+      jobWhereClause.OR = [
+        { applicationDeadline: null },
+        { applicationDeadline: { gte: today } },
+      ];
+    }
+
     const [jobs, total, company] = await Promise.all([
       prisma.job.findMany({
-        where: {
-          companyId: companyId,
-          isActive: true,
-          // Only show jobs that haven't expired (no deadline OR deadline is today or in future)
-          OR: [
-            { applicationDeadline: null },
-            { applicationDeadline: { gte: today } },
-          ],
-        },
+        where: jobWhereClause,
         skip,
         take,
         orderBy: { createdAt: 'desc' },
@@ -795,14 +872,7 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
         },
       }),
       prisma.job.count({
-        where: {
-          companyId: companyId,
-          isActive: true,
-          OR: [
-            { applicationDeadline: null },
-            { applicationDeadline: { gte: today } },
-          ],
-        },
+        where: jobWhereClause,
       }),
       prisma.company.findUnique({
         where: { id: companyId },
@@ -898,6 +968,9 @@ export const saveJob = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Invalidate saved jobs cache
+    await cacheInvalidatePattern(`jobs:saved:${req.user.userId}:*`);
+
     return res.status(200).json({
       success: true,
       message: 'Job saved successfully',
@@ -930,6 +1003,9 @@ export const unsaveJob = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Invalidate saved jobs cache
+    await cacheInvalidatePattern(`jobs:saved:${req.user.userId}:*`);
 
     return res.status(200).json({
       success: true,
@@ -1039,16 +1115,25 @@ export const getJobMatchScore = async (req: AuthRequest, res: Response) => {
         });
       }
 
-      // Calculate match score for the specified user
-      const matchScore = await calculateJobMatch(userId, jobId);
+      // Calculate match score for the specified user (cached)
+      const matchScore = await cacheGet(
+        CacheKeys.jobMatch(userId, jobId),
+        () => calculateJobMatch(userId, jobId),
+        TTL.VERY_LONG
+      );
       return res.status(200).json({
         success: true,
         data: matchScore,
       });
     }
 
-    // Calculate match score for logged-in user
-    const matchScore = await calculateJobMatch(req.user.userId, jobId);
+    // Calculate match score for logged-in user (cached)
+    const currentUserId = req.user!.userId;
+    const matchScore = await cacheGet(
+      CacheKeys.jobMatch(currentUserId, jobId),
+      () => calculateJobMatch(currentUserId, jobId),
+      TTL.VERY_LONG
+    );
 
     return res.status(200).json({
       success: true,

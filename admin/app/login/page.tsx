@@ -1,17 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Shield, Lock, Mail, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Shield, Lock, Mail, Loader2, Eye, EyeOff, AlertCircle, User } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSetupMode, setIsSetupMode] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+
+  useEffect(() => {
+    checkSetup();
+  }, []);
+
+  const checkSetup = async () => {
+    try {
+      const response = await api.checkSetupStatus();
+      if (response.success && response.data?.setupRequired) {
+        setIsSetupMode(true);
+      }
+    } catch (err) {
+      // If check fails, default to login mode
+    } finally {
+      setCheckingSetup(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,12 +39,35 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await api.login(email, password);
+      if (isSetupMode) {
+        // Register first admin
+        if (!name.trim()) {
+          setError('Name is required');
+          setLoading(false);
+          return;
+        }
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters');
+          setLoading(false);
+          return;
+        }
 
-      if (response.success) {
-        router.push('/dashboard');
+        const response = await api.register(email, password, name.trim());
+
+        if (response.success) {
+          router.push('/dashboard');
+        } else {
+          setError(response.error || 'Registration failed');
+        }
       } else {
-        setError(response.error || 'Login failed');
+        // Normal login
+        const response = await api.login(email, password);
+
+        if (response.success) {
+          router.push('/dashboard');
+        } else {
+          setError(response.error || 'Login failed');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -32,6 +75,14 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (checkingSetup) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
@@ -69,7 +120,7 @@ export default function LoginPage() {
             <div className="space-y-4 pt-8">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-300 text-lg">✓</span>
+                  <span className="text-blue-300 text-lg">&#10003;</span>
                 </div>
                 <div>
                   <h3 className="text-white font-semibold mb-1">Real-time Monitoring</h3>
@@ -78,7 +129,7 @@ export default function LoginPage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-300 text-lg">✓</span>
+                  <span className="text-blue-300 text-lg">&#10003;</span>
                 </div>
                 <div>
                   <h3 className="text-white font-semibold mb-1">Content Moderation</h3>
@@ -87,7 +138,7 @@ export default function LoginPage() {
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-300 text-lg">✓</span>
+                  <span className="text-blue-300 text-lg">&#10003;</span>
                 </div>
                 <div>
                   <h3 className="text-white font-semibold mb-1">User Management</h3>
@@ -100,11 +151,11 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="relative z-10 text-blue-200 text-sm">
-          © 2024 Job Portal. All rights reserved.
+          &copy; 2024 Job Portal. All rights reserved.
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
+      {/* Right Side - Login/Register Form */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-gray-50">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
@@ -121,10 +172,12 @@ export default function LoginPage() {
           <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 sm:p-8 lg:p-10">
             <div className="mb-8">
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                Welcome Back
+                {isSetupMode ? 'Create Admin Account' : 'Welcome Back'}
               </h2>
               <p className="text-gray-600">
-                Sign in to access the admin dashboard
+                {isSetupMode
+                  ? 'Set up your first admin account to get started'
+                  : 'Sign in to access the admin dashboard'}
               </p>
             </div>
 
@@ -134,8 +187,43 @@ export default function LoginPage() {
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                   <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-red-900 mb-1">Authentication Failed</h4>
+                    <h4 className="text-sm font-semibold text-red-900 mb-1">
+                      {isSetupMode ? 'Registration Failed' : 'Authentication Failed'}
+                    </h4>
                     <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Setup Mode Info */}
+              {isSetupMode && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <p className="text-sm text-blue-800">
+                    No admin accounts found. The first account you create will automatically have <strong>Super Admin</strong> privileges.
+                  </p>
+                </div>
+              )}
+
+              {/* Name Field - Only in setup mode */}
+              {isSetupMode && (
+                <div className="space-y-2">
+                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Your name"
+                    />
                   </div>
                 </div>
               )}
@@ -179,7 +267,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                    placeholder="••••••••••"
+                    placeholder={isSetupMode ? 'Min 6 characters' : '••••••••••'}
                   />
                   <button
                     type="button"
@@ -204,12 +292,12 @@ export default function LoginPage() {
                 {loading ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Signing in...</span>
+                    <span>{isSetupMode ? 'Creating account...' : 'Signing in...'}</span>
                   </>
                 ) : (
                   <>
                     <Shield className="h-5 w-5" />
-                    <span>Sign in to Dashboard</span>
+                    <span>{isSetupMode ? 'Create Super Admin Account' : 'Sign in to Dashboard'}</span>
                   </>
                 )}
               </button>

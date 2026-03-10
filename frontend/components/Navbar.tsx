@@ -17,7 +17,7 @@ import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
 import { Briefcase, Menu, X, User, LogOut, ChevronDown, Building2, Plus, MessageSquarePlus, Bell } from 'lucide-react';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
-import { api, notificationAPI } from '@/lib/api';
+import { api, authAPI, notificationAPI } from '@/lib/api';
 import Image from 'next/image';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -49,7 +49,12 @@ export function Navbar() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      // Logout from server failed, but still clear local state
+    }
     logout();
     router.push('/');
   };

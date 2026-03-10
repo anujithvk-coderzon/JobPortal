@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import prisma from '../config/database';
 import { AuthRequest } from '../types';
+import { cacheInvalidate, cacheInvalidatePattern, CacheKeys } from '../utils/cache';
+import { revokeAllUserRefreshTokens } from '../utils/jwt';
 
 export const getUsers = async (req: AuthRequest, res: Response) => {
   try {
@@ -153,6 +155,13 @@ export const blockUser = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Revoke all refresh tokens and invalidate auth cache — block takes effect immediately
+    await Promise.all([
+      revokeAllUserRefreshTokens(userId),
+      cacheInvalidate(CacheKeys.userAuth(userId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+    ]);
+
     return res.status(200).json({
       success: true,
       data: user,
@@ -191,6 +200,12 @@ export const unblockUser = async (req: AuthRequest, res: Response) => {
         action: 'UNBLOCK',
       },
     });
+
+    // Invalidate user auth cache
+    await Promise.all([
+      cacheInvalidate(CacheKeys.userAuth(userId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -235,6 +250,13 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
         reason,
       },
     });
+
+    // Revoke all refresh tokens and invalidate auth cache
+    await Promise.all([
+      revokeAllUserRefreshTokens(userId),
+      cacheInvalidate(CacheKeys.userAuth(userId)),
+      cacheInvalidate(CacheKeys.adminStats()),
+    ]);
 
     return res.status(200).json({
       success: true,

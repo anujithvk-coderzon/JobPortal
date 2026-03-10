@@ -9,6 +9,7 @@ import {
   uploadVideoToBunnyStream,
   deleteVideoFromBunnyStream,
 } from '../utils/bunnyStorage';
+import { cacheGet, cacheInvalidate, cacheInvalidatePattern, TTL, CacheKeys, hashQuery } from '../utils/cache';
 
 export const createJobNews = async (req: AuthRequest, res: Response) => {
   try {
@@ -116,6 +117,13 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Invalidate job news caches
+    await Promise.all([
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidatePattern(`jobnews:my:${req.user.userId}:*`),
+      cacheInvalidatePattern(`user:public:${req.user.userId}:*`),
+    ]);
+
     return res.status(201).json({
       success: true,
       data: jobNews,
@@ -203,62 +211,70 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
       prisma.jobNews.count({ where }),
     ]);
 
-    // Get unique user IDs to calculate credibility scores
+    // Get unique user IDs to calculate credibility scores (cached per user)
     const userIds = [...new Set(jobNews.map(post => post.userId))];
 
-    // Calculate credibility score for each user
     const userCredibilityMap = new Map();
 
-    for (const userId of userIds) {
-      const userPosts = await prisma.jobNews.findMany({
-        where: {
-          userId,
-          moderationStatus: 'APPROVED',
-          isActive: true,
-        },
-        select: {
-          _count: {
-            select: {
-              helpfulVotes: true,
-            },
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const credibility = await cacheGet(
+          CacheKeys.credibility(userId),
+          async () => {
+            const userPosts = await prisma.jobNews.findMany({
+              where: {
+                userId,
+                moderationStatus: 'APPROVED',
+                isActive: true,
+              },
+              select: {
+                _count: {
+                  select: {
+                    helpfulVotes: true,
+                  },
+                },
+              },
+            });
+
+            const totalHelpfulMarks = userPosts.reduce(
+              (sum, post) => sum + post._count.helpfulVotes,
+              0
+            );
+
+            let credibilityLevel = 'Newbie';
+            let nextLevel = 'Contributor';
+            let nextLevelAt = 10;
+
+            if (totalHelpfulMarks >= 100) {
+              credibilityLevel = 'Authority';
+              nextLevel = 'Authority';
+              nextLevelAt = 100;
+            } else if (totalHelpfulMarks >= 50) {
+              credibilityLevel = 'Expert';
+              nextLevel = 'Authority';
+              nextLevelAt = 100;
+            } else if (totalHelpfulMarks >= 25) {
+              credibilityLevel = 'Trusted';
+              nextLevel = 'Expert';
+              nextLevelAt = 50;
+            } else if (totalHelpfulMarks >= 10) {
+              credibilityLevel = 'Contributor';
+              nextLevel = 'Trusted';
+              nextLevelAt = 25;
+            }
+
+            return {
+              level: credibilityLevel,
+              score: totalHelpfulMarks,
+              nextLevel,
+              nextLevelAt,
+            };
           },
-        },
-      });
-
-      const totalHelpfulMarks = userPosts.reduce(
-        (sum, post) => sum + post._count.helpfulVotes,
-        0
-      );
-
-      let credibilityLevel = 'Newbie';
-      let nextLevel = 'Contributor';
-      let nextLevelAt = 10;
-
-      if (totalHelpfulMarks >= 100) {
-        credibilityLevel = 'Authority';
-        nextLevel = 'Authority';
-        nextLevelAt = 100;
-      } else if (totalHelpfulMarks >= 50) {
-        credibilityLevel = 'Expert';
-        nextLevel = 'Authority';
-        nextLevelAt = 100;
-      } else if (totalHelpfulMarks >= 25) {
-        credibilityLevel = 'Trusted';
-        nextLevel = 'Expert';
-        nextLevelAt = 50;
-      } else if (totalHelpfulMarks >= 10) {
-        credibilityLevel = 'Contributor';
-        nextLevel = 'Trusted';
-        nextLevelAt = 25;
-      }
-
-      userCredibilityMap.set(userId, {
-        level: credibilityLevel,
-        score: totalHelpfulMarks,
-        nextLevel,
-        nextLevelAt,
-      });
-    }
+          TTL.VERY_LONG
+        );
+        userCredibilityMap.set(userId, credibility);
+      })
+    );
 
     // Map to add helpfulCount, credibilityScore, and isHelpful to each post
     const jobNewsWithCounts = jobNews.map((post) => ({
@@ -567,6 +583,14 @@ export const updateJobNews = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidate(CacheKeys.jobNewsById(id)),
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidatePattern(`jobnews:my:${req.user.userId}:*`),
+      cacheInvalidatePattern(`user:public:${req.user.userId}:*`),
+    ]);
+
     return res.status(200).json({
       success: true,
       data: jobNews,
@@ -626,6 +650,15 @@ export const deleteJobNews = async (req: AuthRequest, res: Response) => {
     await prisma.jobNews.delete({
       where: { id },
     });
+
+    // Invalidate caches
+    await Promise.all([
+      cacheInvalidate(CacheKeys.jobNewsById(id)),
+      cacheInvalidatePattern('jobnews:all:*'),
+      cacheInvalidatePattern(`jobnews:my:${req.user.userId}:*`),
+      cacheInvalidatePattern(`user:public:${req.user.userId}:*`),
+      cacheInvalidate(CacheKeys.credibility(req.user.userId)),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -767,6 +800,13 @@ export const toggleHelpful = async (req: AuthRequest, res: Response) => {
     const helpfulCount = await prisma.jobNewsHelpful.count({
       where: { jobNewsId: id },
     });
+
+    // Invalidate credibility cache for the post author and post cache
+    await Promise.all([
+      cacheInvalidate(CacheKeys.credibility(jobNews.userId)),
+      cacheInvalidate(CacheKeys.jobNewsById(id)),
+      cacheInvalidatePattern('jobnews:all:*'),
+    ]);
 
     return res.status(200).json({
       success: true,

@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 import { verifyToken, verifyAdminToken } from '../utils/jwt';
 import prisma from '../config/database';
+import { cacheGet, cacheInvalidate, TTL, CacheKeys } from '../utils/cache';
 
 export const authenticate = async (
   req: AuthRequest,
@@ -23,14 +24,18 @@ export const authenticate = async (
     try {
       const decoded = verifyToken(token);
 
-      // Check if user still exists and is not blocked
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: {
-          id: true,
-          isBlocked: true,
-        },
-      });
+      // Check if user still exists and is not blocked (cached for 1 min)
+      const user = await cacheGet(
+        CacheKeys.userAuth(decoded.userId),
+        () => prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: {
+            id: true,
+            isBlocked: true,
+          },
+        }),
+        TTL.AUTH
+      );
 
       if (!user) {
         return res.status(403).json({

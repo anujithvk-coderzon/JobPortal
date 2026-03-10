@@ -8,6 +8,7 @@ import {
   generateProfilePhotoFilename,
   generateResumeFilename,
 } from '../utils/bunnyStorage';
+import { cacheInvalidate, cacheInvalidatePattern, CacheKeys } from '../utils/cache';
 
 // Calculate profile completion score
 const calculateCompletionScore = (profile: any, user: any): number => {
@@ -49,6 +50,14 @@ const updateCompletionScore = async (userId: string): Promise<number> => {
     where: { userId },
     data: { completionScore },
   });
+
+  // Invalidate profile and match caches when profile changes
+  await Promise.all([
+    cacheInvalidatePattern(`user:profile:${userId}`),
+    cacheInvalidatePattern(`user:public:${userId}:*`),
+    cacheInvalidatePattern(`jobs:match:${userId}:*`),
+    cacheInvalidatePattern(`dashboard:${userId}`),
+  ]);
 
   return completionScore;
 };
@@ -100,8 +109,8 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 
     // If viewing another user's profile, apply privacy settings
     const isOwnProfile = req.user?.userId === userId;
-    if (!isOwnProfile && user.profile && (user.profile as any).privacySettings) {
-      const privacy = (user.profile as any).privacySettings;
+    if (!isOwnProfile && user.profile && user.profile.privacySettings) {
+      const privacy = user.profile.privacySettings as any;
 
       // Hide private fields
       if (!privacy.email) {
@@ -166,8 +175,8 @@ export const getPublicProfile = async (req: AuthRequest, res: Response) => {
 
     // Apply privacy settings
     const isOwnProfile = req.user?.userId === userId;
-    if (!isOwnProfile && user.profile && (user.profile as any).privacySettings) {
-      const privacy = (user.profile as any).privacySettings;
+    if (!isOwnProfile && user.profile && user.profile.privacySettings) {
+      const privacy = user.profile.privacySettings as any;
 
       // Hide private fields
       if (!privacy.email) {
@@ -1165,6 +1174,50 @@ export const getMyPosts = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch posts',
+    });
+  }
+};
+
+// Update Privacy Settings
+export const updatePrivacySettings = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+      });
+    }
+
+    const { email, phone, location, bio, education, experience, skills } = req.body;
+
+    const privacySettings = {
+      email: !!email,
+      phone: !!phone,
+      location: !!location,
+      bio: !!bio,
+      education: !!education,
+      experience: !!experience,
+      skills: !!skills,
+    };
+
+    const profile = await prisma.profile.upsert({
+      where: { userId: req.user.userId },
+      update: { privacySettings },
+      create: {
+        userId: req.user.userId,
+        privacySettings,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: profile.privacySettings,
+    });
+  } catch (error: any) {
+    console.error('Update privacy settings error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update privacy settings',
     });
   }
 };
