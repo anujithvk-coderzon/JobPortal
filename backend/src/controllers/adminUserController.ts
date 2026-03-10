@@ -13,11 +13,12 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const search = req.query.search as string || '';
-    const isBlocked = (req.query.isBlocked as string) === 'true';
-    const isDeleted = (req.query.isDeleted as string) === 'true';
+    const { page: pageStr, limit: limitStr, search: searchStr, isBlocked: isBlockedStr, isDeleted: isDeletedStr } = req.query as { [key: string]: string };
+    const page = parseInt(pageStr) || 1;
+    const limit = parseInt(limitStr) || 20;
+    const search = searchStr || '';
+    const isBlocked = isBlockedStr === 'true';
+    const isDeleted = isDeletedStr === 'true';
     const skip = (page - 1) * limit;
 
     // Build where clause

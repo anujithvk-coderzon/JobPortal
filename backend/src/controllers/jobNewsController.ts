@@ -141,12 +141,12 @@ export const createJobNews = async (req: AuthRequest, res: Response) => {
 export const getAllJobNews = async (req: AuthRequest, res: Response) => {
   try {
     const {
-      page = 1,
-      limit = 10,
+      page = '1',
+      limit = '10',
       search,
       location,
       followingOnly,
-    } = req.query as any;
+    } = req.query as { [key: string]: string };
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -682,7 +682,7 @@ export const getMyJobNews = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { page = 1, limit = 10, search } = req.query as any;
+    const { page = '1', limit = '10', search } = req.query as { [key: string]: string };
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 

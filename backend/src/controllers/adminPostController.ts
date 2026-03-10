@@ -20,10 +20,10 @@ export const getPosts = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const search = req.query.search as string || '';
-    const status = req.query.status as string;
+    const { page: pageStr, limit: limitStr, search: searchStr, status } = req.query as { [key: string]: string };
+    const page = parseInt(pageStr) || 1;
+    const limit = parseInt(limitStr) || 20;
+    const search = searchStr || '';
     const skip = (page - 1) * limit;
 
     // Build where clause - exclude soft-deleted posts from regular view
@@ -367,8 +367,9 @@ export const getFlaggedPosts = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const { page: pageStr, limit: limitStr } = req.query as { [key: string]: string };
+    const page = parseInt(pageStr) || 1;
+    const limit = parseInt(limitStr) || 20;
     const skip = (page - 1) * limit;
 
     // Get posts that have at least REPORT_THRESHOLD reports
@@ -830,9 +831,10 @@ export const getSoftDeletedPosts = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const search = req.query.search as string || '';
+    const { page: pageStr, limit: limitStr, search: searchStr } = req.query as { [key: string]: string };
+    const page = parseInt(pageStr) || 1;
+    const limit = parseInt(limitStr) || 20;
+    const search = searchStr || '';
     const skip = (page - 1) * limit;
 
     // Build where clause

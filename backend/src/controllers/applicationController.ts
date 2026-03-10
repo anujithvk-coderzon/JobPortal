@@ -135,7 +135,7 @@ export const getMyApplications = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { page = 1, limit = 20, status } = req.query as any;
+    const { page = '1', limit = '20', status } = req.query as { [key: string]: string };
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -297,7 +297,7 @@ export const getJobApplications = async (req: AuthRequest, res: Response) => {
     }
 
     const { jobId } = req.params;
-    const { page = 1, limit = 20, status } = req.query as any;
+    const { page = '1', limit = '20', status } = req.query as { [key: string]: string };
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 

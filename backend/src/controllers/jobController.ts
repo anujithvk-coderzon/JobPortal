@@ -138,8 +138,8 @@ export const createJob = async (req: AuthRequest, res: Response) => {
 export const getAllJobs = async (req: AuthRequest, res: Response) => {
   try {
     let {
-      page = 1,
-      limit = 20,
+      page = '1',
+      limit = '20',
       search,
       location,
       employmentType,
@@ -148,7 +148,7 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
       salaryMin,
       salaryMax,
       sortBy = 'recent',
-    } = req.query as any;
+    } = req.query as { [key: string]: string };
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -740,7 +740,7 @@ export const getMyJobs = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    let { page = 1, limit = 20, search } = req.query as any;
+    let { page = '1', limit = '20', search } = req.query as { [key: string]: string };
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -824,7 +824,7 @@ export const getMyJobs = async (req: AuthRequest, res: Response) => {
 export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
   try {
     const { companyId } = req.params;
-    const { page = 1, limit = 20 } = req.query as any;
+    const { page = '1', limit = '20' } = req.query as { [key: string]: string };
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -1029,7 +1029,7 @@ export const getSavedJobs = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { page = 1, limit = 20 } = req.query as any;
+    const { page = '1', limit = '20' } = req.query as { [key: string]: string };
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
@@ -1092,7 +1092,7 @@ export const getJobMatchScore = async (req: AuthRequest, res: Response) => {
     }
 
     const { jobId } = req.params;
-    const { userId } = req.query; // Optional: calculate match for specific user
+    const { userId } = req.query as { [key: string]: string }; // Optional: calculate match for specific user
 
     // Check if job exists
     const job = await prisma.job.findUnique({

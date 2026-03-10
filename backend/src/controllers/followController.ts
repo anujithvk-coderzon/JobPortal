@@ -98,8 +98,9 @@ export const unfollowUser = async (req: AuthRequest, res: Response) => {
 export const getFollowing = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const { page: pageStr, limit: limitStr } = req.query as { [key: string]: string };
+    const page = parseInt(pageStr) || 1;
+    const limit = parseInt(limitStr) || 20;
     const skip = (page - 1) * limit;
 
     const [following, total] = await Promise.all([
@@ -153,8 +154,9 @@ export const getFollowing = async (req: AuthRequest, res: Response) => {
 export const getFollowers = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const { page: pageStr, limit: limitStr } = req.query as { [key: string]: string };
+    const page = parseInt(pageStr) || 1;
+    const limit = parseInt(limitStr) || 20;
     const skip = (page - 1) * limit;
 
     const [followers, total] = await Promise.all([
@@ -262,7 +264,8 @@ export const getFollowCounts = async (req: AuthRequest, res: Response) => {
 export const getSuggestedUsers = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const limit = parseInt(req.query.limit as string) || 5;
+    const { limit: limitStr } = req.query as { [key: string]: string };
+    const limit = parseInt(limitStr) || 5;
 
     // Get users that current user is already following
     const following = await prisma.follow.findMany({
