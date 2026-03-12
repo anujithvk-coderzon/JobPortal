@@ -14,7 +14,7 @@ import { JobMatchScore } from '@/components/JobMatchScore';
 import { Search, Briefcase, MapPin, Building2, Clock, ArrowRight, User, ExternalLink, ThumbsUp, Image as ImageIcon, Video } from 'lucide-react';
 import { jobNewsAPI, jobAPI } from '@/lib/api';
 import { EmploymentType, ExperienceLevel, LocationType } from '@/lib/types';
-import { timeAgo, getInitials } from '@/lib/utils';
+import { timeAgo, getInitials, formatSalary } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 
 interface Post {
@@ -47,6 +47,7 @@ interface Job {
   salaryMin?: number;
   salaryMax?: number;
   salaryCurrency?: string;
+  salaryPeriod?: string;
   createdAt: string;
   company?: {
     id: string;
@@ -221,10 +222,9 @@ export default function HomePage() {
                           </div>
                         )}
                       </div>
-                      {(job.salaryMin || job.salaryMax) && (
+                      {job.salaryMin && (
                         <p className="text-sm font-semibold text-primary">
-                          {job.salaryCurrency || 'USD'} {job.salaryMin?.toLocaleString()}
-                          {job.salaryMax && ` - ${job.salaryMax.toLocaleString()}`}
+                          {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}
                         </p>
                       )}
                     </CardHeader>

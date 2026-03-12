@@ -13,22 +13,31 @@ export function formatDate(date: string | Date) {
   })
 }
 
-export function formatSalary(min?: number, max?: number, currency: string = 'INR') {
+export function formatSalary(min?: number, max?: number, currency: string = 'INR', period: string = 'LPA') {
   if (!min && !max) return 'Not specified';
 
-  const formatter = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+  // Treat legacy 'YEARLY' / 'YEARLY_CTC' values as LPA / CTC
+  const fmt = period === 'YEARLY' ? 'LPA' : period === 'YEARLY_CTC' ? 'CTC' : period;
+
+  if (fmt === 'LPA') {
+    if (min) return `₹${min} LPA`;
+    return 'Not specified';
+  }
+
+  if (fmt === 'CTC') {
+    if (min) return `₹${min}L CTC`;
+    return 'Not specified';
+  }
+
+  // Monthly format - show range with ₹ symbol
+  const formatNum = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
   if (min && max) {
-    return `${formatter.format(min)} - ${formatter.format(max)}`;
+    return `${formatNum(min)} - ${formatNum(max)} /month`;
   } else if (min) {
-    return `From ${formatter.format(min)}`;
+    return `From ${formatNum(min)} /month`;
   } else if (max) {
-    return `Up to ${formatter.format(max)}`;
+    return `Up to ${formatNum(max)} /month`;
   }
 
   return 'Not specified';

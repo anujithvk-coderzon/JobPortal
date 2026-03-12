@@ -227,6 +227,7 @@ model Job {
   salaryMin           Int?
   salaryMax           Int?
   salaryCurrency      String?            @default("INR")
+  salaryPeriod        String?            @default("LPA")
   showSalary          Boolean            @default(true)
 
   numberOfOpenings    Int                @default(1)

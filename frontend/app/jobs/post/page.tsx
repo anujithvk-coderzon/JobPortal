@@ -24,6 +24,7 @@ import {
   EMPLOYMENT_TYPE_OPTIONS,
   EXPERIENCE_LEVEL_OPTIONS,
   LOCATION_TYPE_OPTIONS,
+  SALARY_FORMAT_OPTIONS,
 } from '@/lib/constants';
 import { Loader2, Plus, X, Briefcase, DollarSign, Building2, Sparkles, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
@@ -57,6 +58,7 @@ function PostJobPageContent() {
     salaryMin: '',
     salaryMax: '',
     salaryCurrency: 'INR',
+    salaryPeriod: 'LPA',
     showSalary: true,
     numberOfOpenings: '1',
     applicationDeadline: '',
@@ -172,6 +174,7 @@ function PostJobPageContent() {
         salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : undefined,
         salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : undefined,
         salaryCurrency: formData.salaryCurrency,
+        salaryPeriod: formData.salaryPeriod,
         showSalary: formData.showSalary,
         numberOfOpenings: parseInt(formData.numberOfOpenings),
         applicationDeadline: formData.applicationDeadline || undefined,
@@ -532,13 +535,72 @@ function PostJobPageContent() {
                 <div className="flex items-start gap-2.5">
                   <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-orange-800 leading-relaxed">
-                    <strong className="font-semibold">Transparency tip:</strong> Including salary ranges can increase application rates by up to 30%. It helps attract serious candidates and saves time for both parties.
+                    <strong className="font-semibold">Transparency tip:</strong> Including salary information can increase application rates by up to 30%. It helps attract serious candidates and saves time for both parties.
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Salary Format Selection */}
+              <div>
+                <Label htmlFor="salaryPeriod">Salary Format</Label>
+                <Select
+                  value={formData.salaryPeriod}
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, salaryPeriod: value, salaryMin: '', salaryMax: '' }));
+                  }}
+                >
+                  <SelectTrigger id="salaryPeriod">
+                    <SelectValue placeholder="Select salary format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SALARY_FORMAT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Conditional Salary Inputs */}
+              {formData.salaryPeriod === 'MONTHLY' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="salaryMin">Minimum Salary (₹)</Label>
+                    <Input
+                      id="salaryMin"
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.salaryMin}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        handleInputChange('salaryMin', val);
+                      }}
+                      placeholder="e.g. 25000"
+                      className="[appearance:textfield]"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="salaryMax">Maximum Salary (₹)</Label>
+                    <Input
+                      id="salaryMax"
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.salaryMax}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        handleInputChange('salaryMax', val);
+                      }}
+                      placeholder="e.g. 40000"
+                      className="[appearance:textfield]"
+                    />
+                  </div>
+                </div>
+              ) : (
                 <div>
-                  <Label htmlFor="salaryMin">Minimum Salary (₹)</Label>
+                  <Label htmlFor="salaryMin">
+                    {formData.salaryPeriod === 'LPA' ? 'Salary in LPA (₹)' : 'CTC in Lakhs (₹)'}
+                  </Label>
                   <Input
                     id="salaryMin"
                     type="text"
@@ -548,27 +610,17 @@ function PostJobPageContent() {
                       const val = e.target.value.replace(/[^0-9]/g, '');
                       handleInputChange('salaryMin', val);
                     }}
-                    placeholder="e.g. 300000"
+                    placeholder={formData.salaryPeriod === 'LPA' ? 'e.g. 6' : 'e.g. 8'}
                     className="[appearance:textfield]"
                   />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {formData.salaryPeriod === 'LPA'
+                      ? 'Enter the annual salary in lakhs, e.g. 6 for 6 LPA'
+                      : 'Enter the CTC in lakhs, e.g. 8 for 8L CTC'}
+                  </p>
                 </div>
+              )}
 
-                <div>
-                  <Label htmlFor="salaryMax">Maximum Salary (₹)</Label>
-                  <Input
-                    id="salaryMax"
-                    type="text"
-                    inputMode="numeric"
-                    value={formData.salaryMax}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      handleInputChange('salaryMax', val);
-                    }}
-                    placeholder="e.g. 600000"
-                    className="[appearance:textfield]"
-                  />
-                </div>
-              </div>
               {(formData.salaryMin || formData.salaryMax) && (
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>

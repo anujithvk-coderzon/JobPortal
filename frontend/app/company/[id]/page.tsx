@@ -65,6 +65,7 @@ interface Job {
   salaryMin: number | null;
   salaryMax: number | null;
   salaryCurrency: string | null;
+  salaryPeriod: string | null;
   showSalary?: boolean;
   isActive: boolean;
   createdAt: string;
@@ -171,16 +172,27 @@ export default function CompanyDetailPage() {
     }
   };
 
-  const formatSalary = (min: number | null, max: number | null, currency: string | null) => {
+  const formatSalary = (min: number | null, max: number | null, currency: string | null, period?: string | null) => {
     if (!min && !max) return null;
+    const raw = period || 'LPA';
+    const fmt = raw === 'YEARLY' ? 'LPA' : raw === 'YEARLY_CTC' ? 'CTC' : raw;
+
+    if (fmt === 'LPA') {
+      return min ? `₹${min} LPA` : null;
+    }
+    if (fmt === 'CTC') {
+      return min ? `₹${min}L CTC` : null;
+    }
+
+    // Monthly
     const curr = currency || 'INR';
     const locale = curr === 'INR' ? 'en-IN' : 'en-US';
     const symbol = curr === 'INR' ? '₹' : '$';
     if (min && max) {
-      return `${symbol}${min.toLocaleString(locale)} - ${symbol}${max.toLocaleString(locale)}`;
+      return `${symbol}${min.toLocaleString(locale)} - ${symbol}${max.toLocaleString(locale)} /mo`;
     }
-    if (min) return `${symbol}${min.toLocaleString(locale)}+`;
-    if (max) return `Up to ${symbol}${max.toLocaleString(locale)}`;
+    if (min) return `${symbol}${min.toLocaleString(locale)}+ /mo`;
+    if (max) return `Up to ${symbol}${max.toLocaleString(locale)} /mo`;
     return null;
   };
 
@@ -576,10 +588,10 @@ export default function CompanyDetailPage() {
                           </div>
                         )}
 
-                        {job.showSalary !== false && formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency) && (
+                        {job.showSalary !== false && formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod) && (
                           <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-600">
                             <Briefcase className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 flex-shrink-0" />
-                            <span className="truncate">{formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}</span>
+                            <span className="truncate">{formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}</span>
                           </div>
                         )}
 

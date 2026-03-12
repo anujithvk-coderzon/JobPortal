@@ -459,9 +459,9 @@ function JobsPageContent() {
                         <Badge variant="secondary" className="text-xs">{getEmploymentTypeLabel(job.employmentType)}</Badge>
                         <Badge variant="secondary" className="text-xs">{getExperienceLevelLabel(job.experienceLevel)}</Badge>
                         <Badge variant="secondary" className="text-xs">{getLocationTypeLabel(job.locationType)}</Badge>
-                        {job.salaryMin && job.salaryMax && job.showSalary !== false && (
+                        {job.salaryMin && job.showSalary !== false && (
                           <Badge variant="outline" className="text-xs">
-                            {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
+                            {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}
                           </Badge>
                         )}
                         {isAuthenticated && (

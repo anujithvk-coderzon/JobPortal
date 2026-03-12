@@ -64,6 +64,23 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   HIRED: 'Hired',
 };
 
+// Salary Format Options
+export const SALARY_FORMAT_OPTIONS = [
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'LPA', label: 'LPA (Lakhs Per Annum)' },
+  { value: 'CTC', label: 'CTC (Cost to Company)' },
+] as const;
+
+export const SALARY_FORMAT_LABELS: Record<string, string> = {
+  MONTHLY: '/month',
+  LPA: 'LPA',
+  CTC: 'L CTC',
+};
+
+export const getSalaryFormatLabel = (format: string): string => {
+  return SALARY_FORMAT_LABELS[format] || 'LPA';
+};
+
 // Currency Options
 export const CURRENCY_OPTIONS = [
   { value: 'AED', label: 'AED (د.إ)', symbol: 'د.إ' },

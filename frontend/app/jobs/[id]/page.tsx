@@ -221,9 +221,9 @@ export default function JobDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   <Badge>{getEmploymentTypeLabel(job.employmentType)}</Badge>
                   <Badge variant="secondary">{getExperienceLevelLabel(job.experienceLevel)}</Badge>
-                  {job.salaryMin && job.salaryMax && job.showSalary !== false && (
+                  {job.salaryMin && job.showSalary !== false && (
                     <Badge variant="outline">
-                      {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
+                      {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}
                     </Badge>
                   )}
                   {job.numberOfOpenings > 1 && (
