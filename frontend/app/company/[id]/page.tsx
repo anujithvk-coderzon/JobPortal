@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Navbar } from '@/components/Navbar';
+
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   Building2,
   MapPin,
@@ -24,10 +23,8 @@ import {
   Linkedin,
   Twitter,
   Facebook,
-  TrendingUp,
   Eye,
   ChevronRight,
-  BarChart3,
   CheckCircle2,
   Loader2,
   ExternalLink,
@@ -36,6 +33,7 @@ import { api, jobAPI } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 interface Company {
   id: string;
@@ -184,7 +182,6 @@ export default function CompanyDetailPage() {
       return min ? `₹${min}L CTC` : null;
     }
 
-    // Monthly
     const curr = currency || 'INR';
     const locale = curr === 'INR' ? 'en-IN' : 'en-US';
     const symbol = curr === 'INR' ? '₹' : '$';
@@ -209,120 +206,91 @@ export default function CompanyDetailPage() {
     return date.toLocaleDateString();
   };
 
-  // Calculate stats
   const totalJobs = jobs.length;
   const activeJobs = jobs.filter(j => j.isActive).length;
   const totalApplications = jobs.reduce((sum, job) => sum + (job._count?.applications || 0), 0);
 
   if (isLoading && !company) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-          <div className="text-center">
-            <Loader2 className="h-10 w-10 md:h-12 md:w-12 text-blue-600 mx-auto mb-3 md:mb-4 animate-spin" />
-            <p className="text-sm md:text-base text-gray-600">Loading company details...</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!company) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-          <div className="text-center px-4">
-            <Building2 className="h-10 w-10 md:h-12 md:w-12 text-gray-400 mx-auto mb-3 md:mb-4" />
-            <p className="text-sm md:text-base text-gray-600 mb-4">Company not found</p>
-            <Button onClick={() => router.push('/dashboard')} size="sm" className="h-9 md:h-10">
-              Back to Dashboard
-            </Button>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="p-3 rounded-lg bg-primary/8 w-fit mx-auto mb-3">
+            <Building2 className="h-6 w-6 text-muted-foreground" />
           </div>
+          <p className="text-[13px] text-muted-foreground mb-3">Company not found</p>
+          <Button onClick={() => router.push('/dashboard')} size="sm">
+            Back to Dashboard
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <Navbar />
-      <div className="container mx-auto py-3 md:py-6 lg:py-8 px-2 md:px-4 lg:px-6 max-w-7xl">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="mb-2 md:mb-3 lg:mb-4 h-8 md:h-9 px-2 md:px-4"
-          size="sm"
-        >
-          <ArrowLeft className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-          <span className="text-xs md:text-sm">Back</span>
-        </Button>
+    <div className="min-h-screen bg-background">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+        <Breadcrumb items={[{ label: 'Dashboard', href: '/dashboard' }, { label: company?.name || 'Company' }]} />
 
-        {/* Company Header Card */}
-        <Card className="mb-3 md:mb-4 lg:mb-6 shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
-          <CardContent className="p-3 md:p-4 lg:p-6 relative">
-            {/* Edit Button - Top Right */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => router.push(`/company/${company.id}/edit`)}
-              className="absolute top-2 right-2 md:top-3 md:right-3 h-7 md:h-8 px-2 md:px-3 text-[10px] md:text-xs"
-            >
-              <Edit className="h-3 w-3 md:h-3.5 md:w-3.5 mr-1" />
-              <span className="font-medium">Edit</span>
-            </Button>
-
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-              {/* Company Logo */}
-              <div className="flex-shrink-0 mx-auto sm:mx-0">
+        {/* Company Header */}
+        <Card className="rounded-lg border bg-card mb-4">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0">
                 {company.logo ? (
-                  <div className="relative w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-xl overflow-hidden border-2 shadow-md">
-                    <Image
-                      src={company.logo}
-                      alt={company.name}
-                      fill
-                      className="object-cover"
-                    />
+                  <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border">
+                    <Image src={company.logo} alt={company.name} fill className="object-cover" />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border-2 shadow-md">
-                    <Building2 className="h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 text-white" />
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-primary/8 flex items-center justify-center border">
+                    <Building2 className="h-7 w-7 text-primary" />
                   </div>
                 )}
               </div>
 
-              {/* Company Info */}
-              <div className="flex-1 min-w-0 text-center sm:text-left">
-                <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 mb-1.5 md:mb-2">
-                  {company.name}
-                </h1>
-
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 md:gap-2 mb-2 md:mb-3">
-                  {company.industry && (
-                    <Badge className="text-[9px] md:text-[10px] px-1.5 md:px-2 h-4 md:h-5 bg-blue-100 text-blue-700 hover:bg-blue-200 font-medium">
-                      {company.industry}
-                    </Badge>
-                  )}
-                  <div className="flex items-center gap-1 text-[10px] md:text-xs text-gray-600 bg-gray-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
-                    <MapPin className="h-2.5 w-2.5 md:h-3 md:w-3 text-gray-500" />
-                    <span className="font-medium">{company.location}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h1 className="text-lg font-semibold mb-1">{company.name}</h1>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {company.industry && (
+                        <Badge variant="default" className="text-[10px]">{company.industry}</Badge>
+                      )}
+                      <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        <span>{company.location}</span>
+                      </div>
+                    </div>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push(`/company/${company.id}/edit`)}
+                    className="flex-shrink-0"
+                  >
+                    <Edit className="h-3.5 w-3.5 mr-1.5" />
+                    Edit
+                  </Button>
                 </div>
 
-                {/* Quick Info - Grid Layout on Mobile */}
-                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 md:gap-2 lg:gap-3">
+                <div className="flex flex-wrap gap-2">
                   {company.companySize && (
-                    <div className="flex items-center gap-1 text-[10px] md:text-[11px] lg:text-xs text-gray-600 bg-gray-50 px-1.5 md:px-2 py-1 md:py-1.5 rounded-md">
-                      <Users className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-500 flex-shrink-0" />
-                      <span className="font-medium truncate">{company.companySize}</span>
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      <Users className="h-3 w-3" />
+                      <span>{company.companySize}</span>
                     </div>
                   )}
                   {company.foundedYear && (
-                    <div className="flex items-center gap-1 text-[10px] md:text-[11px] lg:text-xs text-gray-600 bg-gray-50 px-1.5 md:px-2 py-1 md:py-1.5 rounded-md">
-                      <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-500 flex-shrink-0" />
-                      <span className="font-medium truncate">Est. {company.foundedYear}</span>
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      <Calendar className="h-3 w-3" />
+                      <span>Est. {company.foundedYear}</span>
                     </div>
                   )}
                   {company.website && (
@@ -330,11 +298,11 @@ export default function CompanyDetailPage() {
                       href={company.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[10px] md:text-[11px] lg:text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 md:px-2 py-1 md:py-1.5 rounded-md transition-colors font-medium col-span-2 sm:col-span-1 justify-center sm:justify-start"
+                      className="flex items-center gap-1 text-[11px] text-primary bg-primary/8 hover:bg-primary/15 px-2 py-0.5 rounded transition-colors"
                     >
-                      <Globe className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-                      <span className="truncate">Visit Website</span>
-                      <ExternalLink className="h-2.5 w-2.5 flex-shrink-0" />
+                      <Globe className="h-3 w-3" />
+                      <span>Website</span>
+                      <ExternalLink className="h-2.5 w-2.5" />
                     </a>
                   )}
                 </div>
@@ -343,94 +311,99 @@ export default function CompanyDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3 lg:gap-4 mb-3 md:mb-4 lg:mb-6">
-          <Card className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
-            <CardContent className="p-2.5 md:p-3 lg:p-4">
-              <div className="flex items-center justify-between mb-1 md:mb-2">
-                <div className="p-1.5 md:p-2 bg-green-50 rounded-lg">
-                  <Briefcase className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-green-600" />
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <Card className="rounded-lg border bg-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-primary/8 rounded-lg">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold">{totalJobs}</div>
+                  <p className="text-[11px] text-muted-foreground">Total Jobs</p>
                 </div>
               </div>
-              <div className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">{totalJobs}</div>
-              <p className="text-[10px] md:text-xs text-gray-600">Total Jobs</p>
             </CardContent>
           </Card>
-
-          <Card className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
-            <CardContent className="p-2.5 md:p-3 lg:p-4">
-              <div className="flex items-center justify-between mb-1 md:mb-2">
-                <div className="p-1.5 md:p-2 bg-blue-50 rounded-lg">
-                  <CheckCircle2 className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-blue-600" />
+          <Card className="rounded-lg border bg-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-primary/8 rounded-lg">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold">{activeJobs}</div>
+                  <p className="text-[11px] text-muted-foreground">Active Jobs</p>
                 </div>
               </div>
-              <div className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">{activeJobs}</div>
-              <p className="text-[10px] md:text-xs text-gray-600">Active Jobs</p>
             </CardContent>
           </Card>
-
-          <Card className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500">
-            <CardContent className="p-2.5 md:p-3 lg:p-4">
-              <div className="flex items-center justify-between mb-1 md:mb-2">
-                <div className="p-1.5 md:p-2 bg-purple-50 rounded-lg">
-                  <Users className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 text-purple-600" />
+          <Card className="rounded-lg border bg-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-primary/8 rounded-lg">
+                  <Users className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold">{totalApplications}</div>
+                  <p className="text-[11px] text-muted-foreground">Applications</p>
                 </div>
               </div>
-              <div className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">{totalApplications}</div>
-              <p className="text-[10px] md:text-xs text-gray-600">Total Applications</p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-          {/* Left Side - Company Details */}
-          <div className="lg:col-span-1 space-y-3 md:space-y-4">
-            {/* About Card */}
+        {/* 2-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+          {/* Sidebar */}
+          <div className="space-y-3">
+            {/* About */}
             {company.about && (
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
-                  <CardTitle className="text-sm md:text-base lg:text-lg flex items-center gap-2">
-                    <Building2 className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-                    About Company
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6">
-                  <p className="text-xs md:text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+              <Card className="rounded-lg border bg-card">
+                <div className="p-4 border-b">
+                  <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-primary" />
+                    About
+                  </h3>
+                </div>
+                <CardContent className="p-4 pt-3">
+                  <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
                     {company.about}
                   </p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Contact Card */}
-            <Card className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
-                <CardTitle className="text-sm md:text-base lg:text-lg flex items-center gap-2">
-                  <Mail className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-                  Contact Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 space-y-2 md:space-y-3">
+            {/* Contact */}
+            <Card className="rounded-lg border bg-card">
+              <div className="p-4 border-b">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-primary" />
+                  Contact
+                </h3>
+              </div>
+              <CardContent className="p-3 space-y-1">
                 <a
                   href={`mailto:${company.contactEmail}`}
-                  className="flex items-center gap-2 md:gap-3 p-2 md:p-2.5 rounded-lg hover:bg-blue-50 transition-colors group"
+                  className="flex items-center gap-2.5 p-2 rounded-md hover:bg-muted transition-colors group"
                 >
-                  <div className="p-1.5 md:p-2 bg-gray-100 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Mail className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-600 group-hover:text-blue-600" />
+                  <div className="p-1.5 bg-primary/8 rounded group-hover:bg-primary/15 transition-colors">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
-                  <span className="text-xs md:text-sm text-gray-600 group-hover:text-blue-600 truncate">
+                  <span className="text-[13px] text-muted-foreground group-hover:text-foreground truncate">
                     {company.contactEmail}
                   </span>
                 </a>
 
                 <a
                   href={`tel:${company.contactPhone}`}
-                  className="flex items-center gap-2 md:gap-3 p-2 md:p-2.5 rounded-lg hover:bg-blue-50 transition-colors group"
+                  className="flex items-center gap-2.5 p-2 rounded-md hover:bg-muted transition-colors group"
                 >
-                  <div className="p-1.5 md:p-2 bg-gray-100 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Phone className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-600 group-hover:text-blue-600" />
+                  <div className="p-1.5 bg-primary/8 rounded group-hover:bg-primary/15 transition-colors">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
-                  <span className="text-xs md:text-sm text-gray-600 group-hover:text-blue-600">
+                  <span className="text-[13px] text-muted-foreground group-hover:text-foreground">
                     {company.contactPhone}
                   </span>
                 </a>
@@ -440,36 +413,36 @@ export default function CompanyDetailPage() {
                     href={company.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 md:gap-3 p-2 md:p-2.5 rounded-lg hover:bg-blue-50 transition-colors group"
+                    className="flex items-center gap-2.5 p-2 rounded-md hover:bg-muted transition-colors group"
                   >
-                    <div className="p-1.5 md:p-2 bg-gray-100 rounded-lg group-hover:bg-blue-100 transition-colors">
-                      <Globe className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-600 group-hover:text-blue-600" />
+                    <div className="p-1.5 bg-primary/8 rounded group-hover:bg-primary/15 transition-colors">
+                      <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
-                    <span className="text-xs md:text-sm text-gray-600 group-hover:text-blue-600 truncate flex-1">
+                    <span className="text-[13px] text-muted-foreground group-hover:text-foreground truncate flex-1">
                       {company.website}
                     </span>
-                    <ExternalLink className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-400 group-hover:text-blue-600" />
+                    <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                   </a>
                 )}
               </CardContent>
             </Card>
 
-            {/* Social Media Card */}
+            {/* Social Media */}
             {(company.linkedIn || company.twitter || company.facebook) && (
-              <Card className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6">
-                  <CardTitle className="text-sm md:text-base lg:text-lg">Social Media</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6">
-                  <div className="flex gap-2 md:gap-3">
+              <Card className="rounded-lg border bg-card">
+                <div className="p-4 border-b">
+                  <h3 className="text-sm font-semibold">Social</h3>
+                </div>
+                <CardContent className="p-4">
+                  <div className="flex gap-2">
                     {company.linkedIn && (
                       <a
                         href={company.linkedIn}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 p-2 md:p-3 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center justify-center"
+                        className="p-2.5 rounded-lg border hover:bg-primary/8 hover:text-primary hover:border-primary/20 transition-colors"
                       >
-                        <Linkedin className="h-4 w-4 md:h-5 md:w-5" />
+                        <Linkedin className="h-4 w-4" />
                       </a>
                     )}
                     {company.twitter && (
@@ -477,9 +450,9 @@ export default function CompanyDetailPage() {
                         href={company.twitter}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 p-2 md:p-3 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center justify-center"
+                        className="p-2.5 rounded-lg border hover:bg-primary/8 hover:text-primary hover:border-primary/20 transition-colors"
                       >
-                        <Twitter className="h-4 w-4 md:h-5 md:w-5" />
+                        <Twitter className="h-4 w-4" />
                       </a>
                     )}
                     {company.facebook && (
@@ -487,9 +460,9 @@ export default function CompanyDetailPage() {
                         href={company.facebook}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 p-2 md:p-3 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center justify-center"
+                        className="p-2.5 rounded-lg border hover:bg-primary/8 hover:text-primary hover:border-primary/20 transition-colors"
                       >
-                        <Facebook className="h-4 w-4 md:h-5 md:w-5" />
+                        <Facebook className="h-4 w-4" />
                       </a>
                     )}
                   </div>
@@ -498,25 +471,23 @@ export default function CompanyDetailPage() {
             )}
           </div>
 
-          {/* Right Side - Jobs */}
-          <div className="lg:col-span-2 space-y-3 md:space-y-4">
+          {/* Main - Jobs */}
+          <div className="space-y-3">
             {/* Jobs Header */}
-            <Card className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-green-500">
-              <CardContent className="p-3 md:p-4 lg:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex-1 text-center sm:text-left">
-                    <h2 className="text-base md:text-lg lg:text-xl font-bold text-gray-900 mb-1">
-                      Job Openings
-                    </h2>
-                    <p className="text-xs md:text-sm text-gray-600">
+            <Card className="rounded-lg border bg-card">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold mb-0.5">Job Openings</h2>
+                    <p className="text-[12px] text-muted-foreground">
                       {jobs.length} {jobs.length === 1 ? 'position' : 'positions'} available
                     </p>
                   </div>
                   <Button
                     onClick={() => router.push(`/jobs/post?companyId=${company.id}`)}
-                    className="w-full sm:w-auto h-9 md:h-10 text-xs md:text-sm"
+                    size="sm"
                   >
-                    <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
                     Post New Job
                   </Button>
                 </div>
@@ -525,93 +496,90 @@ export default function CompanyDetailPage() {
 
             {/* Jobs List */}
             {isLoading ? (
-              <div className="text-center py-8 md:py-12">
-                <Loader2 className="h-10 w-10 md:h-12 md:w-12 text-blue-600 mx-auto mb-3 md:mb-4 animate-spin" />
-                <p className="text-xs md:text-sm text-gray-600">Loading jobs...</p>
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
             ) : jobs.length === 0 ? (
-              <Card className="shadow-md">
-                <CardContent className="text-center py-8 md:py-12 lg:py-16 px-3 md:px-6">
-                  <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 md:mb-4 rounded-full bg-green-50 flex items-center justify-center">
-                    <Briefcase className="h-8 w-8 md:h-10 md:w-10 text-green-300" />
+              <Card className="rounded-lg border bg-card">
+                <CardContent className="py-16 text-center">
+                  <div className="p-3 rounded-lg bg-primary/8 w-fit mx-auto mb-3">
+                    <Briefcase className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <h3 className="text-base md:text-lg font-semibold mb-1.5 md:mb-2">No jobs posted yet</h3>
-                  <p className="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 max-w-md mx-auto">
+                  <h3 className="text-sm font-semibold mb-1">No jobs posted yet</h3>
+                  <p className="text-[13px] text-muted-foreground mb-4 max-w-sm mx-auto">
                     Start hiring top talent by posting your first job opening
                   </p>
                   <Button
                     onClick={() => router.push(`/jobs/post?companyId=${company.id}`)}
-                    className="h-9 md:h-10 text-xs md:text-sm"
+                    size="sm"
                   >
-                    <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
                     Post Your First Job
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-2 md:space-y-3 lg:space-y-4">
+              <div className="space-y-2">
                 {jobs.map((job) => (
                   <Card
                     key={job.id}
-                    className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 border-l-green-500"
+                    className="rounded-lg border bg-card group hover:border-primary/20 transition-colors cursor-pointer"
                     onClick={() => router.push(`/jobs/${job.id}`)}
                   >
-                    <CardContent className="p-3 md:p-4 lg:p-6">
-                      <div className="flex items-start justify-between mb-2 md:mb-3">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm md:text-base lg:text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1.5 md:mb-2 truncate">
+                          <h3 className="text-[13px] font-semibold group-hover:text-primary transition-colors mb-1.5 truncate">
                             {job.title}
                           </h3>
-                          <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <Badge
-                              variant={job.isActive ? 'default' : 'secondary'}
-                              className="text-[9px] md:text-xs px-1.5 md:px-2 h-4 md:h-5"
+                              variant={job.isActive ? 'success' : 'secondary'}
+                              className="text-[10px]"
                             >
                               {job.isActive ? 'Active' : 'Inactive'}
                             </Badge>
-                            <Badge variant="outline" className="text-[9px] md:text-xs px-1.5 md:px-2 h-4 md:h-5">
+                            <Badge variant="secondary" className="text-[10px] font-normal">
                               {job.employmentType}
                             </Badge>
-                            <Badge variant="outline" className="text-[9px] md:text-xs px-1.5 md:px-2 h-4 md:h-5">
+                            <Badge variant="secondary" className="text-[10px] font-normal">
                               {job.locationType}
                             </Badge>
                           </div>
                         </div>
-                        <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-2" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-2" />
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 mb-3 md:mb-4">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
                         {job.location && (
-                          <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-600">
-                            <MapPin className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 flex-shrink-0" />
+                          <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
                             <span className="truncate">{job.location}</span>
                           </div>
                         )}
-
                         {job.showSalary !== false && formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod) && (
-                          <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-600">
-                            <Briefcase className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 flex-shrink-0" />
-                            <span className="truncate">{formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}</span>
+                          <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                            <Briefcase className="h-3 w-3" />
+                            <span>{formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}</span>
                           </div>
                         )}
-
-                        <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-600">
-                          <Clock className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4 text-gray-400 flex-shrink-0" />
-                          <span className="truncate">{formatDate(job.createdAt)}</span>
+                        <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatDate(job.createdAt)}</span>
                         </div>
                       </div>
 
                       {job._count !== undefined && (
-                        <div className={`flex items-center gap-1.5 md:gap-2 p-2 md:p-2.5 rounded-lg mb-3 md:mb-4 ${
+                        <div className={`flex items-center gap-1.5 p-2 rounded-md mb-2 text-[12px] ${
                           job._count.pendingApplications > 0
-                            ? 'bg-orange-50 border border-orange-200'
-                            : 'bg-purple-50'
+                            ? 'bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800'
+                            : 'bg-muted'
                         }`}>
-                          <Users className={`h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0 ${
-                            job._count.pendingApplications > 0 ? 'text-orange-600' : 'text-purple-600'
+                          <Users className={`h-3.5 w-3.5 ${
+                            job._count.pendingApplications > 0 ? 'text-orange-600' : 'text-muted-foreground'
                           }`} />
-                          <span className={`text-xs md:text-sm font-medium ${
-                            job._count.pendingApplications > 0 ? 'text-orange-900' : 'text-purple-900'
+                          <span className={`font-medium ${
+                            job._count.pendingApplications > 0 ? 'text-orange-900 dark:text-orange-100' : 'text-foreground'
                           }`}>
                             {job._count.pendingApplications > 0 ? (
                               <>
@@ -628,44 +596,44 @@ export default function CompanyDetailPage() {
                         </div>
                       )}
 
-                      <div className="flex gap-1.5 md:gap-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant={job._count?.pendingApplications && job._count.pendingApplications > 0 ? 'default' : 'outline'}
                           onClick={() => router.push(`/jobs/${job.id}/applications`)}
-                          className={`flex-1 min-w-0 h-8 md:h-9 text-[10px] md:text-xs ${
+                          className={`flex-1 min-w-0 text-[11px] ${
                             job._count?.pendingApplications && job._count.pendingApplications > 0
                               ? 'bg-orange-600 hover:bg-orange-700'
                               : ''
                           }`}
                         >
-                          <Eye className="h-3 w-3 md:h-3.5 md:w-3.5 mr-1 md:mr-1.5" />
+                          <Eye className="h-3 w-3 mr-1" />
                           <span className="truncate">
                             {job._count?.pendingApplications && job._count.pendingApplications > 0
                               ? `${job._count.pendingApplications} Pending`
-                              : 'View Applications'}
+                              : 'Applications'}
                           </span>
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => router.push(`/jobs/${job.id}/edit`)}
-                          className="h-8 md:h-9 px-2 md:px-3 text-[10px] md:text-xs"
+                          className="text-[11px] px-2.5"
                         >
-                          <Edit className="h-3 w-3 md:h-3.5 md:w-3.5 md:mr-1.5" />
-                          <span className="hidden md:inline">Edit</span>
+                          <Edit className="h-3 w-3 sm:mr-1" />
+                          <span className="hidden sm:inline">Edit</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
                           onClick={() => handleDeleteJob(job.id)}
                           disabled={deletingJobId === job.id}
-                          className="h-8 md:h-9 px-2 md:px-3 text-[10px] md:text-xs"
+                          className="text-[11px] px-2.5"
                         >
                           {deletingJobId === job.id ? (
-                            <Loader2 className="h-3 w-3 md:h-3.5 md:w-3.5 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           )}
                         </Button>
                       </div>
@@ -673,28 +641,29 @@ export default function CompanyDetailPage() {
                   </Card>
                 ))}
 
-                {/* Load More Button */}
+                {/* Load More */}
                 {pagination.page < pagination.totalPages && (
-                  <div className="text-center mt-4 md:mt-6">
+                  <div className="text-center pt-2">
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={handleLoadMore}
                       disabled={isLoadingMore}
-                      className="w-full sm:w-auto h-9 md:h-10 text-xs md:text-sm px-6 md:px-8"
+                      className="min-w-[160px]"
                     >
                       {isLoadingMore ? (
                         <>
-                          <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                           Loading...
                         </>
                       ) : (
                         <>
                           Load More Jobs
-                          <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1.5 md:ml-2" />
+                          <ChevronRight className="h-3.5 w-3.5 ml-1" />
                         </>
                       )}
                     </Button>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
                       Showing {jobs.length} of {pagination.total} jobs
                     </p>
                   </div>

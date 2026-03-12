@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Navbar } from '@/components/Navbar';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Upload, X, ArrowLeft, Trash2, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Building2, Upload, X, ArrowLeft, Loader2 } from 'lucide-react';
+import { Breadcrumb } from '@/components/Breadcrumb';
 import { api } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import Image from 'next/image';
@@ -51,7 +52,6 @@ export default function EditCompanyPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Authentication check
   useEffect(() => {
     if (!isHydrated) return;
 
@@ -137,7 +137,6 @@ export default function EditCompanyPage() {
 
   const handleRemoveLogo = async () => {
     if (existingLogo) {
-      // Delete from server
       try {
         await api.delete(`/companies/${companyId}/logo`);
         setExistingLogo(null);
@@ -191,7 +190,6 @@ export default function EditCompanyPage() {
     setIsSaving(true);
 
     try {
-      // Update company data
       const companyData = {
         name: formData.name,
         location: formData.location,
@@ -214,7 +212,6 @@ export default function EditCompanyPage() {
         throw new Error(response.error || 'Failed to update company');
       }
 
-      // Upload new logo if provided
       if (logoFile) {
         const logoResponse = await api.post(`/companies/${companyId}/logo`, {
           file: logoFile.base64,
@@ -226,7 +223,6 @@ export default function EditCompanyPage() {
         }
       }
 
-      // Redirect back to company detail page
       router.push(`/company/${companyId}`);
     } catch (error: any) {
       console.error('Error updating company:', error);
@@ -236,210 +232,142 @@ export default function EditCompanyPage() {
     }
   };
 
-  // Prevent rendering for unauthenticated users
   if (!isHydrated || !isAuthenticated || !user) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading company details...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => router.push(`/company/${companyId}`)}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Company
-        </Button>
+    <div className="min-h-screen bg-background">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
+        {/* Header */}
+        <div className="mb-6">
+          <Breadcrumb items={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Edit Company' }]} />
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Building2 className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl">Edit Company Profile</CardTitle>
-                <CardDescription>
-                  Update your company information
-                </CardDescription>
-              </div>
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="p-1.5 bg-primary/8 rounded-lg">
+              <Building2 className="h-4 w-4 text-primary" />
             </div>
-          </CardHeader>
+            <h1 className="text-lg font-semibold">Edit Company Profile</h1>
+          </div>
+          <p className="text-[13px] text-muted-foreground">Update your company information</p>
+        </div>
 
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Logo Upload */}
-              <div className="space-y-2">
-                <Label>Company Logo (Optional)</Label>
-                {!logoPreview ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoSelect}
-                      className="hidden"
-                      id="logo-upload"
-                    />
-                    <label
-                      htmlFor="logo-upload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Upload className="h-10 w-10 text-gray-400" />
-                      <span className="text-sm text-gray-600">
-                        Click to upload company logo
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        PNG, JPG up to 5MB
-                      </span>
-                    </label>
-                  </div>
-                ) : (
-                  <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
-                    <Image
-                      src={logoPreview}
-                      alt="Logo preview"
-                      fill
-                      className="object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveLogo}
-                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-                {errors.logo && (
-                  <p className="text-sm text-red-500">{errors.logo}</p>
-                )}
-              </div>
-
-              {/* Required Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">
-                    Company Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Enter company name"
-                    className={errors.name ? 'border-red-500' : ''}
-                  />
-                  {errors.name && (
-                    <p className="text-sm text-red-500">{errors.name}</p>
-                  )}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Logo */}
+          <Card className="rounded-lg border bg-card">
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-sm font-semibold">Company Logo</h2>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Optional</p>
+            </div>
+            <CardContent className="p-4 sm:p-6">
+              {!logoPreview ? (
+                <div className="rounded-lg border-2 border-dashed p-6 text-center hover:border-primary/30 transition-colors">
+                  <input type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" id="logo-upload" />
+                  <label htmlFor="logo-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                    <div className="p-2 bg-primary/8 rounded-lg">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <span className="text-[13px] text-muted-foreground">Click to upload company logo</span>
+                    <span className="text-[11px] text-muted-foreground">PNG, JPG up to 5MB</span>
+                  </label>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">
-                    Location <span className="text-red-500">*</span>
-                  </Label>
-                  <LocationAutocomplete
-                    id="location"
-                    value={formData.location}
-                    onChange={(value) => handleInputChange('location', value)}
-                    placeholder="City, State, Country"
-                    className={errors.location ? 'border-red-500' : ''}
-                  />
-                  {errors.location && (
-                    <p className="text-sm text-red-500">{errors.location}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pinCode">
-                    PIN Code <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="pinCode"
-                    value={formData.pinCode}
-                    onChange={(e) => handleInputChange('pinCode', e.target.value)}
-                    placeholder="6-digit PIN code"
-                    maxLength={6}
-                    className={errors.pinCode ? 'border-red-500' : ''}
-                  />
-                  {errors.pinCode && (
-                    <p className="text-sm text-red-500">{errors.pinCode}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contactEmail">
-                    Contact Email <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="contactEmail"
-                    type="email"
-                    value={formData.contactEmail}
-                    onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                    placeholder="contact@company.com"
-                    className={errors.contactEmail ? 'border-red-500' : ''}
-                  />
-                  {errors.contactEmail && (
-                    <p className="text-sm text-red-500">{errors.contactEmail}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contactPhone">
-                    Contact Phone <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="contactPhone"
-                    value={formData.contactPhone}
-                    onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-                    placeholder="+1 234 567 8900"
-                    className={errors.contactPhone ? 'border-red-500' : ''}
-                  />
-                  {errors.contactPhone && (
-                    <p className="text-sm text-red-500">{errors.contactPhone}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    value={formData.website}
-                    onChange={(e) => handleInputChange('website', e.target.value)}
-                    placeholder="https://company.com"
-                    className={errors.website ? 'border-red-500' : ''}
-                  />
-                  {errors.website && (
-                    <p className="text-sm text-red-500">{errors.website}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="industry">Industry</Label>
-                  <Select
-                    value={formData.industry}
-                    onValueChange={(value) => handleInputChange('industry', value)}
+              ) : (
+                <div className="relative w-28 h-28 border rounded-lg overflow-hidden">
+                  <Image src={logoPreview} alt="Logo preview" fill className="object-cover" />
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90"
                   >
-                    <SelectTrigger>
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {errors.logo && <p className="text-[12px] text-destructive mt-1.5">{errors.logo}</p>}
+            </CardContent>
+          </Card>
+
+          {/* Required Fields */}
+          <Card className="rounded-lg border bg-card">
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-sm font-semibold">Basic Information</h2>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Required fields are marked with *</p>
+            </div>
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-[13px] font-medium">
+                    Company Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Enter company name" className={`h-9 text-[13px] ${errors.name ? 'border-destructive' : ''}`} />
+                  {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="location" className="text-[13px] font-medium">
+                    Location <span className="text-destructive">*</span>
+                  </Label>
+                  <LocationAutocomplete id="location" value={formData.location} onChange={(value) => handleInputChange('location', value)} placeholder="City, State, Country" className={`h-9 ${errors.location ? 'border-destructive' : ''}`} />
+                  {errors.location && <p className="text-[11px] text-destructive">{errors.location}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="pinCode" className="text-[13px] font-medium">
+                    PIN Code <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="pinCode" value={formData.pinCode} onChange={(e) => handleInputChange('pinCode', e.target.value)} placeholder="6-digit PIN code" maxLength={6} className={`h-9 text-[13px] ${errors.pinCode ? 'border-destructive' : ''}`} />
+                  {errors.pinCode && <p className="text-[11px] text-destructive">{errors.pinCode}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="contactEmail" className="text-[13px] font-medium">
+                    Contact Email <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="contactEmail" type="email" value={formData.contactEmail} onChange={(e) => handleInputChange('contactEmail', e.target.value)} placeholder="contact@company.com" className={`h-9 text-[13px] ${errors.contactEmail ? 'border-destructive' : ''}`} />
+                  {errors.contactEmail && <p className="text-[11px] text-destructive">{errors.contactEmail}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="contactPhone" className="text-[13px] font-medium">
+                    Contact Phone <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="contactPhone" value={formData.contactPhone} onChange={(e) => handleInputChange('contactPhone', e.target.value)} placeholder="+1 234 567 8900" className={`h-9 text-[13px] ${errors.contactPhone ? 'border-destructive' : ''}`} />
+                  {errors.contactPhone && <p className="text-[11px] text-destructive">{errors.contactPhone}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="website" className="text-[13px] font-medium">Website <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="website" value={formData.website} onChange={(e) => handleInputChange('website', e.target.value)} placeholder="https://company.com" className={`h-9 text-[13px] ${errors.website ? 'border-destructive' : ''}`} />
+                  {errors.website && <p className="text-[11px] text-destructive">{errors.website}</p>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Company Details */}
+          <Card className="rounded-lg border bg-card">
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-sm font-semibold">Company Details</h2>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Optional</p>
+            </div>
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="industry" className="text-[13px] font-medium">Industry <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Select value={formData.industry} onValueChange={(value) => handleInputChange('industry', value)}>
+                    <SelectTrigger className="h-9 text-[13px]">
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
                     <SelectContent>
@@ -484,13 +412,10 @@ export default function EditCompanyPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="companySize">Company Size</Label>
-                  <Select
-                    value={formData.companySize}
-                    onValueChange={(value) => handleInputChange('companySize', value)}
-                  >
-                    <SelectTrigger>
+                <div className="space-y-1.5">
+                  <Label htmlFor="companySize" className="text-[13px] font-medium">Company Size <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Select value={formData.companySize} onValueChange={(value) => handleInputChange('companySize', value)}>
+                    <SelectTrigger className="h-9 text-[13px]">
                       <SelectValue placeholder="Select company size" />
                     </SelectTrigger>
                     <SelectContent>
@@ -505,102 +430,68 @@ export default function EditCompanyPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="foundedYear">Founded Year</Label>
-                  <Input
-                    id="foundedYear"
-                    type="number"
-                    value={formData.foundedYear}
-                    onChange={(e) => handleInputChange('foundedYear', e.target.value)}
-                    placeholder="e.g., 2020"
-                    min="1800"
-                    max={new Date().getFullYear()}
-                    className={errors.foundedYear ? 'border-red-500' : ''}
-                  />
-                  {errors.foundedYear && (
-                    <p className="text-sm text-red-500">{errors.foundedYear}</p>
-                  )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="foundedYear" className="text-[13px] font-medium">Founded Year <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="foundedYear" type="number" value={formData.foundedYear} onChange={(e) => handleInputChange('foundedYear', e.target.value)} placeholder="e.g., 2020" min="1800" max={new Date().getFullYear()} className={`h-9 text-[13px] ${errors.foundedYear ? 'border-destructive' : ''}`} />
+                  {errors.foundedYear && <p className="text-[11px] text-destructive">{errors.foundedYear}</p>}
                 </div>
               </div>
 
-              {/* About */}
-              <div className="space-y-2">
-                <Label htmlFor="about">About Company</Label>
-                <Textarea
-                  id="about"
-                  value={formData.about}
-                  onChange={(e) => handleInputChange('about', e.target.value)}
-                  placeholder="Tell us about your company..."
-                  rows={4}
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="about" className="text-[13px] font-medium">About Company <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                <Textarea id="about" value={formData.about} onChange={(e) => handleInputChange('about', e.target.value)} placeholder="Tell us about your company..." rows={4} className="text-[13px]" />
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Social Links */}
-              <div className="space-y-3">
-                <Label>Social Media Links (Optional)</Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="linkedIn" className="text-sm text-gray-600">
-                      LinkedIn URL
-                    </Label>
-                    <Input
-                      id="linkedIn"
-                      value={formData.linkedIn}
-                      onChange={(e) => handleInputChange('linkedIn', e.target.value)}
-                      placeholder="https://linkedin.com/company/..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter" className="text-sm text-gray-600">
-                      Twitter URL
-                    </Label>
-                    <Input
-                      id="twitter"
-                      value={formData.twitter}
-                      onChange={(e) => handleInputChange('twitter', e.target.value)}
-                      placeholder="https://twitter.com/..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="facebook" className="text-sm text-gray-600">
-                      Facebook URL
-                    </Label>
-                    <Input
-                      id="facebook"
-                      value={formData.facebook}
-                      onChange={(e) => handleInputChange('facebook', e.target.value)}
-                      placeholder="https://facebook.com/..."
-                    />
-                  </div>
+          {/* Social */}
+          <Card className="rounded-lg border bg-card">
+            <div className="p-4 sm:p-6 border-b">
+              <h2 className="text-sm font-semibold">Social Media</h2>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Optional</p>
+            </div>
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="linkedIn" className="text-[13px] text-muted-foreground">LinkedIn URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="linkedIn" value={formData.linkedIn} onChange={(e) => handleInputChange('linkedIn', e.target.value)} placeholder="https://linkedin.com/company/..." className="h-9 text-[13px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="twitter" className="text-[13px] text-muted-foreground">Twitter URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="twitter" value={formData.twitter} onChange={(e) => handleInputChange('twitter', e.target.value)} placeholder="https://twitter.com/..." className="h-9 text-[13px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="facebook" className="text-[13px] text-muted-foreground">Facebook URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="facebook" value={formData.facebook} onChange={(e) => handleInputChange('facebook', e.target.value)} placeholder="https://facebook.com/..." className="h-9 text-[13px]" />
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Submit Error */}
-              {errors.submit && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600">{errors.submit}</p>
-                </div>
+          {/* Submit Error */}
+          {errors.submit && (
+            <div className="p-3 bg-destructive/5 border border-destructive/10 rounded-lg">
+              <p className="text-[12px] text-destructive">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/company/${companyId}`)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
               )}
-
-              {/* Actions */}
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push(`/company/${companyId}`)}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );

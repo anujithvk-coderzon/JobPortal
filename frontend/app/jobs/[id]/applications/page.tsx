@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Navbar } from '@/components/Navbar';
 import { JobMatchScore } from '@/components/JobMatchScore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +52,7 @@ import {
   AlertCircle,
   ShieldAlert,
 } from 'lucide-react';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 interface Application {
   id: string;
@@ -323,7 +323,6 @@ ${companyName} Team`;
     }
   };
 
-
   const handleScheduleInterview = async () => {
     try {
       // Validate required fields
@@ -493,28 +492,28 @@ ${companyName} Team`;
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'HIRED':
-        return 'default';
+        return 'success' as const;
       case 'REJECTED':
-        return 'destructive';
+        return 'destructive' as const;
       case 'INTERVIEW_SCHEDULED':
-        return 'secondary';
+        return 'warning' as const;
       case 'PENDING':
       default:
-        return 'outline';
+        return 'secondary' as const;
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'HIRED':
-        return <CheckCircle className="h-4 w-4" />;
+        return <CheckCircle className="h-3 w-3" />;
       case 'REJECTED':
-        return <XCircle className="h-4 w-4" />;
+        return <XCircle className="h-3 w-3" />;
       case 'INTERVIEW_SCHEDULED':
-        return <Calendar className="h-4 w-4" />;
+        return <Calendar className="h-3 w-3" />;
       case 'PENDING':
       default:
-        return <Clock className="h-4 w-4" />;
+        return <Clock className="h-3 w-3" />;
     }
   };
 
@@ -536,7 +535,6 @@ ${companyName} Team`;
   const getAvailableStatuses = (currentStatus: string) => {
     switch (currentStatus) {
       case 'PENDING':
-        // From PENDING, can go to any other status
         return [
           { value: 'PENDING', label: 'Pending' },
           { value: 'INTERVIEW_SCHEDULED', label: 'Interview Scheduled' },
@@ -544,7 +542,6 @@ ${companyName} Team`;
           { value: 'HIRED', label: 'Hired' },
         ];
       case 'INTERVIEW_SCHEDULED':
-        // From INTERVIEW_SCHEDULED, can only go to REJECTED or HIRED
         return [
           { value: 'INTERVIEW_SCHEDULED', label: 'Interview Scheduled' },
           { value: 'REJECTED', label: 'Rejected' },
@@ -552,7 +549,6 @@ ${companyName} Team`;
         ];
       case 'REJECTED':
       case 'HIRED':
-        // Final states - no changes allowed
         return [
           { value: currentStatus, label: getStatusLabel(currentStatus) },
         ];
@@ -570,59 +566,52 @@ ${companyName} Team`;
     ? applications.filter(app => app.status === statusFilter)
     : [];
 
-  // Prevent rendering for unauthenticated users
+  // Loading state
   if (!isHydrated || !isAuthenticated || !user || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mb-6">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          <Card className="border-destructive">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                {error.includes('Access denied') ? (
-                  <ShieldAlert className="h-8 w-8 text-destructive" />
-                ) : (
-                  <AlertCircle className="h-8 w-8 text-destructive" />
-                )}
-                <div>
-                  <CardTitle className="text-destructive">
-                    {error.includes('Access denied') ? 'Access Denied' : 'Error'}
-                  </CardTitle>
-                  <CardDescription>{error}</CardDescription>
+        <div className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+          <Breadcrumb items={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Applications' }]} />
+          <div className="rounded-lg border border-destructive/50 bg-card p-6">
+            <div className="flex items-start gap-3">
+              {error.includes('Access denied') ? (
+                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  <ShieldAlert className="h-4 w-4 text-destructive" />
+                </div>
+              ) : (
+                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                </div>
+              )}
+              <div className="flex-1">
+                <h2 className="text-sm font-semibold text-destructive mb-1">
+                  {error.includes('Access denied') ? 'Access Denied' : 'Error'}
+                </h2>
+                <p className="text-[13px] text-muted-foreground mb-4">
+                  {error.includes('Access denied')
+                    ? 'You can only view applications for jobs that you have posted. This job was posted by another user.'
+                    : error}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => router.push('/dashboard')} className="text-[12px]">
+                    Go to Dashboard
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => router.push('/jobs')} className="text-[12px]">
+                    Browse Jobs
+                  </Button>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {error.includes('Access denied')
-                  ? 'You can only view applications for jobs that you have posted. This job was posted by another user.'
-                  : 'The job you are looking for may have been deleted or does not exist.'}
-              </p>
-              <div className="flex gap-2">
-                <Button onClick={() => router.push('/dashboard')}>
-                  Go to Dashboard
-                </Button>
-                <Button variant="outline" onClick={() => router.push('/jobs')}>
-                  Browse Jobs
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -630,30 +619,24 @@ ${companyName} Team`;
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <Button variant="ghost" onClick={() => router.push('/dashboard')} className="mb-3 sm:mb-4 -ml-2 sm:-ml-0">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Back to Dashboard</span>
-            <span className="sm:hidden">Back</span>
-          </Button>
+        <div className="mb-6">
+          <Breadcrumb items={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Applications' }]} />
 
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Applications</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">
+              <h1 className="text-lg font-semibold">Applications</h1>
+              <p className="text-[12px] text-muted-foreground mt-0.5">
                 {job?.title} at {job?.company?.name || job?.companyName}
               </p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 {filteredApplications.length} {statusFilter.toLowerCase().replace('_', ' ')} application{filteredApplications.length !== 1 ? 's' : ''}
               </p>
             </div>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-[200px]">
+              <SelectTrigger className="w-full sm:w-[180px] h-8 text-[13px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -664,142 +647,115 @@ ${companyName} Team`;
               </SelectContent>
             </Select>
           </div>
-
-          {/* Mobile Quick Actions */}
-          <div className="lg:hidden flex gap-2 mt-3 sm:mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => router.push('/jobs')}
-            >
-              <Briefcase className="h-4 w-4 mr-1.5" />
-              <span className="text-xs sm:text-sm">Explore Jobs</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => router.push('/community')}
-            >
-              <User className="h-4 w-4 mr-1.5" />
-              <span className="text-xs sm:text-sm">Community</span>
-            </Button>
-          </div>
         </div>
 
         {filteredApplications.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No {statusFilter.toLowerCase().replace('_', ' ')} applications</h3>
-              <p className="text-muted-foreground">
-                No applications with status "{statusFilter.toLowerCase().replace('_', ' ')}" found.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-lg border bg-card p-12 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/8 mb-3">
+              <User className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h3 className="text-sm font-semibold mb-1">No {statusFilter.toLowerCase().replace('_', ' ')} applications</h3>
+            <p className="text-[12px] text-muted-foreground">
+              No applications with this status found.
+            </p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Applications List - Scrollable */}
-            <div className={`space-y-3 sm:space-y-4 max-h-[calc(100vh-280px)] overflow-y-auto lg:max-h-[calc(100vh-250px)] lg:pr-2 p-1 -m-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400 ${selectedApplication ? 'hidden lg:block' : ''}`}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Applications List */}
+            <div className={`space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto lg:max-h-[calc(100vh-250px)] lg:pr-2 ${selectedApplication ? 'hidden lg:block' : ''}`}>
               {filteredApplications.map((application) => (
-                <Card
+                <div
                   key={application.id}
-                  className={`cursor-pointer transition-all hover:shadow-md active:shadow-lg ${
-                    selectedApplication?.id === application.id ? 'ring-2 ring-primary ring-offset-0' : ''
+                  className={`rounded-lg border bg-card p-4 cursor-pointer transition-colors hover:bg-accent/50 ${
+                    selectedApplication?.id === application.id ? 'ring-1 ring-primary' : ''
                   }`}
                   onClick={() => setSelectedApplication(application)}
                 >
-                  <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-3">
-                    <div className="flex items-start justify-between gap-2 sm:gap-4">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <Avatar className="h-12 w-12 flex-shrink-0">
-                          <AvatarImage
-                            src={application.applicant.profilePhoto || undefined}
-                            referrerPolicy="no-referrer"
-                            crossOrigin="anonymous"
-                          />
-                          <AvatarFallback>{getInitials(application.applicant.name)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold truncate">{application.applicant.name}</h3>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {application.applicant.email}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
-                        <JobMatchScore jobId={jobId} applicantId={application.applicant.id} variant="badge" />
-                        <Badge variant={getStatusBadgeVariant(application.status)} className="flex items-center gap-1">
-                          {getStatusIcon(application.status)}
-                          <span className="hidden sm:inline">{getStatusLabel(application.status)}</span>
-                        </Badge>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar className="h-9 w-9 flex-shrink-0">
+                        <AvatarImage
+                          src={application.applicant.profilePhoto || undefined}
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                        />
+                        <AvatarFallback className="text-[11px]">{getInitials(application.applicant.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[13px] font-semibold truncate">{application.applicant.name}</h3>
+                        <p className="text-[12px] text-muted-foreground truncate">
+                          {application.applicant.email}
+                        </p>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-3 sm:px-6 pt-0">
-                    <div className="flex flex-wrap gap-2 sm:gap-3 text-xs text-muted-foreground">
-                      {application.applicant.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          <span className="truncate">{application.applicant.location}</span>
-                        </span>
-                      )}
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <JobMatchScore jobId={jobId} applicantId={application.applicant.id} variant="badge" />
+                      <Badge variant={getStatusBadgeVariant(application.status)} className="text-[10px] h-5 flex items-center gap-1">
+                        {getStatusIcon(application.status)}
+                        <span className="hidden sm:inline">{getStatusLabel(application.status)}</span>
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground mt-2 pl-12">
+                    {application.applicant.location && (
                       <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        Applied {timeAgo(application.appliedAt)}
+                        <MapPin className="h-3 w-3" />
+                        <span className="truncate">{application.applicant.location}</span>
                       </span>
-                    </div>
-                  </CardContent>
-                </Card>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Applied {timeAgo(application.appliedAt)}
+                    </span>
+                  </div>
+                </div>
               ))}
             </div>
 
-            {/* Application Details - Sticky on desktop, full width on mobile */}
+            {/* Application Detail Panel */}
             <div className={`${selectedApplication ? 'block' : 'hidden lg:block'} lg:sticky lg:top-8 lg:self-start`}>
               {selectedApplication ? (
-                <Card>
-                  <CardHeader className="p-4 sm:p-6">
-                    {/* Mobile Back Button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="lg:hidden mb-4 -ml-2"
+                <div className="rounded-lg border bg-card">
+                  <div className="p-4 sm:p-5 border-b">
+                    {/* Mobile Back */}
+                    <button
+                      className="lg:hidden inline-flex items-center text-[12px] text-muted-foreground hover:text-foreground transition-colors mb-3"
                       onClick={() => setSelectedApplication(null)}
                     >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      <ArrowLeft className="h-3 w-3 mr-1" />
                       Back to List
-                    </Button>
+                    </button>
 
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12 sm:h-16 sm:w-16 flex-shrink-0">
+                        <Avatar className="h-9 w-9 flex-shrink-0">
                           <AvatarImage
                             src={selectedApplication.applicant.profilePhoto || undefined}
                             referrerPolicy="no-referrer"
                             crossOrigin="anonymous"
                           />
-                          <AvatarFallback className="text-base sm:text-lg">
+                          <AvatarFallback className="text-[11px]">
                             {getInitials(selectedApplication.applicant.name)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <CardTitle className="text-lg sm:text-xl truncate">{selectedApplication.applicant.name}</CardTitle>
-                          <CardDescription className="truncate">{selectedApplication.applicant.email}</CardDescription>
+                          <h3 className="text-sm font-semibold truncate">{selectedApplication.applicant.name}</h3>
+                          <p className="text-[12px] text-muted-foreground truncate">{selectedApplication.applicant.email}</p>
                         </div>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                  </div>
+
+                  <div className="p-4 sm:p-5 space-y-4">
                     {/* Status Management */}
                     <div>
-                      <Label className="text-sm font-medium mb-2 block">Application Status</Label>
+                      <Label className="text-[11px] text-muted-foreground mb-1.5 block">Application Status</Label>
                       <Select
                         value={selectedApplication.status}
                         onValueChange={(value) => handleStatusChange(selectedApplication.id, value)}
                         disabled={selectedApplication.status === 'REJECTED' || selectedApplication.status === 'HIRED'}
                       >
-                        <SelectTrigger className={selectedApplication.status === 'REJECTED' || selectedApplication.status === 'HIRED' ? 'cursor-not-allowed' : ''}>
+                        <SelectTrigger className={`h-8 text-[13px] ${selectedApplication.status === 'REJECTED' || selectedApplication.status === 'HIRED' ? 'cursor-not-allowed opacity-60' : ''}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -811,7 +767,7 @@ ${companyName} Team`;
                         </SelectContent>
                       </Select>
                       {(selectedApplication.status === 'REJECTED' || selectedApplication.status === 'HIRED') && (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-[11px] text-muted-foreground mt-1">
                           This is a final status and cannot be changed.
                         </p>
                       )}
@@ -819,16 +775,15 @@ ${companyName} Team`;
 
                     {/* Interview Details */}
                     {selectedApplication.status === 'INTERVIEW_SCHEDULED' && selectedApplication.interviewDate && (
-                      <div className="border rounded-lg p-4 bg-primary/5 space-y-3">
-                        <div className="flex items-center gap-2 font-medium">
-                          <Calendar className="h-4 w-4 text-primary" />
+                      <div className="rounded-md border p-3 bg-primary/8 space-y-2">
+                        <div className="flex items-center gap-1.5 text-[13px] font-medium">
+                          <Calendar className="h-3.5 w-3.5 text-primary" />
                           Interview Scheduled
                         </div>
-
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2">
                           <div>
-                            <Label className="text-xs text-muted-foreground">Date & Time</Label>
-                            <p className="font-medium">
+                            <p className="text-[11px] text-muted-foreground">Date & Time</p>
+                            <p className="text-[13px] font-medium">
                               {new Date(selectedApplication.interviewDate).toLocaleDateString('en-US', {
                                 year: 'numeric',
                                 month: 'long',
@@ -838,113 +793,113 @@ ${companyName} Team`;
                               })}
                             </p>
                           </div>
-
                           {selectedApplication.interviewLink && (
                             <div>
-                              <Label className="text-xs text-muted-foreground">Meeting Link</Label>
+                              <p className="text-[11px] text-muted-foreground">Meeting Link</p>
                               <a
                                 href={selectedApplication.interviewLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-primary hover:underline break-all block"
+                                className="text-[13px] text-primary hover:underline break-all"
                               >
                                 {selectedApplication.interviewLink}
                               </a>
                             </div>
                           )}
-
                           {selectedApplication.interviewNotes && (
                             <div>
-                              <Label className="text-xs text-muted-foreground">Notes</Label>
-                              <p className="whitespace-pre-wrap">{selectedApplication.interviewNotes}</p>
+                              <p className="text-[11px] text-muted-foreground">Notes</p>
+                              <p className="text-[13px] whitespace-pre-wrap">{selectedApplication.interviewNotes}</p>
                             </div>
                           )}
                         </div>
                       </div>
                     )}
 
-                    <Tabs defaultValue="contact" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-                        <TabsTrigger value="contact">Contact</TabsTrigger>
-                        <TabsTrigger value="resume">Resume</TabsTrigger>
-                        <TabsTrigger value="profile">Profile</TabsTrigger>
-                        <TabsTrigger value="cover">Cover</TabsTrigger>
+                    <Tabs defaultValue="contact" className="w-full overflow-hidden">
+                      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-8">
+                        <TabsTrigger value="contact" className="text-[11px]">Contact</TabsTrigger>
+                        <TabsTrigger value="resume" className="text-[11px]">Resume</TabsTrigger>
+                        <TabsTrigger value="profile" className="text-[11px]">Profile</TabsTrigger>
+                        <TabsTrigger value="cover" className="text-[11px]">Cover</TabsTrigger>
                       </TabsList>
 
-                      <TabsContent value="contact" className="space-y-4 mt-4">
+                      <TabsContent value="contact" className="space-y-3 mt-3">
                         <div>
-                          <Label className="text-xs text-muted-foreground">Email</Label>
-                          <p className="flex items-center gap-2">
-                            <Mail className="h-4 w-4" />
+                          <p className="text-[11px] text-muted-foreground">Email</p>
+                          <p className="flex items-center gap-1.5 text-[13px]">
+                            <Mail className="h-3 w-3 text-muted-foreground" />
                             {selectedApplication.applicant.email}
                           </p>
                         </div>
                         {selectedApplication.applicant.phone && (
                           <div>
-                            <Label className="text-xs text-muted-foreground">Phone</Label>
-                            <p className="flex items-center gap-2">
-                              <Phone className="h-4 w-4" />
+                            <p className="text-[11px] text-muted-foreground">Phone</p>
+                            <p className="flex items-center gap-1.5 text-[13px]">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
                               {selectedApplication.applicant.phone}
                             </p>
                           </div>
                         )}
                         {selectedApplication.applicant.location && (
                           <div>
-                            <Label className="text-xs text-muted-foreground">Location</Label>
-                            <p className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4" />
+                            <p className="text-[11px] text-muted-foreground">Location</p>
+                            <p className="flex items-center gap-1.5 text-[13px]">
+                              <MapPin className="h-3 w-3 text-muted-foreground" />
                               {selectedApplication.applicant.location}
                             </p>
                           </div>
                         )}
                       </TabsContent>
 
-                      <TabsContent value="resume" className="mt-4">
+                      <TabsContent value="resume" className="mt-3">
                         {(selectedApplication.resume || selectedApplication.applicant.profile?.resume) ? (
-                          <div className="border rounded-lg p-4">
-                            <FileText className="h-12 w-12 text-primary mb-3" />
-                            <p className="font-medium mb-2">Resume</p>
-                            <Button asChild variant="outline" className="w-full">
+                          <div className="rounded-md border p-4">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/8 mb-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <p className="text-[13px] font-medium mb-2">Resume</p>
+                            <Button asChild variant="outline" size="sm" className="w-full text-[12px]">
                               <a
                                 href={selectedApplication.resume || selectedApplication.applicant.profile?.resume}
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >
-                                <FileText className="h-4 w-4 mr-2" />
+                                <FileText className="h-3 w-3 mr-1.5" />
                                 View Resume
                               </a>
                             </Button>
-                            <p className="text-xs text-muted-foreground mt-2 text-center">
+                            <p className="text-[11px] text-muted-foreground mt-2 text-center">
                               {selectedApplication.resume
                                 ? 'Resume submitted with application'
                                 : 'Resume from profile'}
                             </p>
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground text-center py-8">
+                          <p className="text-[13px] text-muted-foreground text-center py-8">
                             No resume uploaded
                           </p>
                         )}
                       </TabsContent>
 
-                      <TabsContent value="profile" className="space-y-4 mt-4">
+                      <TabsContent value="profile" className="space-y-3 mt-3">
                         {selectedApplication.applicant.profile?.bio && (
                           <div>
-                            <Label className="text-xs text-muted-foreground">Bio</Label>
-                            <p className="text-sm">{selectedApplication.applicant.profile.bio}</p>
+                            <p className="text-[11px] text-muted-foreground mb-1">Bio</p>
+                            <p className="text-[13px]">{selectedApplication.applicant.profile.bio}</p>
                           </div>
                         )}
 
                         {selectedApplication.applicant.profile?.skills &&
                           selectedApplication.applicant.profile.skills.length > 0 && (
                             <div>
-                              <Label className="text-xs text-muted-foreground mb-2 block flex items-center gap-1">
+                              <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
                                 <Award className="h-3 w-3" />
                                 Skills
-                              </Label>
-                              <div className="flex flex-wrap gap-2">
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
                                 {selectedApplication.applicant.profile.skills.map((skill) => (
-                                  <Badge key={skill.id} variant="secondary">
+                                  <Badge key={skill.id} variant="secondary" className="text-[10px] h-5 font-normal">
                                     {skill.name}
                                   </Badge>
                                 ))}
@@ -955,15 +910,15 @@ ${companyName} Team`;
                         {selectedApplication.applicant.profile?.experiences &&
                           selectedApplication.applicant.profile.experiences.length > 0 && (
                             <div>
-                              <Label className="text-xs text-muted-foreground mb-2 block flex items-center gap-1">
+                              <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
                                 <Briefcase className="h-3 w-3" />
                                 Experience
-                              </Label>
-                              <div className="space-y-3">
+                              </p>
+                              <div className="space-y-2">
                                 {selectedApplication.applicant.profile.experiences.map((exp) => (
-                                  <div key={exp.id} className="text-sm">
-                                    <p className="font-medium">{exp.title}</p>
-                                    <p className="text-muted-foreground">{exp.company}</p>
+                                  <div key={exp.id}>
+                                    <p className="text-[13px] font-medium">{exp.title}</p>
+                                    <p className="text-[12px] text-muted-foreground">{exp.company}</p>
                                   </div>
                                 ))}
                               </div>
@@ -973,15 +928,15 @@ ${companyName} Team`;
                         {selectedApplication.applicant.profile?.education &&
                           selectedApplication.applicant.profile.education.length > 0 && (
                             <div>
-                              <Label className="text-xs text-muted-foreground mb-2 block flex items-center gap-1">
+                              <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
                                 <GraduationCap className="h-3 w-3" />
                                 Education
-                              </Label>
-                              <div className="space-y-3">
+                              </p>
+                              <div className="space-y-2">
                                 {selectedApplication.applicant.profile.education.map((edu) => (
-                                  <div key={edu.id} className="text-sm">
-                                    <p className="font-medium">{edu.degree}</p>
-                                    <p className="text-muted-foreground">{edu.institution}</p>
+                                  <div key={edu.id}>
+                                    <p className="text-[13px] font-medium">{edu.degree}</p>
+                                    <p className="text-[12px] text-muted-foreground">{edu.institution}</p>
                                   </div>
                                 ))}
                               </div>
@@ -989,17 +944,17 @@ ${companyName} Team`;
                           )}
                       </TabsContent>
 
-                      <TabsContent value="cover" className="mt-4 space-y-4">
+                      <TabsContent value="cover" className="mt-3 space-y-3">
                         <div>
-                          <Label className="text-xs text-muted-foreground mb-2 block">Cover Letter</Label>
+                          <p className="text-[11px] text-muted-foreground mb-1.5">Cover Letter</p>
                           {selectedApplication.coverLetter ? (
-                            <div className="prose prose-sm max-w-none border rounded-lg p-4 bg-muted/20">
-                              <p className="whitespace-pre-wrap text-sm">
+                            <div className="rounded-md border p-3 bg-accent/30">
+                              <p className="whitespace-pre-wrap text-[13px]">
                                 {selectedApplication.coverLetter}
                               </p>
                             </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground text-center py-8 border rounded-lg">
+                            <p className="text-[13px] text-muted-foreground text-center py-8 rounded-md border">
                               No cover letter provided
                             </p>
                           )}
@@ -1007,9 +962,9 @@ ${companyName} Team`;
 
                         {selectedApplication.additionalInfo && (
                           <div>
-                            <Label className="text-xs text-muted-foreground mb-2 block">Additional Information</Label>
-                            <div className="prose prose-sm max-w-none border rounded-lg p-4 bg-muted/20">
-                              <p className="whitespace-pre-wrap text-sm">
+                            <p className="text-[11px] text-muted-foreground mb-1.5">Additional Information</p>
+                            <div className="rounded-md border p-3 bg-accent/30">
+                              <p className="whitespace-pre-wrap text-[13px]">
                                 {selectedApplication.additionalInfo}
                               </p>
                             </div>
@@ -1017,9 +972,9 @@ ${companyName} Team`;
                         )}
 
                         <div>
-                          <Label className="text-xs text-muted-foreground mb-2 block">Application Date</Label>
-                          <p className="text-sm flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
+                          <p className="text-[11px] text-muted-foreground mb-1">Application Date</p>
+                          <p className="text-[13px] flex items-center gap-1.5">
+                            <Calendar className="h-3 w-3 text-muted-foreground" />
                             {new Date(selectedApplication.appliedAt).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'long',
@@ -1031,17 +986,17 @@ ${companyName} Team`;
                         </div>
                       </TabsContent>
                     </Tabs>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ) : (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      Select an application to view details
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="rounded-lg border bg-card p-12 text-center">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/8 mb-3">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-[13px] text-muted-foreground">
+                    Select an application to view details
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -1051,131 +1006,138 @@ ${companyName} Team`;
         <Dialog open={showInterviewDialog} onOpenChange={setShowInterviewDialog}>
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Schedule Interview</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg font-semibold">Schedule Interview</DialogTitle>
+              <DialogDescription className="text-[12px]">
                 Configure interview details and customize the email that will be sent to the candidate.
               </DialogDescription>
             </DialogHeader>
 
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Interview Details</TabsTrigger>
-                <TabsTrigger value="email">Email Content</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 h-8">
+                <TabsTrigger value="details" className="text-[12px]">Interview Details</TabsTrigger>
+                <TabsTrigger value="email" className="text-[12px]">Email Content</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="details" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="interview-date">Interview Date *</Label>
+              <TabsContent value="details" className="space-y-3 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="interview-date" className="text-[13px] font-medium mb-1 block">Interview Date *</Label>
                     <Input
                       id="interview-date"
                       type="date"
                       value={interviewData.interviewDate}
                       onChange={(e) => setInterviewData({ ...interviewData, interviewDate: e.target.value })}
                       min={new Date().toISOString().split('T')[0]}
+                      className="h-9 text-[13px]"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="interview-time">Interview Time *</Label>
+                  <div>
+                    <Label htmlFor="interview-time" className="text-[13px] font-medium mb-1 block">Interview Time *</Label>
                     <Input
                       id="interview-time"
                       type="time"
                       value={interviewData.interviewTime}
                       onChange={(e) => setInterviewData({ ...interviewData, interviewTime: e.target.value })}
+                      className="h-9 text-[13px]"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="interview-type">Interview Type *</Label>
+                <div>
+                  <Label htmlFor="interview-type" className="text-[13px] font-medium mb-1 block">Interview Type *</Label>
                   <Select
                     value={interviewData.interviewType}
                     onValueChange={(value: any) => setInterviewData({ ...interviewData, interviewType: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 text-[13px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="video">🎥 Video Interview</SelectItem>
-                      <SelectItem value="phone">📞 Phone Interview</SelectItem>
-                      <SelectItem value="in-person">📍 In-Person Interview</SelectItem>
+                      <SelectItem value="video">Video Interview</SelectItem>
+                      <SelectItem value="phone">Phone Interview</SelectItem>
+                      <SelectItem value="in-person">In-Person Interview</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {interviewData.interviewType === 'video' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="interview-link">Meeting Link *</Label>
+                  <div>
+                    <Label htmlFor="interview-link" className="text-[13px] font-medium mb-1 block">Meeting Link *</Label>
                     <Input
                       id="interview-link"
                       type="url"
                       placeholder="https://meet.google.com/..."
                       value={interviewData.interviewLink}
                       onChange={(e) => setInterviewData({ ...interviewData, interviewLink: e.target.value })}
+                      className="h-9 text-[13px]"
                     />
                   </div>
                 )}
 
                 {interviewData.interviewType === 'in-person' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="interview-location">Location *</Label>
+                  <div>
+                    <Label htmlFor="interview-location" className="text-[13px] font-medium mb-1 block">Location *</Label>
                     <Input
                       id="interview-location"
                       placeholder="123 Main St, City, State"
                       value={interviewData.interviewLocation}
                       onChange={(e) => setInterviewData({ ...interviewData, interviewLocation: e.target.value })}
+                      className="h-9 text-[13px]"
                     />
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-person">Contact Person</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="contact-person" className="text-[13px] font-medium mb-1 block">Contact Person</Label>
                     <Input
                       id="contact-person"
                       placeholder="John Doe"
                       value={interviewData.contactPerson}
                       onChange={(e) => setInterviewData({ ...interviewData, contactPerson: e.target.value })}
+                      className="h-9 text-[13px]"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-email">Contact Email</Label>
+                  <div>
+                    <Label htmlFor="contact-email" className="text-[13px] font-medium mb-1 block">Contact Email</Label>
                     <Input
                       id="contact-email"
                       type="email"
                       placeholder="john@company.com"
                       value={interviewData.contactEmail}
                       onChange={(e) => setInterviewData({ ...interviewData, contactEmail: e.target.value })}
+                      className="h-9 text-[13px]"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="interview-notes">Additional Notes</Label>
+                <div>
+                  <Label htmlFor="interview-notes" className="text-[13px] font-medium mb-1 block">Additional Notes</Label>
                   <Textarea
                     id="interview-notes"
                     placeholder="e.g., Please prepare a portfolio presentation..."
                     value={interviewData.interviewNotes}
                     onChange={(e) => setInterviewData({ ...interviewData, interviewNotes: e.target.value })}
                     rows={3}
+                    className="text-[13px]"
                   />
                 </div>
               </TabsContent>
 
-              <TabsContent value="email" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email-content">Email Content *</Label>
+              <TabsContent value="email" className="space-y-3 mt-4">
+                <div>
+                  <Label htmlFor="email-content" className="text-[13px] font-medium mb-1 block">Email Content *</Label>
                   <Textarea
                     id="email-content"
                     value={interviewData.emailContent}
                     onChange={(e) => setInterviewData({ ...interviewData, emailContent: e.target.value })}
                     rows={15}
-                    className="font-mono text-sm"
+                    className="font-mono text-[12px]"
                     placeholder="Customize the email content..."
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground mt-1">
                     This message will be included in the interview invitation email. Interview details will be added automatically.
                   </p>
                 </div>
@@ -1183,10 +1145,10 @@ ${companyName} Team`;
             </Tabs>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowInterviewDialog(false)}>
+              <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(false)} className="text-[13px]">
                 Cancel
               </Button>
-              <Button onClick={handleScheduleInterview}>
+              <Button size="sm" onClick={handleScheduleInterview} className="text-[13px]">
                 Schedule & Send Email
               </Button>
             </DialogFooter>
@@ -1197,34 +1159,34 @@ ${companyName} Team`;
         <Dialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Reject Application</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg font-semibold">Reject Application</DialogTitle>
+              <DialogDescription className="text-[12px]">
                 Customize the rejection email that will be sent to the candidate.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="rejection-email">Email Content *</Label>
+            <div className="space-y-3 mt-4">
+              <div>
+                <Label htmlFor="rejection-email" className="text-[13px] font-medium mb-1 block">Email Content *</Label>
                 <Textarea
                   id="rejection-email"
                   value={rejectionData.emailContent}
                   onChange={(e) => setRejectionData({ ...rejectionData, emailContent: e.target.value })}
                   rows={14}
-                  className="font-mono text-sm"
+                  className="font-mono text-[12px]"
                   placeholder="Customize the rejection email..."
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   This message will be sent to the candidate. Be professional and respectful.
                 </p>
               </div>
             </div>
 
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setShowRejectionDialog(false)}>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" size="sm" onClick={() => setShowRejectionDialog(false)} className="text-[13px]">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleSendRejection}>
+              <Button variant="destructive" size="sm" onClick={handleSendRejection} className="text-[13px]">
                 Send Rejection Email
               </Button>
             </DialogFooter>
@@ -1235,34 +1197,34 @@ ${companyName} Team`;
         <Dialog open={showHiredDialog} onOpenChange={setShowHiredDialog}>
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Mark as Hired</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg font-semibold">Mark as Hired</DialogTitle>
+              <DialogDescription className="text-[12px]">
                 Send a congratulations email to the candidate. The formal offer letter with all details will follow within 1-2 weeks.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="hired-email">Email Content *</Label>
+            <div className="space-y-3 mt-4">
+              <div>
+                <Label htmlFor="hired-email" className="text-[13px] font-medium mb-1 block">Email Content *</Label>
                 <Textarea
                   id="hired-email"
                   value={hiredData.emailContent}
                   onChange={(e) => setHiredData({ ...hiredData, emailContent: e.target.value })}
                   rows={14}
-                  className="font-mono text-sm"
+                  className="font-mono text-[12px]"
                   placeholder="Customize the congratulations email..."
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   This message will be sent to the candidate immediately. You can send the formal offer letter with position details, salary, and start date separately within 1-2 weeks.
                 </p>
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowHiredDialog(false)}>
+              <Button variant="outline" size="sm" onClick={() => setShowHiredDialog(false)} className="text-[13px]">
                 Cancel
               </Button>
-              <Button onClick={handleSendHiredNotification}>
+              <Button size="sm" onClick={handleSendHiredNotification} className="text-[13px]">
                 {hiredData.offerLetter ? 'Send with Offer Letter' : 'Send Congratulations Email'}
               </Button>
             </DialogFooter>

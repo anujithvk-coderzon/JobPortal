@@ -4,19 +4,18 @@ import { useEffect, useState, Suspense } from 'react';
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { getInitials } from '@/lib/utils';
 import { ProfileCompletion } from '@/components/ProfileCompletion';
+import { Breadcrumb } from '@/components/Breadcrumb';
 import {
   Select,
   SelectContent,
@@ -49,6 +48,10 @@ import {
   Camera,
   Upload,
   FileText,
+  MapPin,
+  Phone,
+  Mail,
+  ChevronDown,
 } from 'lucide-react';
 import { api, userAPI } from '@/lib/api';
 
@@ -90,7 +93,15 @@ function ProfilePageContent() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
   const [pendingResumeFile, setPendingResumeFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'basic');
+  const initialTab = searchParams?.get('tab') || 'basic';
+
+  // Section expand states — all open by default
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    basic: true,
+    experience: true,
+    education: true,
+    skills: true,
+  });
 
   // Basic Profile
   const [name, setName] = useState('');
@@ -116,13 +127,20 @@ function ProfilePageContent() {
   const [deletePhotoDialogOpen, setDeletePhotoDialogOpen] = useState(false);
   const [deleteResumeDialogOpen, setDeleteResumeDialogOpen] = useState(false);
 
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const navigateToSection = (tab: string) => {
+    setExpandedSections(prev => ({ ...prev, [tab]: true }));
+    setTimeout(() => {
+      document.getElementById(`section-${tab}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
   useEffect(() => {
     if (!isHydrated) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
-
+    if (!isAuthenticated) { router.push('/auth/login'); return; }
     fetchUserProfile();
   }, [isAuthenticated, isHydrated, router]);
 
@@ -131,18 +149,15 @@ function ProfilePageContent() {
       const response = await userAPI.getProfile();
       const data = response.data;
       const userData = data.data;
-
       useAuthStore.getState().updateUser(userData);
-
       setName(userData.name || '');
       setPhone(userData.phone || '');
       setLocation(userData.location || '');
       setBio(userData.profile?.bio || '');
       setProfileData(userData.profile);
-
       if (userData.profile) {
         setEducation(userData.profile.education || []);
-        setExperience(userData.profile.experiences || []); // Backend returns 'experiences' not 'experience'
+        setExperience(userData.profile.experiences || []);
         setSkills(userData.profile.skills || []);
       }
     } catch (error) {
@@ -153,18 +168,12 @@ function ProfilePageContent() {
   const saveBasicInfo = async () => {
     setLoading(true);
     try {
-      // Update basic info
       await userAPI.updateBasicInfo({ name, phone, location });
-
-      // Update bio (profile)
       await api.put('/users/profile-info', { bio });
-
-      // Upload pending resume file if exists
       if (pendingResumeFile) {
         await uploadResumeFile(pendingResumeFile);
         setPendingResumeFile(null);
       }
-
       await fetchUserProfile();
       triggerProfileUpdate();
       toast({ title: 'Success', description: 'Profile updated successfully', variant: 'success' });
@@ -182,30 +191,13 @@ function ProfilePageContent() {
       reader.onload = async () => {
         try {
           const base64File = reader.result as string;
-
-          const response = await userAPI.uploadResume({
-            file: base64File,
-            mimeType: file.type,
-            fileName: file.name,
-          });
-
+          const response = await userAPI.uploadResume({ file: base64File, mimeType: file.type, fileName: file.name });
           const data = response.data;
-
-          // Update only the profileData resume field
-          setProfileData((prev: any) => ({
-            ...prev,
-            resume: data.data.resume
-          }));
-
+          setProfileData((prev: any) => ({ ...prev, resume: data.data.resume }));
           resolve(data);
-        } catch (error) {
-          reject(error);
-        }
+        } catch (error) { reject(error); }
       };
-
-      reader.onerror = () => {
-        reject(new Error('Failed to read file'));
-      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
     });
   };
 
@@ -214,35 +206,25 @@ function ProfilePageContent() {
       const url = editingItem?.id ? `/users/education/${editingItem.id}` : '/users/education';
       const method = editingItem?.id ? 'put' : 'post';
       await api[method](url, data);
-
       await fetchUserProfile();
       triggerProfileUpdate();
       setShowEducationForm(false);
       setEditingItem(null);
-      toast({ title: 'Success', description: `Education ${editingItem ? 'updated' : 'added'} successfully`, variant: 'success' });
+      toast({ title: 'Success', description: `Education ${editingItem ? 'updated' : 'added'}`, variant: 'success' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to save education',
-        variant: 'destructive'
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to save education', variant: 'destructive' });
     }
   };
 
   const deleteEducation = async (id: string) => {
     try {
       await userAPI.deleteEducation(id);
-
       await fetchUserProfile();
       triggerProfileUpdate();
       setDeleteEducationId(null);
-      toast({ title: 'Success', description: 'Education deleted successfully', variant: 'success' });
+      toast({ title: 'Success', description: 'Education deleted', variant: 'success' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete education',
-        variant: 'destructive'
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to delete', variant: 'destructive' });
     }
   };
 
@@ -251,128 +233,68 @@ function ProfilePageContent() {
       const url = editingItem?.id ? `/users/experience/${editingItem.id}` : '/users/experience';
       const method = editingItem?.id ? 'put' : 'post';
       await api[method](url, data);
-
       await fetchUserProfile();
       triggerProfileUpdate();
       setShowExperienceForm(false);
       setEditingItem(null);
-      toast({ title: 'Success', description: `Experience ${editingItem ? 'updated' : 'added'} successfully`, variant: 'success' });
+      toast({ title: 'Success', description: `Experience ${editingItem ? 'updated' : 'added'}`, variant: 'success' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to save experience',
-        variant: 'destructive'
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to save experience', variant: 'destructive' });
     }
   };
 
   const deleteExperience = async (id: string) => {
     try {
       await userAPI.deleteExperience(id);
-
       await fetchUserProfile();
       triggerProfileUpdate();
       setDeleteExperienceId(null);
-      toast({ title: 'Success', description: 'Experience deleted successfully', variant: 'success' });
+      toast({ title: 'Success', description: 'Experience deleted', variant: 'success' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete experience',
-        variant: 'destructive'
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to delete', variant: 'destructive' });
     }
   };
 
-  const addSkill = async (name: string, level?: string) => {
+  const addSkill = async (skillName: string, level?: string) => {
     try {
-      await userAPI.addSkill({ name, level });
-
+      await userAPI.addSkill({ name: skillName, level });
       await fetchUserProfile();
       triggerProfileUpdate();
       setShowSkillForm(false);
-      toast({ title: 'Success', description: 'Skill added successfully', variant: 'success' });
+      toast({ title: 'Success', description: 'Skill added', variant: 'success' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to add skill',
-        variant: 'destructive'
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to add skill', variant: 'destructive' });
     }
   };
 
   const deleteSkill = async (id: string) => {
     await userAPI.deleteSkill(id);
-
     await fetchUserProfile();
     triggerProfileUpdate();
-    toast({ title: 'Success', description: 'Skill deleted successfully', variant: 'success' });
+    toast({ title: 'Success', description: 'Skill deleted', variant: 'success' });
   };
 
   const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Error',
-        description: 'Please select an image file',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'Error',
-        description: 'Image size must be less than 5MB',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    if (!file.type.startsWith('image/')) { toast({ title: 'Error', description: 'Please select an image file', variant: 'destructive' }); return; }
+    if (file.size > 5 * 1024 * 1024) { toast({ title: 'Error', description: 'Image must be under 5MB', variant: 'destructive' }); return; }
     try {
       setUploadingPhoto(true);
-
-      // Convert to base64
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64Image = reader.result as string;
-
-        const response = await userAPI.uploadProfilePhoto({
-          image: base64Image,
-          mimeType: file.type,
-        });
-
-        const data = response.data;
-
-        // Update user in auth store
-        if (data.data) {
-          updateUser(data.data);
-        }
-
+        const response = await userAPI.uploadProfilePhoto({ image: base64Image, mimeType: file.type });
+        if (response.data.data) updateUser(response.data.data);
         triggerProfileUpdate();
-        toast({
-          title: 'Success',
-          description: 'Profile photo uploaded successfully',
-          variant: 'success',
-        });
+        toast({ title: 'Success', description: 'Photo uploaded', variant: 'success' });
       };
-
-      reader.onerror = () => {
-        throw new Error('Failed to read file');
-      };
+      reader.onerror = () => { throw new Error('Failed to read file'); };
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to upload photo',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to upload photo', variant: 'destructive' });
     } finally {
       setUploadingPhoto(false);
-      // Reset input
       event.target.value = '';
     }
   };
@@ -381,26 +303,11 @@ function ProfilePageContent() {
     try {
       setUploadingPhoto(true);
       const response = await userAPI.deleteProfilePhoto();
-
-      const data = response.data;
-
-      // Update user in auth store
-      if (data.data) {
-        updateUser(data.data);
-      }
-
+      if (response.data.data) updateUser(response.data.data);
       setDeletePhotoDialogOpen(false);
-      toast({
-        title: 'Success',
-        description: 'Profile photo removed successfully',
-        variant: 'success',
-      });
+      toast({ title: 'Success', description: 'Photo removed', variant: 'success' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete photo',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to delete photo', variant: 'destructive' });
     } finally {
       setUploadingPhoto(false);
     }
@@ -409,588 +316,406 @@ function ProfilePageContent() {
   const handleResumeUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    // Validate file type
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: 'Error',
-        description: 'Please select a PDF or Word document',
-        variant: 'destructive',
-      });
-      event.target.value = '';
-      return;
-    }
-
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'Error',
-        description: 'File size must be less than 10MB',
-        variant: 'destructive',
-      });
-      event.target.value = '';
-      return;
-    }
-
-    // Store file for upload when Save Changes is clicked
+    if (!allowedTypes.includes(file.type)) { toast({ title: 'Error', description: 'Please select a PDF or Word document', variant: 'destructive' }); event.target.value = ''; return; }
+    if (file.size > 10 * 1024 * 1024) { toast({ title: 'Error', description: 'File must be under 10MB', variant: 'destructive' }); event.target.value = ''; return; }
     setPendingResumeFile(file);
-    toast({
-      title: 'File Selected',
-      description: `${file.name} will be uploaded when you save changes`,
-    });
+    toast({ title: 'File Selected', description: `${file.name} — save changes to upload` });
   };
 
   const handleDeleteResume = async () => {
     try {
       setUploadingResume(true);
       await userAPI.deleteResume();
-
-      // Update only the profileData resume field without refetching everything
-      setProfileData((prev: any) => ({
-        ...prev,
-        resume: null
-      }));
-
+      setProfileData((prev: any) => ({ ...prev, resume: null }));
       setDeleteResumeDialogOpen(false);
-      toast({
-        title: 'Success',
-        description: 'Resume removed successfully',
-        variant: 'success',
-      });
+      toast({ title: 'Success', description: 'Resume removed', variant: 'success' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete resume',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to delete resume', variant: 'destructive' });
     } finally {
       setUploadingResume(false);
     }
   };
 
-  // Prevent rendering for unauthenticated users
   if (!isHydrated || !isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
+  const SectionHeader = ({ id, title, icon: Icon, count, children }: { id: string; title: string; icon: any; count?: number; children?: React.ReactNode }) => (
+    <div id={`section-${id}`} className="flex items-center justify-between">
+      <button onClick={() => toggleSection(id)} className="flex items-center gap-2.5 group">
+        <div className="h-7 w-7 rounded-md bg-muted flex items-center justify-center">
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {count !== undefined && <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{count}</Badge>}
+        </div>
+        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${expandedSections[id] ? 'rotate-180' : ''}`} />
+      </button>
+      {children}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+      <Breadcrumb items={[
+        { label: 'My Page', href: '/my-page' },
+        { label: 'Edit Profile' },
+      ]} />
 
-      <div className="container mx-auto py-4 sm:py-6 md:py-8 px-3 sm:px-4 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Profile Header */}
-            <Card>
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
-              <div className="relative group">
-                <Avatar className="h-20 w-20 sm:h-24 sm:w-24">
-                  <AvatarImage
-                    src={user.profilePhoto || undefined}
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                  />
-                  <AvatarFallback className="text-xl sm:text-2xl">{getInitials(user.name)}</AvatarFallback>
-                </Avatar>
-                <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <input
-                    type="file"
-                    id="profile-photo-input"
-                    accept="image/*"
-                    onChange={handleProfilePhotoUpload}
-                    className="hidden"
-                    disabled={uploadingPhoto}
-                  />
-                  <label htmlFor="profile-photo-input" className="cursor-pointer">
-                    <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                  </label>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* Left — Main Content */}
+        <div className="space-y-4">
+          {/* Profile Header */}
+          <Card>
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start gap-4">
+                <div className="relative group flex-shrink-0">
+                  <Avatar className="h-16 w-16 border-2 border-border">
+                    <AvatarImage src={user.profilePhoto || undefined} referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                    <AvatarFallback className="text-lg">{getInitials(user.name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <input type="file" id="profile-photo-input" accept="image/*" onChange={handleProfilePhotoUpload} className="hidden" disabled={uploadingPhoto} />
+                    <label htmlFor="profile-photo-input" className="cursor-pointer">
+                      {uploadingPhoto ? <Loader2 className="h-4 w-4 text-white animate-spin" /> : <Camera className="h-4 w-4 text-white" />}
+                    </label>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg font-semibold tracking-tight truncate">{user.name}</h1>
+                  <p className="text-[13px] text-muted-foreground truncate">{user.email}</p>
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-[12px] text-muted-foreground">
+                    {user.phone && (
+                      <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{user.phone}</span>
+                    )}
+                    {user.location && (
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{user.location}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    <label htmlFor="profile-photo-input">
+                      <Button variant="outline" size="sm" asChild disabled={uploadingPhoto}>
+                        <span className="cursor-pointer text-[12px] h-7">
+                          <Upload className="h-3 w-3 mr-1" />
+                          {user.profilePhoto ? 'Change Photo' : 'Upload Photo'}
+                        </span>
+                      </Button>
+                    </label>
+                    {user.profilePhoto && (
+                      <Button variant="outline" size="sm" onClick={() => setDeletePhotoDialogOpen(true)} disabled={uploadingPhoto} className="text-[12px] h-7 text-destructive hover:text-destructive">
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="flex-1 w-full">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-1 break-words">{user.name}</h1>
-                <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4 break-words">{user.email}</p>
-                <div className="flex flex-wrap gap-2">
-                  <label htmlFor="profile-photo-input">
-                    <Button variant="outline" size="sm" asChild disabled={uploadingPhoto}>
-                      <span className="cursor-pointer text-xs sm:text-sm">
-                        {uploadingPhoto ? (
-                          <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="h-4 w-4 sm:mr-2" />
-                        )}
-                        <span className="hidden sm:inline">{user.profilePhoto ? 'Change Photo' : 'Upload Photo'}</span>
-                        <span className="sm:hidden">{user.profilePhoto ? 'Change' : 'Upload'}</span>
-                      </span>
+            </CardContent>
+          </Card>
+
+          {/* Basic Information Section */}
+          <Card>
+            <div className="p-4 sm:p-5">
+              <SectionHeader id="basic" title="Basic Information" icon={User} />
+              {expandedSections.basic && (
+                <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div>
+                      <Label htmlFor="name" className="text-[12px] font-medium">Full Name</Label>
+                      <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="h-9 text-[13px] mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="email" className="text-[12px] font-medium">Email</Label>
+                      <Input id="email" value={user.email} disabled className="h-9 text-[13px] mt-1 bg-muted/50" />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone" className="text-[12px] font-medium">Phone</Label>
+                      <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-9 text-[13px] mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="location" className="text-[12px] font-medium">Location</Label>
+                      <LocationAutocomplete id="location" value={location} onChange={setLocation} placeholder="City, Country" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="bio" className="text-[12px] font-medium">Bio</Label>
+                    <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell us about yourself..." rows={3} className="text-[13px] mt-1" />
+                  </div>
+
+                  {/* Resume */}
+                  <div className="border-t border-border/60 pt-4">
+                    <Label className="text-[12px] font-medium mb-2 block">Resume / CV</Label>
+                    {pendingResumeFile ? (
+                      <div className="flex items-center gap-3 p-3 border-2 border-amber-500 rounded-md bg-amber-50 dark:bg-amber-950/30">
+                        <FileText className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium truncate">{pendingResumeFile.name}</p>
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300">Save changes to upload</p>
+                        </div>
+                        <button onClick={() => { setPendingResumeFile(null); const input = document.getElementById('resume-upload') as HTMLInputElement; if (input) input.value = ''; }} className="text-muted-foreground hover:text-foreground">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : profileData?.resume ? (
+                      <div className="flex items-center gap-3 p-3 rounded-md border bg-muted/30">
+                        <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium">Resume uploaded</p>
+                          <p className="text-[11px] text-muted-foreground">Click view to open</p>
+                        </div>
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          <Button variant="outline" size="sm" asChild className="h-7 text-[12px]">
+                            <a href={profileData.resume} target="_blank" rel="noopener noreferrer">View</a>
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteResumeDialogOpen(true)} disabled={uploadingResume}>
+                            {uploadingResume ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed rounded-md p-4 text-center">
+                        <input type="file" id="resume-upload" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} className="hidden" disabled={uploadingResume} />
+                        <FileText className="h-6 w-6 mx-auto mb-1.5 text-muted-foreground" />
+                        <p className="text-[13px] font-medium mb-0.5">Upload your resume</p>
+                        <p className="text-[11px] text-muted-foreground mb-2">PDF or Word, max 10MB</p>
+                        <Button variant="outline" size="sm" className="text-[12px] h-7" onClick={() => document.getElementById('resume-upload')?.click()} disabled={uploadingResume}>
+                          {uploadingResume ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Uploading...</> : <><Upload className="h-3 w-3 mr-1" /> Choose File</>}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <Button onClick={saveBasicInfo} disabled={loading} size="sm" className="text-[13px]">
+                      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                      Save Changes
                     </Button>
-                  </label>
-                  {user.profilePhoto && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeletePhotoDialogOpen(true)}
-                      disabled={uploadingPhoto}
-                      className="text-xs sm:text-sm"
-                    >
-                      <Trash2 className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Remove</span>
-                    </Button>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </Card>
 
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-2 p-1">
-            <TabsTrigger value="basic" className="text-sm">
-              <User className="h-4 w-4 mr-2" />
-              Basic
-            </TabsTrigger>
-            <TabsTrigger value="experience" className="text-sm">
-              <Briefcase className="h-4 w-4 mr-2" />
-              Experience
-            </TabsTrigger>
-            <TabsTrigger value="education" className="text-sm">
-              <GraduationCap className="h-4 w-4 mr-2" />
-              Education
-            </TabsTrigger>
-            <TabsTrigger value="skills" className="text-sm">
-              <Award className="h-4 w-4 mr-2" />
-              Skills
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Basic Info Tab */}
-          <TabsContent value="basic">
-            <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
-                <CardDescription>Update your personal details</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" value={user.email} disabled />
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label htmlFor="location">Location</Label>
-                    <LocationAutocomplete
-                      id="location"
-                      value={location}
-                      onChange={setLocation}
-                      placeholder="City, Country"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell us about yourself..."
-                    rows={4}
-                  />
-                </div>
-
-                {/* Resume Upload Section */}
-                <div className="border-t pt-4">
-                  <Label className="text-base font-semibold mb-3 block">Resume/CV</Label>
-                  {pendingResumeFile ? (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 border-2 border-orange-500 rounded-lg bg-orange-50 dark:bg-orange-950">
-                      <FileText className="h-8 w-8 text-orange-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-orange-900 dark:text-orange-100 break-words">
-                          {pendingResumeFile.name}
-                        </p>
-                        <p className="text-xs text-orange-700 dark:text-orange-300">
-                          Ready to upload - Click "Save Changes" to upload
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setPendingResumeFile(null);
-                          const input = document.getElementById('resume-upload') as HTMLInputElement;
-                          if (input) input.value = '';
-                        }}
-                        className="flex-shrink-0 self-end sm:self-auto"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : profileData?.resume ? (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 border rounded-lg bg-accent/20">
-                      <FileText className="h-8 w-8 text-primary flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">Resume uploaded</p>
-                        <p className="text-xs text-muted-foreground">
-                          Click view to open or delete to remove
-                        </p>
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0 self-end sm:self-auto">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                          disabled={uploadingResume}
-                        >
-                          <a href={profileData.resume} target="_blank" rel="noopener noreferrer">
-                            View
-                          </a>
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setDeleteResumeDialogOpen(true)}
-                          disabled={uploadingResume}
-                        >
-                          {uploadingResume ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                      <input
-                        type="file"
-                        id="resume-upload"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleResumeUpload}
-                        className="hidden"
-                        disabled={uploadingResume}
-                      />
-                      <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                      <p className="text-sm font-medium mb-1">Upload your resume</p>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        PDF or Word document, max 10MB
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => document.getElementById('resume-upload')?.click()}
-                        disabled={uploadingResume}
-                      >
-                        {uploadingResume ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Choose File
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <Button onClick={saveBasicInfo} disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Changes
+          {/* Experience Section */}
+          <Card>
+            <div className="p-4 sm:p-5">
+              <SectionHeader id="experience" title="Work Experience" icon={Briefcase} count={experience.length}>
+                <Button size="sm" className="text-[12px] h-7" onClick={() => { setShowExperienceForm(true); setEditingItem(null); }}>
+                  <Plus className="h-3 w-3 mr-1" /> Add
                 </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Experience Tab */}
-          <TabsContent value="experience">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                    <div>
-                      <CardTitle>Work Experience</CardTitle>
-                      <CardDescription>Add your professional experience</CardDescription>
-                    </div>
-                    <Button onClick={() => { setShowExperienceForm(true); setEditingItem(null); }} className="sm:flex-shrink-0">
-                      <Plus className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Add Experience</span>
-                      <span className="sm:hidden">Add</span>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4">
+              </SectionHeader>
+              {expandedSections.experience && (
+                <div className="mt-4">
                   {experience.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground">No experience added yet</p>
+                    <p className="text-center py-6 text-[13px] text-muted-foreground">No experience added yet</p>
                   ) : (
-                    experience.map((exp) => (
-                      <div key={exp.id} className="border rounded-lg p-3 sm:p-4">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-base sm:text-lg">{exp.title}</h3>
-                            <p className="text-sm text-muted-foreground">{exp.company}</p>
-                            {exp.location && <p className="text-sm text-muted-foreground">{exp.location}</p>}
-                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                              {new Date(exp.startDate).toLocaleDateString()} -{' '}
-                              {exp.current ? 'Present' : exp.endDate ? new Date(exp.endDate).toLocaleDateString() : ''}
-                            </p>
-                            {exp.description && <p className="text-sm mt-2">{exp.description}</p>}
-                          </div>
-                          <div className="flex gap-2 self-end sm:self-auto flex-shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setEditingItem(exp);
-                                setShowExperienceForm(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteExperienceId(exp.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5">
+                      {experience.map((exp) => (
+                        <div key={exp.id} className="rounded-md border p-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[13px] font-medium">{exp.title}</h4>
+                              <p className="text-[12px] text-muted-foreground">{exp.company}{exp.location ? ` · ${exp.location}` : ''}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {new Date(exp.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} –{' '}
+                                {exp.current ? 'Present' : exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''}
+                              </p>
+                              {exp.description && <p className="text-[12px] mt-1.5 text-muted-foreground leading-relaxed line-clamp-3">{exp.description}</p>}
+                            </div>
+                            <div className="flex gap-0.5 flex-shrink-0">
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditingItem(exp); setShowExperienceForm(true); }}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteExperienceId(exp.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Experience Form Modal */}
-              {showExperienceForm && (
-                <ExperienceForm
-                  initialData={editingItem}
-                  onSave={addExperience}
-                  onCancel={() => {
-                    setShowExperienceForm(false);
-                    setEditingItem(null);
-                  }}
-                />
-              )}
-            </TabsContent>
-
-          {/* Education Tab */}
-          <TabsContent value="education">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                    <div>
-                      <CardTitle>Education</CardTitle>
-                      <CardDescription>Add your educational background</CardDescription>
+                      ))}
                     </div>
-                    <Button onClick={() => { setShowEducationForm(true); setEditingItem(null); }} className="sm:flex-shrink-0">
-                      <Plus className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Add Education</span>
-                      <span className="sm:hidden">Add</span>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4">
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Education Section */}
+          <Card>
+            <div className="p-4 sm:p-5">
+              <SectionHeader id="education" title="Education" icon={GraduationCap} count={education.length}>
+                <Button size="sm" className="text-[12px] h-7" onClick={() => { setShowEducationForm(true); setEditingItem(null); }}>
+                  <Plus className="h-3 w-3 mr-1" /> Add
+                </Button>
+              </SectionHeader>
+              {expandedSections.education && (
+                <div className="mt-4">
                   {education.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground">No education added yet</p>
+                    <p className="text-center py-6 text-[13px] text-muted-foreground">No education added yet</p>
                   ) : (
-                    education.map((edu) => (
-                      <div key={edu.id} className="border rounded-lg p-3 sm:p-4">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-base sm:text-lg">{edu.degree} in {edu.fieldOfStudy}</h3>
-                            <p className="text-sm text-muted-foreground">{edu.institution}</p>
-                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                              {new Date(edu.startDate).toLocaleDateString()} -{' '}
-                              {edu.current ? 'Present' : edu.endDate ? new Date(edu.endDate).toLocaleDateString() : ''}
-                            </p>
-                            {edu.grade && <p className="text-sm mt-1">Grade: {edu.grade}</p>}
-                            {edu.description && <p className="text-sm mt-2">{edu.description}</p>}
-                          </div>
-                          <div className="flex gap-2 self-end sm:self-auto flex-shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setEditingItem(edu);
-                                setShowEducationForm(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteEducationId(edu.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5">
+                      {education.map((edu) => (
+                        <div key={edu.id} className="rounded-md border p-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[13px] font-medium">{edu.degree} in {edu.fieldOfStudy}</h4>
+                              <p className="text-[12px] text-muted-foreground">{edu.institution}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {new Date(edu.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} –{' '}
+                                {edu.current ? 'Present' : edu.endDate ? new Date(edu.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''}
+                              </p>
+                              {edu.grade && <p className="text-[12px] mt-0.5 text-muted-foreground">Grade: {edu.grade}</p>}
+                              {edu.description && <p className="text-[12px] mt-1.5 text-muted-foreground leading-relaxed line-clamp-3">{edu.description}</p>}
+                            </div>
+                            <div className="flex gap-0.5 flex-shrink-0">
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditingItem(edu); setShowEducationForm(true); }}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteEducationId(edu.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Education Form Modal */}
-              {showEducationForm && (
-                <EducationForm
-                  initialData={editingItem}
-                  onSave={addEducation}
-                  onCancel={() => {
-                    setShowEducationForm(false);
-                    setEditingItem(null);
-                  }}
-                />
-              )}
-            </TabsContent>
-
-          {/* Skills Tab */}
-          <TabsContent value="skills">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                    <div>
-                      <CardTitle>Skills</CardTitle>
-                      <CardDescription>Add your technical and soft skills</CardDescription>
+                      ))}
                     </div>
-                    <Button onClick={() => setShowSkillForm(true)} className="sm:flex-shrink-0">
-                      <Plus className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Add Skill</span>
-                      <span className="sm:hidden">Add</span>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Skills Section */}
+          <Card>
+            <div className="p-4 sm:p-5">
+              <SectionHeader id="skills" title="Skills" icon={Award} count={skills.length}>
+                <Button size="sm" className="text-[12px] h-7" onClick={() => setShowSkillForm(true)}>
+                  <Plus className="h-3 w-3 mr-1" /> Add
+                </Button>
+              </SectionHeader>
+              {expandedSections.skills && (
+                <div className="mt-4">
                   {skills.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground">No skills added yet</p>
+                    <p className="text-center py-6 text-[13px] text-muted-foreground">No skills added yet</p>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {skills.map((skill) => (
-                        <Badge key={skill.id} variant="secondary" className="text-sm px-3 py-1">
+                        <Badge key={skill.id} variant="secondary" className="text-[12px] px-2.5 py-1 gap-1">
                           {skill.name}
-                          {skill.level && ` (${skill.level})`}
-                          <button onClick={() => deleteSkill(skill.id)} className="ml-2">
+                          <button onClick={() => deleteSkill(skill.id)} className="ml-0.5 hover:text-destructive transition-colors">
                             <X className="h-3 w-3" />
                           </button>
                         </Badge>
                       ))}
                     </div>
                   )}
-                </CardContent>
-              </Card>
-
-              {/* Skill Form Modal */}
-              {showSkillForm && (
-                <SkillForm
-                  onSave={addSkill}
-                  onCancel={() => setShowSkillForm(false)}
-                />
+                </div>
               )}
-            </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Sidebar - Profile Completion */}
-          <div className="lg:col-span-1">
-            <div className="lg:sticky lg:top-8">
-              <ProfileCompletion
-                user={user}
-                profile={{
-                  ...profileData,
-                  skills,
-                  experiences: experience,
-                  education,
-                }}
-                onNavigate={setActiveTab}
-              />
             </div>
+          </Card>
+
+          {/* Mobile Profile Completion */}
+          <div className="lg:hidden">
+            <ProfileCompletion
+              user={user}
+              profile={{ ...profileData, skills, experiences: experience, education }}
+              onNavigate={navigateToSection}
+            />
           </div>
         </div>
 
-        {/* Delete Education Dialog */}
-        <AlertDialog open={!!deleteEducationId} onOpenChange={(open) => !open && setDeleteEducationId(null)}>
-          <AlertDialogContent className="max-w-md mx-4">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-base sm:text-lg">Delete Education</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm">
-                Are you sure you want to delete this education entry? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteEducationId && deleteEducation(deleteEducationId)}>
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Delete Experience Dialog */}
-        <AlertDialog open={!!deleteExperienceId} onOpenChange={(open) => !open && setDeleteExperienceId(null)}>
-          <AlertDialogContent className="max-w-md mx-4">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-base sm:text-lg">Delete Experience</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm">
-                Are you sure you want to delete this experience entry? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteExperienceId && deleteExperience(deleteExperienceId)}>
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Delete Profile Photo Dialog */}
-        <AlertDialog open={deletePhotoDialogOpen} onOpenChange={setDeletePhotoDialogOpen}>
-          <AlertDialogContent className="max-w-md mx-4">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-base sm:text-lg">Remove Profile Photo</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm">
-                Are you sure you want to remove your profile photo? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteProfilePhoto}>
-                Remove
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Delete Resume Dialog */}
-        <AlertDialog open={deleteResumeDialogOpen} onOpenChange={setDeleteResumeDialogOpen}>
-          <AlertDialogContent className="max-w-md mx-4">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-base sm:text-lg">Remove Resume</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm">
-                Are you sure you want to remove your resume? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteResume}>
-                Remove
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* Right Sidebar — Profile Completion */}
+        <div className="hidden lg:block">
+          <div className="sticky top-4">
+            <ProfileCompletion
+              user={user}
+              profile={{ ...profileData, skills, experiences: experience, education }}
+              onNavigate={navigateToSection}
+            />
+          </div>
+        </div>
       </div>
+
+      {/* Education Form Modal */}
+      {showEducationForm && (
+        <EducationForm
+          initialData={editingItem}
+          onSave={addEducation}
+          onCancel={() => { setShowEducationForm(false); setEditingItem(null); }}
+        />
+      )}
+
+      {/* Experience Form Modal */}
+      {showExperienceForm && (
+        <ExperienceForm
+          initialData={editingItem}
+          onSave={addExperience}
+          onCancel={() => { setShowExperienceForm(false); setEditingItem(null); }}
+        />
+      )}
+
+      {/* Skill Form Modal */}
+      {showSkillForm && (
+        <SkillForm
+          onSave={addSkill}
+          onCancel={() => setShowSkillForm(false)}
+        />
+      )}
+
+      {/* Delete Dialogs */}
+      <AlertDialog open={!!deleteEducationId} onOpenChange={(open) => !open && setDeleteEducationId(null)}>
+        <AlertDialogContent className="max-w-md mx-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-semibold">Delete Education</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px]">This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="text-[13px]" onClick={() => deleteEducationId && deleteEducation(deleteEducationId)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteExperienceId} onOpenChange={(open) => !open && setDeleteExperienceId(null)}>
+        <AlertDialogContent className="max-w-md mx-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-semibold">Delete Experience</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px]">This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="text-[13px]" onClick={() => deleteExperienceId && deleteExperience(deleteExperienceId)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deletePhotoDialogOpen} onOpenChange={setDeletePhotoDialogOpen}>
+        <AlertDialogContent className="max-w-md mx-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-semibold">Remove Profile Photo</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px]">This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="text-[13px]" onClick={handleDeleteProfilePhoto}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteResumeDialogOpen} onOpenChange={setDeleteResumeDialogOpen}>
+        <AlertDialogContent className="max-w-md mx-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-semibold">Remove Resume</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px]">This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="text-[13px]" onClick={handleDeleteResume}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1012,13 +737,10 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
   const [customField, setCustomField] = useState('');
   const [availableFields, setAvailableFields] = useState<string[]>([]);
 
-  // Update available fields when degree changes
   React.useEffect(() => {
     if (formData.degree && formData.degree !== 'Other') {
       const fields = getFieldsOfStudy(formData.degree);
       setAvailableFields(fields);
-
-      // Reset field of study if it's not in the new list
       if (formData.fieldOfStudy && !fields.includes(formData.fieldOfStudy)) {
         setFormData(prev => ({ ...prev, fieldOfStudy: '' }));
       }
@@ -1027,87 +749,51 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Use custom values if "Other" is selected
-    const finalData = {
+    onSave({
       ...formData,
       degree: formData.degree === 'Other' ? customDegree : formData.degree,
-      fieldOfStudy: formData.fieldOfStudy === 'Other Field' || formData.fieldOfStudy === 'Please specify your field'
-        ? customField
-        : formData.fieldOfStudy,
-    };
-
-    onSave(finalData);
+      fieldOfStudy: formData.fieldOfStudy === 'Other Field' || formData.fieldOfStudy === 'Please specify your field' ? customField : formData.fieldOfStudy,
+    });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
       <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="text-lg sm:text-xl">{initialData ? 'Edit' : 'Add'} Education</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="px-4 sm:px-5 pt-4 pb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">{initialData ? 'Edit' : 'Add'} Education</h3>
+          <button onClick={onCancel} className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent"><X className="h-4 w-4" /></button>
+        </div>
+        <CardContent className="px-4 sm:px-5 pb-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
-                <Label>Institution *</Label>
-                <Input
-                  value={formData.institution}
-                  onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
-                  placeholder="e.g., Harvard University, MIT, Stanford College"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">School, college, or university name</p>
+                <Label className="text-[12px]">Institution *</Label>
+                <Input value={formData.institution} onChange={(e) => setFormData({ ...formData, institution: e.target.value })} placeholder="e.g., Harvard University" required className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>Degree *</Label>
-                <Select
-                  value={formData.degree}
-                  onValueChange={(value) => setFormData({ ...formData, degree: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select degree" />
-                  </SelectTrigger>
+                <Label className="text-[12px]">Degree *</Label>
+                <Select value={formData.degree} onValueChange={(value) => setFormData({ ...formData, degree: value })} required>
+                  <SelectTrigger className="h-9 text-[13px] mt-1"><SelectValue placeholder="Select degree" /></SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     {DEGREE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">Select your degree type</p>
                 {formData.degree === 'Other' && (
-                  <Input
-                    value={customDegree}
-                    onChange={(e) => setCustomDegree(e.target.value)}
-                    placeholder="Enter your degree"
-                    className="mt-2"
-                    required
-                  />
+                  <Input value={customDegree} onChange={(e) => setCustomDegree(e.target.value)} placeholder="Enter your degree" className="mt-1.5 h-9 text-[13px]" required />
                 )}
               </div>
               <div>
-                <Label>Field of Study *</Label>
-                <Select
-                  value={formData.fieldOfStudy}
-                  onValueChange={(value) => setFormData({ ...formData, fieldOfStudy: value })}
-                  required
-                  disabled={!formData.degree}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.degree ? "Select field of study" : "Select degree first"} />
-                  </SelectTrigger>
+                <Label className="text-[12px]">Field of Study *</Label>
+                <Select value={formData.fieldOfStudy} onValueChange={(value) => setFormData({ ...formData, fieldOfStudy: value })} required disabled={!formData.degree}>
+                  <SelectTrigger className="h-9 text-[13px] mt-1"><SelectValue placeholder={formData.degree ? "Select field" : "Select degree first"} /></SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     {availableFields.map((field) => (
-                      <SelectItem key={field} value={field}>
-                        {field}
-                      </SelectItem>
+                      <SelectItem key={field} value={field}>{field}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">Your major or specialization</p>
                 {(formData.fieldOfStudy === 'Other Field' ||
                   formData.fieldOfStudy === 'Other Engineering' ||
                   formData.fieldOfStudy === 'Other Computer Field' ||
@@ -1122,69 +808,33 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
                   formData.fieldOfStudy === 'Other Diploma' ||
                   formData.fieldOfStudy === 'Other Research' ||
                   formData.fieldOfStudy === 'Please specify your field') && (
-                  <Input
-                    value={customField}
-                    onChange={(e) => setCustomField(e.target.value)}
-                    placeholder="Enter your field of study"
-                    className="mt-2"
-                    required
-                  />
+                  <Input value={customField} onChange={(e) => setCustomField(e.target.value)} placeholder="Enter field of study" className="mt-1.5 h-9 text-[13px]" required />
                 )}
               </div>
               <div>
-                <Label>Grade (Optional)</Label>
-                <Input
-                  value={formData.grade}
-                  onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                  placeholder="8.5 CGPA, 85%, First Class"
-                />
-                <p className="text-xs text-muted-foreground mt-1">GPA, percentage, or class</p>
+                <Label className="text-[12px]">Grade (Optional)</Label>
+                <Input value={formData.grade} onChange={(e) => setFormData({ ...formData, grade: e.target.value })} placeholder="8.5 CGPA, 85%" className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>Start Date *</Label>
-                <Input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you started studying</p>
+                <Label className="text-[12px]">Start Date *</Label>
+                <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  disabled={formData.current}
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you graduated or will graduate</p>
+                <Label className="text-[12px]">End Date</Label>
+                <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} disabled={formData.current} className="h-9 text-[13px] mt-1" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="current-edu"
-                checked={formData.current}
-                onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })}
-              />
-              <Label htmlFor="current-edu">Currently studying here (Check if ongoing)</Label>
+              <input type="checkbox" id="current-edu" checked={formData.current} onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })} className="rounded" />
+              <Label htmlFor="current-edu" className="text-[12px]">Currently studying here</Label>
             </div>
             <div>
-              <Label>Description (Optional)</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Additional details about your education, achievements, relevant coursework, projects, etc."
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground mt-1">Any notable achievements, projects, or activities</p>
+              <Label className="text-[12px]">Description (Optional)</Label>
+              <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Achievements, coursework, projects..." rows={3} className="text-[13px] mt-1" />
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit">Save</Button>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button type="button" variant="outline" size="sm" className="text-[13px]" onClick={onCancel}>Cancel</Button>
+              <Button type="submit" size="sm" className="text-[13px]">Save</Button>
             </div>
           </form>
         </CardContent>
@@ -1205,94 +855,50 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
     description: initialData?.description || '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
       <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="text-lg sm:text-xl">{initialData ? 'Edit' : 'Add'} Experience</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="px-4 sm:px-5 pt-4 pb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">{initialData ? 'Edit' : 'Add'} Experience</h3>
+          <button onClick={onCancel} className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent"><X className="h-4 w-4" /></button>
+        </div>
+        <CardContent className="px-4 sm:px-5 pb-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Job Title *</Label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Software Engineer, Project Manager"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">Your role or position</p>
+                <Label className="text-[12px]">Job Title *</Label>
+                <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Software Engineer" required className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>Company *</Label>
-                <Input
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  placeholder="Google, Microsoft, ABC Company"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">Company or organization name</p>
+                <Label className="text-[12px]">Company *</Label>
+                <Input value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} placeholder="Google, Microsoft" required className="h-9 text-[13px] mt-1" />
               </div>
               <div className="md:col-span-2">
-                <Label>Location (Optional)</Label>
-                <LocationAutocomplete
-                  value={formData.location}
-                  onChange={(value) => setFormData({ ...formData, location: value })}
-                  placeholder="San Francisco, CA or Remote"
-                />
-                <p className="text-xs text-muted-foreground mt-1">City, state/country or Remote</p>
+                <Label className="text-[12px]">Location (Optional)</Label>
+                <LocationAutocomplete value={formData.location} onChange={(value) => setFormData({ ...formData, location: value })} placeholder="San Francisco, CA or Remote" />
               </div>
               <div>
-                <Label>Start Date *</Label>
-                <Input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you started this job</p>
+                <Label className="text-[12px]">Start Date *</Label>
+                <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  disabled={formData.current}
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you left or will leave</p>
+                <Label className="text-[12px]">End Date</Label>
+                <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} disabled={formData.current} className="h-9 text-[13px] mt-1" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="current-job"
-                checked={formData.current}
-                onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })}
-              />
-              <Label htmlFor="current-job">Currently working here (Check if this is your current job)</Label>
+              <input type="checkbox" id="current-job" checked={formData.current} onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })} className="rounded" />
+              <Label htmlFor="current-job" className="text-[12px]">Currently working here</Label>
             </div>
             <div>
-              <Label>Description (Optional)</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe your responsibilities, achievements, and key projects. Example: Led development of mobile app, managed team of 5 engineers, improved system performance by 40%"
-                rows={4}
-              />
-              <p className="text-xs text-muted-foreground mt-1">Your responsibilities, achievements, and key projects</p>
+              <Label className="text-[12px]">Description (Optional)</Label>
+              <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Your responsibilities and achievements..." rows={4} className="text-[13px] mt-1" />
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit">Save</Button>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button type="button" variant="outline" size="sm" className="text-[13px]" onClick={onCancel}>Cancel</Button>
+              <Button type="submit" size="sm" className="text-[13px]">Save</Button>
             </div>
           </form>
         </CardContent>
@@ -1303,52 +909,26 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
 
 // Skill Form Component
 function SkillForm({ onSave, onCancel }: any) {
-  const [name, setName] = useState('');
-  const [level, setLevel] = useState('');
+  const [skillName, setSkillName] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(name, level);
-  };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(skillName); };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="text-lg sm:text-xl">Add Skill</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+        <div className="px-4 sm:px-5 pt-4 pb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Add Skill</h3>
+          <button onClick={onCancel} className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent"><X className="h-4 w-4" /></button>
+        </div>
+        <CardContent className="px-4 sm:px-5 pb-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <Label>Skill Name *</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="JavaScript, Python, Project Management"
-                required
-              />
-              <p className="text-xs text-muted-foreground mt-1">Technical skills, tools, or soft skills you possess</p>
+              <Label className="text-[12px]">Skill Name *</Label>
+              <Input value={skillName} onChange={(e) => setSkillName(e.target.value)} placeholder="JavaScript, Python, Project Management" required className="h-9 text-[13px] mt-1" />
             </div>
-            <div>
-              <Label>Proficiency Level (Optional)</Label>
-              <select
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-                className="w-full border rounded-md p-2"
-              >
-                <option value="">Select level (optional)</option>
-                <option value="Beginner">Beginner - Just started learning</option>
-                <option value="Intermediate">Intermediate - Can work independently</option>
-                <option value="Advanced">Advanced - High expertise</option>
-                <option value="Expert">Expert - Master level</option>
-              </select>
-              <p className="text-xs text-muted-foreground mt-1">How proficient are you with this skill?</p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit">Add Skill</Button>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button type="button" variant="outline" size="sm" className="text-[13px]" onClick={onCancel}>Cancel</Button>
+              <Button type="submit" size="sm" className="text-[13px]">Add Skill</Button>
             </div>
           </form>
         </CardContent>
@@ -1359,7 +939,7 @@ function SkillForm({ onSave, onCancel }: any) {
 
 export default function ProfilePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background"><div className="flex items-center justify-center min-h-screen">Loading...</div></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
       <ProfilePageContent />
     </Suspense>
   );

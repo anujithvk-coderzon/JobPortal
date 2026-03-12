@@ -3,8 +3,15 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Navbar } from '@/components/Navbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,14 +35,16 @@ import {
   Eye,
   EyeOff,
   User,
-  ChevronDown,
-  ChevronRight,
   Search,
   X,
   Settings,
   TrendingUp,
   Play,
   ImageIcon,
+  Plus,
+  Shield,
+  Edit,
+  MessageSquarePlus,
 } from 'lucide-react';
 
 interface PrivacySettings {
@@ -82,75 +91,50 @@ export default function MyPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
-  const [showPrivacyPanel, setShowPrivacyPanel] = useState(false);
+  const [showPrivacyMobile, setShowPrivacyMobile] = useState(false);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [credibilityScore, setCredibilityScore] = useState<CredibilityScore>({
-    level: 'Newbie',
-    score: 0,
-    nextLevel: 'Contributor',
-    nextLevelAt: 10,
+    level: 'Newbie', score: 0, nextLevel: 'Contributor', nextLevelAt: 10,
   });
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>({
-    email: false,
-    phone: false,
-    location: true,
-    bio: true,
-    education: true,
-    experience: true,
-    skills: true,
+    email: false, phone: false, location: true, bio: true, education: true, experience: true, skills: true,
   });
 
-  // Calculate credibility score from posts
   const calculateCredibilityScore = (helpfulCount: number): CredibilityScore => {
-    let level = 'Newbie';
-    let nextLevel = 'Contributor';
-    let nextLevelAt = 10;
-
-    if (helpfulCount >= 100) {
-      level = 'Authority';
-      nextLevel = 'Authority';
-      nextLevelAt = 100;
-    } else if (helpfulCount >= 50) {
-      level = 'Expert';
-      nextLevel = 'Authority';
-      nextLevelAt = 100;
-    } else if (helpfulCount >= 25) {
-      level = 'Trusted';
-      nextLevel = 'Expert';
-      nextLevelAt = 50;
-    } else if (helpfulCount >= 10) {
-      level = 'Contributor';
-      nextLevel = 'Trusted';
-      nextLevelAt = 25;
-    }
-
-    return { level, score: helpfulCount, nextLevel, nextLevelAt };
+    if (helpfulCount >= 100) return { level: 'Authority', score: helpfulCount, nextLevel: 'Authority', nextLevelAt: 100 };
+    if (helpfulCount >= 50) return { level: 'Expert', score: helpfulCount, nextLevel: 'Authority', nextLevelAt: 100 };
+    if (helpfulCount >= 25) return { level: 'Trusted', score: helpfulCount, nextLevel: 'Expert', nextLevelAt: 50 };
+    if (helpfulCount >= 10) return { level: 'Contributor', score: helpfulCount, nextLevel: 'Trusted', nextLevelAt: 25 };
+    return { level: 'Newbie', score: helpfulCount, nextLevel: 'Contributor', nextLevelAt: 10 };
   };
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
+    if (!isAuthenticated) { router.push('/auth/login'); return; }
     fetchProfile();
     fetchPosts();
+    fetchCompanies();
   }, [isAuthenticated, isHydrated, router]);
+
+  const fetchCompanies = async () => {
+    try {
+      const response = await api.get('/companies');
+      if (response.success) setCompanies(response.data.companies || []);
+    } catch {}
+  };
 
   const fetchProfile = async () => {
     try {
       const response = await api.get('/users/profile');
-      const userData = response.data;
-      setProfileData(userData);
-      if (userData.profile?.privacySettings) {
-        setPrivacySettings(userData.profile.privacySettings);
+      setProfileData(response.data);
+      if (response.data.profile?.privacySettings) {
+        setPrivacySettings(response.data.profile.privacySettings);
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+    } catch {
       toast({ title: 'Error', description: 'Failed to load profile', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -161,59 +145,38 @@ export default function MyPage() {
     try {
       const params: any = { page, limit: 10 };
       if (search) params.search = search;
-
       const response = await api.get('/job-news/user/my-news', { params });
       const newPosts = response.data?.data?.jobNews || response.data?.jobNews || [];
       const pagination = response.data?.data?.pagination || response.data?.pagination || {};
 
       if (page === 1) {
         setPosts(newPosts);
-        // Calculate total helpful marks from all posts
-        const totalHelpfulMarks = newPosts.reduce((sum: number, post: Post) => sum + (post.helpfulCount || 0), 0);
-        setCredibilityScore(calculateCredibilityScore(totalHelpfulMarks));
+        setCredibilityScore(calculateCredibilityScore(newPosts.reduce((s: number, p: Post) => s + (p.helpfulCount || 0), 0)));
       } else {
-        const updatedPosts = [...posts, ...newPosts];
-        setPosts(updatedPosts);
-        // Recalculate when loading more
-        const totalHelpfulMarks = updatedPosts.reduce((sum: number, post: Post) => sum + (post.helpfulCount || 0), 0);
-        setCredibilityScore(calculateCredibilityScore(totalHelpfulMarks));
+        const all = [...posts, ...newPosts];
+        setPosts(all);
+        setCredibilityScore(calculateCredibilityScore(all.reduce((s: number, p: Post) => s + (p.helpfulCount || 0), 0)));
       }
-
       setCurrentPage(pagination.page || 1);
       setTotalPages(pagination.totalPages || 1);
       setTotalPosts(pagination.total || 0);
       setHasMore(pagination.page < pagination.totalPages);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
+    } catch {
       if (page === 1) { setPosts([]); setTotalPosts(0); }
     } finally {
       setLoadingPosts(false);
       setLoadingMorePosts(false);
     }
-  }, [toast, posts]);
+  }, [posts]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-
-    // Clear previous debounce timeout
     if (searchDebounce) clearTimeout(searchDebounce);
-
-    // Set new debounce timeout
-    const timeout = setTimeout(() => {
-      setLoadingPosts(true);
-      setCurrentPage(1);
-      fetchPosts(1, query);
-    }, 500); // 500ms debounce
-
+    const timeout = setTimeout(() => { setLoadingPosts(true); setCurrentPage(1); fetchPosts(1, query); }, 500);
     setSearchDebounce(timeout);
   };
 
-  const clearSearch = () => {
-    setSearchQuery('');
-    setLoadingPosts(true);
-    setCurrentPage(1);
-    fetchPosts(1, '');
-  };
+  const clearSearch = () => { setSearchQuery(''); setLoadingPosts(true); setCurrentPage(1); fetchPosts(1, ''); };
 
   const loadMorePosts = useCallback(async () => {
     if (loadingMorePosts || !hasMore) return;
@@ -221,76 +184,40 @@ export default function MyPage() {
     await fetchPosts(currentPage + 1, searchQuery);
   }, [loadingMorePosts, hasMore, currentPage, searchQuery, fetchPosts]);
 
-  // Infinite scroll implementation with optimized load balancing
   useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-
-      // Trigger load when user is 300px from bottom for better UX
-      // This gives enough time to fetch before user reaches the end
-      if (distanceFromBottom < 300 && hasMore && !loadingMorePosts && !loadingPosts) {
-        loadMorePosts();
-      }
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300 && hasMore && !loadingMorePosts && !loadingPosts) loadMorePosts();
     };
-
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
   }, [hasMore, loadingMorePosts, loadingPosts, loadMorePosts]);
 
   const handlePrivacyToggle = async (field: keyof PrivacySettings) => {
     let newSettings = { ...privacySettings, [field]: !privacySettings[field] };
-
-    // When toggling email (Contact Info), also toggle phone and location
     if (field === 'email') {
-      newSettings = {
-        ...newSettings,
-        phone: !privacySettings[field],
-        location: !privacySettings[field],
-      };
+      newSettings = { ...newSettings, phone: !privacySettings[field], location: !privacySettings[field] };
     }
-
     setPrivacySettings(newSettings);
     setSavingPrivacy(true);
     try {
       await api.put('/users/privacy-settings', newSettings);
-      toast({ title: 'Success', description: 'Privacy settings updated', variant: 'success' });
-    } catch (error) {
-      console.error('Error updating privacy:', error);
+      toast({ title: 'Saved', description: 'Privacy settings updated' });
+    } catch {
       setPrivacySettings(privacySettings);
-      toast({ title: 'Error', description: 'Failed to update privacy settings', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to update', variant: 'destructive' });
     } finally {
       setSavingPrivacy(false);
     }
   };
 
   if (!isHydrated || !isAuthenticated || loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
   if (!profileData) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="max-w-md w-full mx-4">
-            <CardContent className="py-16 text-center">
-              <h3 className="text-lg font-semibold mb-2">Profile not found</h3>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-[60vh]"><p className="text-[13px] text-muted-foreground">Profile not found</p></div>;
   }
 
   const profile = profileData.profile || {};
@@ -298,724 +225,385 @@ export default function MyPage() {
   const education = profile.education || [];
   const skills = profile.skills || [];
 
-  // Privacy Panel Content Component (reused in both desktop sidebar and mobile modal)
-  const PrivacyPanelContent = () => (
-    <CardContent className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4 lg:px-6 lg:pb-6 max-h-[60vh] lg:max-h-none overflow-y-auto lg:overflow-visible scrollbar-thin">
-      {/* Profile Preview */}
-      <div className="flex items-center gap-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
-        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-          <AvatarImage src={profileData.profilePhoto || undefined} referrerPolicy="no-referrer" crossOrigin="anonymous" />
-          <AvatarFallback className="text-xs sm:text-sm">{getInitials(profileData.name)}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs sm:text-sm font-semibold truncate">{profileData.name}</p>
-          {profile.headline && <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{profile.headline}</p>}
+  const ToggleRow = ({ icon: Icon, label, field, count }: { icon: any; label: string; field: keyof PrivacySettings; count?: number }) => (
+    <div className="flex items-center justify-between py-2.5 px-1">
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="h-7 w-7 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <div className="min-w-0">
+          <span className="text-[13px] font-medium block truncate">{label}</span>
+          {count !== undefined && <span className="text-[11px] text-muted-foreground">{count} item{count !== 1 ? 's' : ''}</span>}
         </div>
       </div>
-
-      {/* Credibility Stats */}
-      <div className="border-t pt-3 space-y-2">
-        <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wide">Community Reputation</p>
-
-        <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg p-3 border border-primary/20">
-          <div className="flex items-center justify-between mb-2">
-            <CredibilityBadge credibilityScore={credibilityScore} size="sm" showProgress={false} />
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Total Helpful Marks</p>
-              <p className="text-lg font-bold text-primary">{credibilityScore.score}</p>
-            </div>
-          </div>
-
-          {credibilityScore.level !== 'Authority' && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-muted-foreground">Progress to {credibilityScore.nextLevel}</span>
-                <span className="font-semibold">{credibilityScore.score} / {credibilityScore.nextLevelAt}</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-1.5">
-                <div
-                  className="bg-primary rounded-full h-1.5 transition-all"
-                  style={{ width: `${Math.min((credibilityScore.score / credibilityScore.nextLevelAt) * 100, 100)}%` }}
-                />
-              </div>
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
-                <TrendingUp className="h-3 w-3" />
-                <span>{credibilityScore.nextLevelAt - credibilityScore.score} more helpful marks needed</span>
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="flex items-center gap-2.5 flex-shrink-0">
+        <span className={`text-[11px] font-medium ${privacySettings[field] ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+          {privacySettings[field] ? 'Visible' : 'Hidden'}
+        </span>
+        <Switch checked={privacySettings[field]} onCheckedChange={() => handlePrivacyToggle(field)} disabled={savingPrivacy} />
       </div>
-
-      <div className="border-t pt-3 space-y-2 sm:space-y-2.5">
-        <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wide">Quick Toggle Controls</p>
-
-        {/* Contact Section */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="p-2.5 sm:p-3 bg-muted/20">
-            <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                <p className="text-xs sm:text-sm font-semibold truncate">Contact Info</p>
-              </div>
-              <div onClick={(e) => e.stopPropagation()}>
-                <Switch
-                  checked={privacySettings.email}
-                  onCheckedChange={() => handlePrivacyToggle('email')}
-                  disabled={savingPrivacy}
-                  className="scale-90 sm:scale-100"
-                />
-              </div>
-            </div>
-            <Badge variant={privacySettings.email ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-              {privacySettings.email ? 'Public' : 'Private'}
-            </Badge>
-          </div>
-          {expandedSection === 'contact' && (
-            <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 space-y-1.5 sm:space-y-2 text-[10px] sm:text-xs bg-background border-t">
-              <div className="flex flex-col gap-0.5 sm:gap-1">
-                <span className="font-medium text-muted-foreground">Email:</span>
-                <span className="break-all">{profileData.email}</span>
-              </div>
-              {profileData.phone && (
-                <div className="flex flex-col gap-0.5 sm:gap-1">
-                  <span className="font-medium text-muted-foreground">Phone:</span>
-                  <span>{profileData.phone}</span>
-                </div>
-              )}
-              {profileData.location && (
-                <div className="flex flex-col gap-0.5 sm:gap-1">
-                  <span className="font-medium text-muted-foreground">Location:</span>
-                  <span>{profileData.location}</span>
-                </div>
-              )}
-            </div>
-          )}
-          <div
-            onClick={() => setExpandedSection(expandedSection === 'contact' ? null : 'contact')}
-            className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t cursor-pointer"
-          >
-            {expandedSection === 'contact' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            {expandedSection === 'contact' ? 'Hide' : 'Show'} Details
-          </div>
-        </div>
-
-        {/* About Section */}
-        {profile.bio && (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="p-2.5 sm:p-3 bg-muted/20">
-              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                  <p className="text-xs sm:text-sm font-semibold truncate">About</p>
-                </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Switch
-                    checked={privacySettings.bio}
-                    onCheckedChange={() => handlePrivacyToggle('bio')}
-                    disabled={savingPrivacy}
-                    className="scale-90 sm:scale-100"
-                  />
-                </div>
-              </div>
-              <Badge variant={privacySettings.bio ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                {privacySettings.bio ? 'Public' : 'Private'}
-              </Badge>
-            </div>
-            {expandedSection === 'about' && (
-              <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 text-[10px] sm:text-xs bg-background border-t">
-                <p className="text-muted-foreground leading-relaxed">{profile.bio}</p>
-              </div>
-            )}
-            <div
-              onClick={() => setExpandedSection(expandedSection === 'about' ? null : 'about')}
-              className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t cursor-pointer"
-            >
-              {expandedSection === 'about' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {expandedSection === 'about' ? 'Hide' : 'Show'} Details
-            </div>
-          </div>
-        )}
-
-        {/* Skills Section */}
-        {skills.length > 0 && (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="p-2.5 sm:p-3 bg-muted/20">
-              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                  <Award className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                  <p className="text-xs sm:text-sm font-semibold truncate">Skills</p>
-                  <Badge variant="outline" className="text-[10px] h-4 px-1">{skills.length}</Badge>
-                </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Switch
-                    checked={privacySettings.skills}
-                    onCheckedChange={() => handlePrivacyToggle('skills')}
-                    disabled={savingPrivacy}
-                    className="scale-90 sm:scale-100"
-                  />
-                </div>
-              </div>
-              <Badge variant={privacySettings.skills ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                {privacySettings.skills ? 'Public' : 'Private'}
-              </Badge>
-            </div>
-            {expandedSection === 'skills' && (
-              <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 bg-background border-t">
-                <div className="flex flex-wrap gap-1.5">
-                  {skills.map((skill: any) => (
-                    <Badge key={skill.id} variant="secondary" className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                      {skill.name}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div
-              onClick={() => setExpandedSection(expandedSection === 'skills' ? null : 'skills')}
-              className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t cursor-pointer"
-            >
-              {expandedSection === 'skills' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {expandedSection === 'skills' ? 'Hide' : 'Show'} Details
-            </div>
-          </div>
-        )}
-
-        {/* Experience Section */}
-        {experiences.length > 0 && (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="p-2.5 sm:p-3 bg-muted/20">
-              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                  <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                  <p className="text-xs sm:text-sm font-semibold truncate">Experience</p>
-                  <Badge variant="outline" className="text-[10px] h-4 px-1">{experiences.length}</Badge>
-                </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Switch
-                    checked={privacySettings.experience}
-                    onCheckedChange={() => handlePrivacyToggle('experience')}
-                    disabled={savingPrivacy}
-                    className="scale-90 sm:scale-100"
-                  />
-                </div>
-              </div>
-              <Badge variant={privacySettings.experience ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                {privacySettings.experience ? 'Public' : 'Private'}
-              </Badge>
-            </div>
-            {expandedSection === 'experience' && (
-              <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 space-y-2 sm:space-y-3 bg-background border-t">
-                {experiences.map((exp: any) => (
-                  <div key={exp.id} className="text-[10px] sm:text-xs">
-                    <p className="font-medium text-xs sm:text-sm">{exp.title}</p>
-                    <p className="text-muted-foreground">{exp.company}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div
-              onClick={() => setExpandedSection(expandedSection === 'experience' ? null : 'experience')}
-              className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t cursor-pointer"
-            >
-              {expandedSection === 'experience' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {expandedSection === 'experience' ? 'Hide' : 'Show'} Details
-            </div>
-          </div>
-        )}
-
-        {/* Education Section */}
-        {education.length > 0 && (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="p-2.5 sm:p-3 bg-muted/20">
-              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                  <GraduationCap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                  <p className="text-xs sm:text-sm font-semibold truncate">Education</p>
-                  <Badge variant="outline" className="text-[10px] h-4 px-1">{education.length}</Badge>
-                </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Switch
-                    checked={privacySettings.education}
-                    onCheckedChange={() => handlePrivacyToggle('education')}
-                    disabled={savingPrivacy}
-                    className="scale-90 sm:scale-100"
-                  />
-                </div>
-              </div>
-              <Badge variant={privacySettings.education ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                {privacySettings.education ? 'Public' : 'Private'}
-              </Badge>
-            </div>
-            {expandedSection === 'education' && (
-              <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 space-y-2 sm:space-y-3 bg-background border-t">
-                {education.map((edu: any) => (
-                  <div key={edu.id} className="text-[10px] sm:text-xs">
-                    <p className="font-medium text-xs sm:text-sm">{edu.degree}</p>
-                    <p className="text-muted-foreground">{edu.institution}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div
-              onClick={() => setExpandedSection(expandedSection === 'education' ? null : 'education')}
-              className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t cursor-pointer"
-            >
-              {expandedSection === 'education' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {expandedSection === 'education' ? 'Hide' : 'Show'} Details
-            </div>
-          </div>
-        )}
-      </div>
-    </CardContent>
+    </div>
   );
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <Navbar />
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+      {/* Page Header */}
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4 min-w-0">
+          <Avatar className="h-12 w-12 flex-shrink-0 border-2 border-border">
+            <AvatarImage src={profileData.profilePhoto || undefined} referrerPolicy="no-referrer" crossOrigin="anonymous" />
+            <AvatarFallback className="text-sm font-semibold">{getInitials(profileData.name)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight truncate">{profileData.name}</h1>
+            <p className="text-[13px] text-muted-foreground truncate">{profile.headline || profileData.email}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Button variant="outline" size="sm" className="text-[12px] h-8" onClick={() => router.push('/profile')}>
+            <Edit className="h-3 w-3 mr-1.5" />
+            Edit Profile
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0 lg:hidden" onClick={() => setShowPrivacyMobile(!showPrivacyMobile)}>
+            <Shield className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full py-4 md:py-6">
-          {/* Desktop: Two Column Layout | Mobile: Single Column */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 h-full">
-
-            {/* Left Sidebar - Desktop Only Privacy Panel */}
-            <div className="hidden lg:flex lg:flex-col lg:h-full lg:overflow-hidden">
-              <div className="flex-shrink-0 mb-3">
-                <h1 className="text-lg font-bold">My Profile & Privacy</h1>
-                <p className="text-muted-foreground text-xs">Control your visibility</p>
+      {/* Mobile Privacy Panel */}
+      {showPrivacyMobile && (
+        <Card className="mb-4 lg:hidden">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Privacy Controls</h2>
               </div>
-
-              <Card className="flex-1 overflow-hidden flex flex-col">
-                <CardHeader className="pb-3 flex-shrink-0">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Eye className="h-4 w-4" />
-                    Privacy Controls
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">Control what others can see</p>
-                </CardHeader>
-                <div className="flex-1 overflow-y-auto scrollbar-thin">
-                  <PrivacyPanelContent />
-                </div>
-              </Card>
+              <button onClick={() => setShowPrivacyMobile(false)} className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
+            <p className="text-[11px] text-muted-foreground mb-3">Choose which sections of your profile are visible to other users and recruiters.</p>
+            <div className="divide-y divide-border/60">
+              <ToggleRow icon={Mail} label="Contact Info" field="email" />
+              {profile.bio && <ToggleRow icon={User} label="About" field="bio" />}
+              {skills.length > 0 && <ToggleRow icon={Award} label="Skills" field="skills" count={skills.length} />}
+              {experiences.length > 0 && <ToggleRow icon={Briefcase} label="Experience" field="experience" count={experiences.length} />}
+              {education.length > 0 && <ToggleRow icon={GraduationCap} label="Education" field="education" count={education.length} />}
+            </div>
+          </div>
+        </Card>
+      )}
 
-            {/* Right Column - Posts Section */}
-            <div className="lg:col-span-2 flex flex-col h-full overflow-hidden">
-
-              {/* Desktop: Header */}
-              <div className="hidden lg:block flex-shrink-0 pb-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h1 className="text-xl font-bold flex items-center gap-2">
-                      <span>My Community Posts</span>
-                      <Badge variant="secondary" className="text-xs">{totalPosts}</Badge>
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">View and manage your published posts</p>
-                  </div>
-                  <Button onClick={() => router.push('/community/create')} size="sm">
-                    Create Post
-                  </Button>
-                </div>
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* Left — Posts */}
+        <div>
+          {/* Stats Row */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="rounded-lg border bg-card p-3">
+              <p className="text-xl font-semibold">{totalPosts}</p>
+              <p className="text-[11px] text-muted-foreground">Posts</p>
+            </div>
+            <div className="rounded-lg border bg-card p-3">
+              <p className="text-xl font-semibold">{credibilityScore.score}</p>
+              <p className="text-[11px] text-muted-foreground">Helpful Marks</p>
+            </div>
+            <div className="rounded-lg border bg-card p-3">
+              <div className="flex items-center gap-1.5">
+                <CredibilityBadge credibilityScore={credibilityScore} size="sm" showProgress={false} />
               </div>
+              <p className="text-[11px] text-muted-foreground mt-1">Reputation</p>
+            </div>
+          </div>
 
-              {/* Mobile: Header with Privacy Button */}
-              <div className="lg:hidden flex-shrink-0 pb-3 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="min-w-0">
-                    <h1 className="text-lg sm:text-xl font-bold flex items-center gap-2 flex-wrap">
-                      <span className="truncate">My Community Posts</span>
-                      <Badge variant="secondary" className="text-[10px] sm:text-xs flex-shrink-0">{totalPosts}</Badge>
-                    </h1>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">View and manage your published posts</p>
+          {/* Search + Create */}
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search posts..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-8 pr-8 h-9 text-[13px]"
+              />
+              {searchQuery && (
+                <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="h-9 text-[13px]">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  <span className="hidden sm:inline">Create Post</span>
+                  <span className="sm:hidden">New</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => router.push('/community/create')}>
+                  <MessageSquarePlus className="mr-2 h-4 w-4 text-blue-600" />
+                  <div>
+                    <p className="text-[13px] font-medium">Community Post</p>
+                    <p className="text-[11px] text-muted-foreground">Share job tips, news & alerts</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button onClick={() => router.push('/community/create')} size="sm" className="text-xs sm:text-sm h-8 sm:h-9 flex-1 sm:flex-none">
-                      Create Post
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPrivacyPanel(!showPrivacyPanel)}
-                      className="text-xs sm:text-sm h-8 sm:h-9 whitespace-nowrap"
-                    >
-                      <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      <span className="ml-1.5 sm:ml-2">Privacy Settings</span>
-                    </Button>
-                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">Post Official Job</DropdownMenuLabel>
+                {companies.length === 0 ? (
+                  <>
+                    <p className="px-2 py-1.5 text-[11px] text-muted-foreground">Create your company first</p>
+                    <DropdownMenuItem onClick={() => router.push('/company/create')}>
+                      <Building2 className="mr-2 h-4 w-4" />
+                      <span className="text-[13px]">Create Company</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    {companies.map((c) => (
+                      <DropdownMenuItem key={c.id} onClick={() => router.push(`/jobs/post?companyId=${c.id}`)}>
+                        <Briefcase className="mr-2 h-4 w-4 text-emerald-600" />
+                        <span className="text-[13px]">{c.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push('/company/create')}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span className="text-[13px]">Add Company</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {searchQuery && (
+            <p className="text-[11px] text-muted-foreground mb-3">
+              {loadingPosts ? 'Searching...' : `${totalPosts} result${totalPosts !== 1 ? 's' : ''} for "${searchQuery}"`}
+            </p>
+          )}
+
+          {/* Posts List */}
+          <div ref={scrollRef} className="space-y-2">
+            {loadingPosts ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="rounded-lg border bg-card text-center py-12">
+                <div className="h-10 w-10 mx-auto mb-3 rounded-lg bg-muted flex items-center justify-center">
+                  <MessageSquarePlus className="h-5 w-5 text-muted-foreground" />
                 </div>
-
-                {/* Privacy Panel - Collapsible (Mobile Only) */}
-                {showPrivacyPanel && (
-              <Card className="border shadow-lg">
-                <CardHeader className="pb-3 px-3 pt-3 sm:px-4 sm:pt-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Privacy Controls
-                    </CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowPrivacyPanel(false)}
-                      className="h-7 w-7 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Control what others can see</p>
-                </CardHeader>
-                <CardContent className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4 max-h-[60vh] overflow-y-auto scrollbar-thin">
-                  {/* Profile Preview */}
-                  <div className="flex items-center gap-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
-                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-                      <AvatarImage src={profileData.profilePhoto || undefined} referrerPolicy="no-referrer" crossOrigin="anonymous" />
-                      <AvatarFallback className="text-xs sm:text-sm">{getInitials(profileData.name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-semibold truncate">{profileData.name}</p>
-                      {profile.headline && <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{profile.headline}</p>}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-3 space-y-2 sm:space-y-2.5">
-                    <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wide">Quick Toggle Controls</p>
-
-                    {/* Contact Section */}
-                    <div className="border rounded-lg overflow-hidden">
-                      <div className="p-2.5 sm:p-3 bg-muted/20">
-                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                            <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                            <p className="text-xs sm:text-sm font-semibold truncate">Contact Info</p>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Switch
-                              checked={privacySettings.email}
-                              onCheckedChange={() => handlePrivacyToggle('email')}
-                              disabled={savingPrivacy}
-                              className="scale-90 sm:scale-100"
-                            />
-                          </div>
+                <p className="text-[13px] font-medium mb-1">{searchQuery ? 'No matching posts' : 'No posts yet'}</p>
+                <p className="text-[12px] text-muted-foreground mb-4">{searchQuery ? 'Try a different search' : 'Share job leads and tips with the community'}</p>
+                {!searchQuery && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Create First Post
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="w-56">
+                      <DropdownMenuItem onClick={() => router.push('/community/create')}>
+                        <MessageSquarePlus className="mr-2 h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-[13px] font-medium">Community Post</p>
+                          <p className="text-[11px] text-muted-foreground">Share job tips, news & alerts</p>
                         </div>
-                        <Badge variant={privacySettings.email ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                          {privacySettings.email ? 'Public' : 'Private'}
-                        </Badge>
-                      </div>
-                      {expandedSection === 'contact' && (
-                        <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 space-y-1.5 sm:space-y-2 text-[10px] sm:text-xs bg-background border-t">
-                          <div className="flex flex-col gap-0.5 sm:gap-1">
-                            <span className="font-medium text-muted-foreground">Email:</span>
-                            <span className="break-all">{profileData.email}</span>
-                          </div>
-                          {profileData.phone && (
-                            <div className="flex flex-col gap-0.5 sm:gap-1">
-                              <span className="font-medium text-muted-foreground">Phone:</span>
-                              <span>{profileData.phone}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">Post Official Job</DropdownMenuLabel>
+                      {companies.length === 0 ? (
+                        <>
+                          <p className="px-2 py-1.5 text-[11px] text-muted-foreground">Create your company first</p>
+                          <DropdownMenuItem onClick={() => router.push('/company/create')}>
+                            <Building2 className="mr-2 h-4 w-4" />
+                            <span className="text-[13px]">Create Company</span>
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        companies.map((c) => (
+                          <DropdownMenuItem key={c.id} onClick={() => router.push(`/jobs/post?companyId=${c.id}`)}>
+                            <Briefcase className="mr-2 h-4 w-4 text-emerald-600" />
+                            <span className="text-[13px]">{c.name}</span>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            ) : (
+              <>
+                {posts.map((post) => (
+                  <div
+                    key={post.id}
+                    onClick={() => router.push(`/community/${post.id}`)}
+                    className="rounded-lg border bg-card hover:border-primary/20 transition-colors cursor-pointer overflow-hidden"
+                  >
+                    <div className="flex">
+                      {(post.poster || post.video) && (
+                        <div className="relative flex-shrink-0 w-16 h-16 sm:w-24 sm:h-24 bg-muted">
+                          {post.poster ? (
+                            <img src={post.poster} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
                             </div>
                           )}
-                          {profileData.location && (
-                            <div className="flex flex-col gap-0.5 sm:gap-1">
-                              <span className="font-medium text-muted-foreground">Location:</span>
-                              <span>{profileData.location}</span>
+                          {post.video && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                              <div className="bg-white/90 rounded-full p-1"><Play className="h-3 w-3 text-black fill-black" /></div>
                             </div>
                           )}
                         </div>
                       )}
-                      <div
-                        onClick={() => setExpandedSection(expandedSection === 'contact' ? null : 'contact')}
-                        className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t cursor-pointer"
-                      >
-                        {expandedSection === 'contact' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                        {expandedSection === 'contact' ? 'Hide' : 'Show'} Details
+                      <div className="p-3 sm:p-4 flex-1 min-w-0">
+                        <h3 className="text-[13px] font-medium mb-1 line-clamp-2 leading-snug">{post.title}</h3>
+                        <p className="text-[12px] text-muted-foreground mb-2 line-clamp-2 leading-relaxed">{post.description}</p>
+                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {timeAgo(post.createdAt)}
+                          </span>
+                          {post.companyName && (
+                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                              <Building2 className="h-2.5 w-2.5 mr-0.5" />
+                              <span className="truncate max-w-[80px]">{post.companyName}</span>
+                            </Badge>
+                          )}
+                          {post.helpfulCount > 0 && (
+                            <Badge variant="default" className="text-[10px] h-5 px-1.5">
+                              <ThumbsUp className="h-2.5 w-2.5 mr-0.5" />
+                              {post.helpfulCount}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-
-                    {/* About Section */}
-                    {profile.bio && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <div className="p-2.5 sm:p-3 bg-muted/20">
-                          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                              <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                              <p className="text-xs sm:text-sm font-semibold truncate">About</p>
-                            </div>
-                            <Switch
-                              checked={privacySettings.bio}
-                              onCheckedChange={() => handlePrivacyToggle('bio')}
-                              disabled={savingPrivacy}
-                              className="scale-90 sm:scale-100"
-                            />
-                          </div>
-                          <Badge variant={privacySettings.bio ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                            {privacySettings.bio ? 'Public' : 'Private'}
-                          </Badge>
-                        </div>
-                        {expandedSection === 'about' && (
-                          <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 text-[10px] sm:text-xs bg-background">
-                            <p className="text-muted-foreground leading-relaxed">{profile.bio}</p>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setExpandedSection(expandedSection === 'about' ? null : 'about')}
-                          className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t"
-                        >
-                          {expandedSection === 'about' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                          {expandedSection === 'about' ? 'Hide' : 'Show'} Details
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Skills Section */}
-                    {skills.length > 0 && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <div className="p-2.5 sm:p-3 bg-muted/20">
-                          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                              <Award className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                              <p className="text-xs sm:text-sm font-semibold truncate">Skills</p>
-                              <Badge variant="outline" className="text-[10px] h-4 px-1">{skills.length}</Badge>
-                            </div>
-                            <Switch
-                              checked={privacySettings.skills}
-                              onCheckedChange={() => handlePrivacyToggle('skills')}
-                              disabled={savingPrivacy}
-                              className="scale-90 sm:scale-100"
-                            />
-                          </div>
-                          <Badge variant={privacySettings.skills ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                            {privacySettings.skills ? 'Public' : 'Private'}
-                          </Badge>
-                        </div>
-                        {expandedSection === 'skills' && (
-                          <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 bg-background">
-                            <div className="flex flex-wrap gap-1.5">
-                              {skills.map((skill: any) => (
-                                <Badge key={skill.id} variant="secondary" className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                                  {skill.name}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setExpandedSection(expandedSection === 'skills' ? null : 'skills')}
-                          className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t"
-                        >
-                          {expandedSection === 'skills' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                          {expandedSection === 'skills' ? 'Hide' : 'Show'} Details
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Experience Section */}
-                    {experiences.length > 0 && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <div className="p-2.5 sm:p-3 bg-muted/20">
-                          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                              <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                              <p className="text-xs sm:text-sm font-semibold truncate">Experience</p>
-                              <Badge variant="outline" className="text-[10px] h-4 px-1">{experiences.length}</Badge>
-                            </div>
-                            <Switch
-                              checked={privacySettings.experience}
-                              onCheckedChange={() => handlePrivacyToggle('experience')}
-                              disabled={savingPrivacy}
-                              className="scale-90 sm:scale-100"
-                            />
-                          </div>
-                          <Badge variant={privacySettings.experience ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                            {privacySettings.experience ? 'Public' : 'Private'}
-                          </Badge>
-                        </div>
-                        {expandedSection === 'experience' && (
-                          <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 space-y-2 sm:space-y-3 bg-background">
-                            {experiences.map((exp: any) => (
-                              <div key={exp.id} className="text-[10px] sm:text-xs">
-                                <p className="font-medium text-xs sm:text-sm">{exp.title}</p>
-                                <p className="text-muted-foreground">{exp.company}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setExpandedSection(expandedSection === 'experience' ? null : 'experience')}
-                          className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t"
-                        >
-                          {expandedSection === 'experience' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                          {expandedSection === 'experience' ? 'Hide' : 'Show'} Details
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Education Section */}
-                    {education.length > 0 && (
-                      <div className="border rounded-lg overflow-hidden">
-                        <div className="p-2.5 sm:p-3 bg-muted/20">
-                          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                              <GraduationCap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                              <p className="text-xs sm:text-sm font-semibold truncate">Education</p>
-                              <Badge variant="outline" className="text-[10px] h-4 px-1">{education.length}</Badge>
-                            </div>
-                            <Switch
-                              checked={privacySettings.education}
-                              onCheckedChange={() => handlePrivacyToggle('education')}
-                              disabled={savingPrivacy}
-                              className="scale-90 sm:scale-100"
-                            />
-                          </div>
-                          <Badge variant={privacySettings.education ? 'default' : 'secondary'} className="text-[10px] sm:text-xs h-5 sm:h-auto">
-                            {privacySettings.education ? 'Public' : 'Private'}
-                          </Badge>
-                        </div>
-                        {expandedSection === 'education' && (
-                          <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2 space-y-2 sm:space-y-3 bg-background">
-                            {education.map((edu: any) => (
-                              <div key={edu.id} className="text-[10px] sm:text-xs">
-                                <p className="font-medium text-xs sm:text-sm">{edu.degree}</p>
-                                <p className="text-muted-foreground">{edu.institution}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setExpandedSection(expandedSection === 'education' ? null : 'education')}
-                          className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-primary hover:bg-muted/50 transition-colors flex items-center justify-center gap-1 border-t"
-                        >
-                          {expandedSection === 'education' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                          {expandedSection === 'education' ? 'Hide' : 'Show'} Details
-                        </button>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
+                ))}
+
+                {loadingMorePosts && (
+                  <div className="text-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+                  </div>
                 )}
+
+                {!hasMore && posts.length > 0 && !loadingMorePosts && (
+                  <p className="text-center text-[11px] text-muted-foreground py-4 border-t border-border/60">
+                    All {totalPosts} posts loaded
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Sidebar — Privacy + Reputation */}
+        <div className="hidden lg:block space-y-4">
+          {/* Privacy Controls */}
+          <Card>
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Privacy Controls</h2>
               </div>
-
-              {/* Search Bar - Common for both Desktop and Mobile */}
-              <div className="flex-shrink-0 pb-3 space-y-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search your posts..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-8 sm:pl-9 pr-8 sm:pr-9 h-9 sm:h-10 text-xs sm:text-sm"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={clearSearch}
-                      className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    </button>
-                  )}
-                </div>
-
-                {searchQuery && (
-                  <div className="text-xs sm:text-sm text-muted-foreground">
-                    {loadingPosts ? 'Searching...' : `Found ${totalPosts} result${totalPosts !== 1 ? 's' : ''}`}
-                  </div>
-                )}
-              </div>
-
-              {/* Scrollable Posts Section */}
-              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto scrollbar-thin pb-4">
-                {loadingPosts ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                ) : posts.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <p className="text-sm text-muted-foreground mb-4">No posts yet</p>
-                      <Button onClick={() => router.push('/community/create')} size="sm">Create First Post</Button>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <>
-                    <div className="space-y-3 md:space-y-4">
-                      {posts.map((post) => (
-                        <Card
-                          key={post.id}
-                          className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50 active:scale-[0.99] overflow-hidden"
-                          onClick={() => router.push(`/community/${post.id}`)}
-                        >
-                          <div className="flex">
-                            {/* Media Thumbnail */}
-                            {(post.poster || post.video) && (
-                              <div className="relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 bg-muted">
-                                {post.poster ? (
-                                  <img
-                                    src={post.poster}
-                                    alt={post.title}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-muted">
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                  </div>
-                                )}
-                                {post.video && (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                    <div className="bg-white/90 rounded-full p-1.5">
-                                      <Play className="h-4 w-4 text-black fill-black" />
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            <CardContent className={`p-3 sm:p-4 flex-1 min-w-0 ${(post.poster || post.video) ? '' : ''}`}>
-                              <h3 className="font-semibold mb-1.5 sm:mb-2 line-clamp-2 text-xs sm:text-sm lg:text-base leading-snug">{post.title}</h3>
-                              <p className="text-[10px] sm:text-xs lg:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2 leading-relaxed">{post.description}</p>
-                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
-                                <div className="flex items-center gap-1 text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  <span className="whitespace-nowrap">{timeAgo(post.createdAt)}</span>
-                                </div>
-                                {post.companyName && (
-                                  <Badge variant="secondary" className="text-[10px] h-5">
-                                    <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                                    <span className="truncate max-w-[100px] sm:max-w-none">{post.companyName}</span>
-                                  </Badge>
-                                )}
-                                {post.helpfulCount > 0 && (
-                                  <Badge className="text-[10px] h-5 bg-blue-600">
-                                    <ThumbsUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                                    {post.helpfulCount}
-                                  </Badge>
-                                )}
-                              </div>
-                            </CardContent>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-
-                    {/* Loading More Indicator */}
-                    {loadingMorePosts && (
-                      <div className="text-center py-6 mt-4">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                        <p className="text-xs text-muted-foreground mt-2">Loading more posts...</p>
-                      </div>
-                    )}
-
-                    {/* End of List */}
-                    {!hasMore && posts.length > 0 && !loadingMorePosts && (
-                      <div className="text-center py-6 mt-4 border-t">
-                        <p className="text-sm text-muted-foreground">You've reached the end</p>
-                        <p className="text-xs text-muted-foreground mt-1">All {totalPosts} posts loaded</p>
-                      </div>
-                    )}
-                  </>
-                )}
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Choose which sections are visible to other users and recruiters.
+              </p>
+              <div className="divide-y divide-border/60">
+                <ToggleRow icon={Mail} label="Contact Info" field="email" />
+                {profile.bio && <ToggleRow icon={User} label="About" field="bio" />}
+                {skills.length > 0 && <ToggleRow icon={Award} label="Skills" field="skills" count={skills.length} />}
+                {experiences.length > 0 && <ToggleRow icon={Briefcase} label="Experience" field="experience" count={experiences.length} />}
+                {education.length > 0 && <ToggleRow icon={GraduationCap} label="Education" field="education" count={education.length} />}
               </div>
             </div>
-          </div>
+          </Card>
+
+          {/* Reputation */}
+          <Card>
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Reputation</h2>
+              </div>
+
+              <div className="flex items-center justify-between mb-3">
+                <CredibilityBadge credibilityScore={credibilityScore} size="sm" showProgress={false} />
+                <div className="text-right">
+                  <p className="text-lg font-semibold">{credibilityScore.score}</p>
+                  <p className="text-[11px] text-muted-foreground">helpful marks</p>
+                </div>
+              </div>
+
+              {credibilityScore.level !== 'Authority' && (
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <span className="text-muted-foreground">Next: {credibilityScore.nextLevel}</span>
+                    <span className="font-medium">{credibilityScore.score}/{credibilityScore.nextLevelAt}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1.5">
+                    <div
+                      className="bg-primary rounded-full h-1.5 transition-all"
+                      style={{ width: `${Math.min((credibilityScore.score / credibilityScore.nextLevelAt) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Quick Links */}
+          <Card>
+            <div className="p-4 space-y-1">
+              <button
+                onClick={() => router.push('/profile')}
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+              >
+                <Edit className="h-3.5 w-3.5" />
+                Edit Profile
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors">
+                    <Plus className="h-3.5 w-3.5" />
+                    Create New Post
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem onClick={() => router.push('/community/create')}>
+                    <MessageSquarePlus className="mr-2 h-4 w-4 text-blue-600" />
+                    <div>
+                      <p className="text-[13px] font-medium">Community Post</p>
+                      <p className="text-[11px] text-muted-foreground">Share job tips, news & alerts</p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">Post Official Job</DropdownMenuLabel>
+                  {companies.length === 0 ? (
+                    <>
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">Create your company first</p>
+                      <DropdownMenuItem onClick={() => router.push('/company/create')}>
+                        <Building2 className="mr-2 h-4 w-4" />
+                        <span className="text-[13px]">Create Company</span>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    companies.map((c) => (
+                      <DropdownMenuItem key={c.id} onClick={() => router.push(`/jobs/post?companyId=${c.id}`)}>
+                        <Briefcase className="mr-2 h-4 w-4 text-emerald-600" />
+                        <span className="text-[13px]">{c.name}</span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

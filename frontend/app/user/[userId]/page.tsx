@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Navbar } from '@/components/Navbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
   ArrowLeft,
   TrendingUp,
 } from 'lucide-react';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 interface Post {
   id: string;
@@ -133,29 +134,21 @@ export default function UserPublicProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!userData) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="max-w-md w-full mx-4">
-            <CardContent className="py-16 text-center">
-              <h3 className="text-lg font-semibold mb-2">User not found</h3>
-              <Button onClick={() => router.back()} variant="outline" className="mt-4">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Go Back
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h3 className="text-sm font-semibold mb-2">User not found</h3>
+          <Button onClick={() => router.back()} variant="outline" size="sm" className="text-[13px]">
+            <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+            Go Back
+          </Button>
         </div>
       </div>
     );
@@ -169,58 +162,46 @@ export default function UserPublicProfile() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <Navbar />
-
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="container mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 h-full py-3 sm:py-4 lg:py-6">
-          {/* Desktop: Two Column Layout | Mobile: Single Column */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 h-full">
+        <div className="p-4 sm:p-6 lg:p-8 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 lg:gap-6 h-full max-w-[1400px]">
 
-            {/* Left Sidebar - Desktop Only User Info */}
+            {/* Left Sidebar - Desktop */}
             <div className="hidden lg:flex lg:flex-col lg:h-full lg:overflow-hidden">
-              <div className="flex items-center gap-3 mb-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.back()}
-                  className="flex-shrink-0"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
+              <div className="mb-3">
+                <Breadcrumb items={[{ label: 'Community', href: '/community' }, { label: 'Profile' }]} />
               </div>
 
-              <Card className="flex-1 overflow-hidden flex flex-col">
-                <div className="flex-1 overflow-y-auto scrollbar-thin">
-                  <CardContent className="space-y-4 p-6">
+              <Card className="flex-1 overflow-hidden flex flex-col rounded-lg border bg-card">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="space-y-4 p-5">
                     {/* Profile Header */}
                     <div className="flex flex-col items-center text-center">
-                      <Avatar className="h-24 w-24 mb-3">
+                      <Avatar className="h-20 w-20 mb-2.5">
                         <AvatarImage src={userData.profilePhoto || undefined} referrerPolicy="no-referrer" crossOrigin="anonymous" />
-                        <AvatarFallback className="text-2xl">{getInitials(userData.name)}</AvatarFallback>
+                        <AvatarFallback className="text-xl">{getInitials(userData.name)}</AvatarFallback>
                       </Avatar>
-                      <h2 className="text-xl font-bold">{userData.name}</h2>
+                      <h2 className="text-sm font-semibold">{userData.name}</h2>
                       {profile.headline && (
-                        <p className="text-sm text-muted-foreground mt-1">{profile.headline}</p>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">{profile.headline}</p>
                       )}
-                      <div className="mt-3">
+                      <div className="mt-2">
                         <CredibilityBadge credibilityScore={credibilityScore} size="md" showProgress={true} />
                       </div>
 
-                      {/* Compact Stats */}
                       {(credibilityScore.score > 0 || totalPosts > 0) && (
-                        <div className="flex items-center justify-center gap-4 mt-3 text-sm text-muted-foreground">
+                        <div className="flex items-center justify-center gap-4 mt-2.5 text-[12px] text-muted-foreground">
                           {credibilityScore.score > 0 && (
                             <div className="flex items-center gap-1">
-                              <ThumbsUp className="h-4 w-4" />
-                              <span className="font-semibold text-foreground">{credibilityScore.score}</span>
+                              <ThumbsUp className="h-3 w-3" />
+                              <span className="font-medium text-foreground">{credibilityScore.score}</span>
                               <span>helpful</span>
                             </div>
                           )}
                           {totalPosts > 0 && (
                             <div className="flex items-center gap-1">
-                              <Building2 className="h-4 w-4" />
-                              <span className="font-semibold text-foreground">{totalPosts}</span>
+                              <Building2 className="h-3 w-3" />
+                              <span className="font-medium text-foreground">{totalPosts}</span>
                               <span>posts</span>
                             </div>
                           )}
@@ -228,27 +209,27 @@ export default function UserPublicProfile() {
                       )}
                     </div>
 
-                    {/* Contact Info - If Public */}
+                    {/* Contact Info */}
                     {(userData.email || userData.phone || userData.location) && (
-                      <div className="pt-4 border-t space-y-3">
-                        <h3 className="font-semibold text-sm flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          Contact Information
+                      <div className="pt-3 border-t space-y-2.5">
+                        <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                          <Mail className="h-3.5 w-3.5" />
+                          Contact
                         </h3>
                         {userData.email && (
-                          <div className="text-sm">
+                          <div className="text-[12px]">
                             <p className="text-muted-foreground">Email</p>
                             <p className="break-all">{userData.email}</p>
                           </div>
                         )}
                         {userData.phone && (
-                          <div className="text-sm">
+                          <div className="text-[12px]">
                             <p className="text-muted-foreground">Phone</p>
                             <p>{userData.phone}</p>
                           </div>
                         )}
                         {userData.location && (
-                          <div className="text-sm">
+                          <div className="text-[12px]">
                             <p className="text-muted-foreground">Location</p>
                             <p>{userData.location}</p>
                           </div>
@@ -258,25 +239,25 @@ export default function UserPublicProfile() {
 
                     {/* Bio */}
                     {profile.bio && (
-                      <div className="pt-4 border-t">
-                        <h3 className="font-semibold text-sm flex items-center gap-2 mb-2">
-                          <User className="h-4 w-4" />
+                      <div className="pt-3 border-t">
+                        <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">
+                          <User className="h-3.5 w-3.5" />
                           About
                         </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{profile.bio}</p>
+                        <p className="text-[12px] text-muted-foreground leading-relaxed">{profile.bio}</p>
                       </div>
                     )}
 
                     {/* Skills */}
                     {skills.length > 0 && (
-                      <div className="pt-4 border-t">
-                        <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-                          <Award className="h-4 w-4" />
+                      <div className="pt-3 border-t">
+                        <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
+                          <Award className="h-3.5 w-3.5" />
                           Skills ({skills.length})
                         </h3>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1">
                           {skills.map((skill: any) => (
-                            <Badge key={skill.id} variant="secondary" className="text-xs">
+                            <Badge key={skill.id} variant="secondary" className="text-[11px]">
                               {skill.name}
                             </Badge>
                           ))}
@@ -286,14 +267,14 @@ export default function UserPublicProfile() {
 
                     {/* Experience */}
                     {experiences.length > 0 && (
-                      <div className="pt-4 border-t">
-                        <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-                          <Briefcase className="h-4 w-4" />
+                      <div className="pt-3 border-t">
+                        <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
+                          <Briefcase className="h-3.5 w-3.5" />
                           Experience ({experiences.length})
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {experiences.map((exp: any) => (
-                            <div key={exp.id} className="text-sm">
+                            <div key={exp.id} className="text-[12px]">
                               <p className="font-medium">{exp.title}</p>
                               <p className="text-muted-foreground">{exp.company}</p>
                             </div>
@@ -304,14 +285,14 @@ export default function UserPublicProfile() {
 
                     {/* Education */}
                     {education.length > 0 && (
-                      <div className="pt-4 border-t">
-                        <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-                          <GraduationCap className="h-4 w-4" />
+                      <div className="pt-3 border-t">
+                        <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
+                          <GraduationCap className="h-3.5 w-3.5" />
                           Education ({education.length})
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {education.map((edu: any) => (
-                            <div key={edu.id} className="text-sm">
+                            <div key={edu.id} className="text-[12px]">
                               <p className="font-medium">{edu.degree}</p>
                               <p className="text-muted-foreground">{edu.institution}</p>
                             </div>
@@ -319,53 +300,45 @@ export default function UserPublicProfile() {
                         </div>
                       </div>
                     )}
-                  </CardContent>
+                  </div>
                 </div>
               </Card>
             </div>
 
-            {/* Right Column - Posts Section */}
-            <div className="lg:col-span-2 flex flex-col h-full overflow-hidden">
+            {/* Right Column - Posts */}
+            <div className="flex flex-col h-full overflow-hidden">
 
               {/* Mobile: Compact Header */}
-              <div className="lg:hidden flex-shrink-0 pb-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.back()}
-                  className="mb-3"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
+              <div className="lg:hidden flex-shrink-0 pb-3">
+                <Breadcrumb items={[{ label: 'Community', href: '/community' }, { label: 'Profile' }]} />
 
-                <Card>
+                <Card className="rounded-lg border bg-card">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <Avatar className="h-16 w-16 flex-shrink-0">
+                      <Avatar className="h-14 w-14 flex-shrink-0">
                         <AvatarImage src={userData.profilePhoto || undefined} referrerPolicy="no-referrer" crossOrigin="anonymous" />
                         <AvatarFallback>{getInitials(userData.name)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <h1 className="text-lg font-bold truncate">{userData.name}</h1>
+                        <h1 className="text-sm font-semibold truncate">{userData.name}</h1>
                         {profile.headline && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">{profile.headline}</p>
+                          <p className="text-[12px] text-muted-foreground line-clamp-2">{profile.headline}</p>
                         )}
-                        <div className="mt-2">
+                        <div className="mt-1.5">
                           <CredibilityBadge credibilityScore={credibilityScore} size="sm" />
                         </div>
                         {(credibilityScore.score > 0 || totalPosts > 0) && (
-                          <div className="flex items-center gap-4 mt-3 text-sm">
+                          <div className="flex items-center gap-4 mt-2 text-[12px]">
                             {credibilityScore.score > 0 && (
                               <div className="flex items-center gap-1">
-                                <ThumbsUp className="h-3.5 w-3.5 text-primary" />
-                                <span className="font-semibold">{credibilityScore.score}</span>
+                                <ThumbsUp className="h-3 w-3 text-primary" />
+                                <span className="font-medium">{credibilityScore.score}</span>
                               </div>
                             )}
                             {totalPosts > 0 && (
                               <div className="flex items-center gap-1">
-                                <Building2 className="h-3.5 w-3.5 text-primary" />
-                                <span className="font-semibold">{totalPosts} posts</span>
+                                <Building2 className="h-3 w-3 text-primary" />
+                                <span className="font-medium">{totalPosts} posts</span>
                               </div>
                             )}
                           </div>
@@ -376,62 +349,60 @@ export default function UserPublicProfile() {
                 </Card>
               </div>
 
-              {/* Desktop: Header */}
-              <div className="hidden lg:block flex-shrink-0 pb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold">Community Posts</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {totalPosts} {totalPosts === 1 ? 'post' : 'posts'} by {userData.name}
-                    </p>
-                  </div>
+              {/* Posts Header */}
+              <div className="flex-shrink-0 pb-3">
+                <div className="hidden lg:block">
+                  <h2 className="text-lg font-semibold">Community Posts</h2>
+                  <p className="text-[12px] text-muted-foreground mt-0.5">
+                    {totalPosts} {totalPosts === 1 ? 'post' : 'posts'} by {userData.name}
+                  </p>
+                </div>
+                <div className="lg:hidden">
+                  <h2 className="text-sm font-semibold">Community Posts ({totalPosts})</h2>
                 </div>
               </div>
 
-              {/* Mobile: Section Title */}
-              <div className="lg:hidden flex-shrink-0 pb-3">
-                <h2 className="text-lg font-bold">Community Posts ({totalPosts})</h2>
-              </div>
-
-              {/* Scrollable Posts Section */}
-              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto scrollbar-thin pb-4">
+              {/* Scrollable Posts */}
+              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pb-4">
                 {posts.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground">No posts yet</p>
+                  <Card className="rounded-lg border bg-card">
+                    <CardContent className="text-center py-10">
+                      <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/8 mx-auto mb-3">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-[13px] text-muted-foreground">No posts yet</p>
                     </CardContent>
                   </Card>
                 ) : (
                   <>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {posts.map((post) => (
                         <Card
                           key={post.id}
-                          className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50 active:scale-[0.99]"
+                          className="rounded-lg border bg-card cursor-pointer hover:border-primary/30 transition-colors"
                           onClick={() => router.push(`/community/${post.id}`)}
                         >
                           <CardContent className="p-4">
-                            <h3 className="font-semibold mb-2 line-clamp-2 text-sm lg:text-base leading-snug">
+                            <h3 className="text-[13px] font-medium mb-1.5 line-clamp-2 leading-snug">
                               {post.title}
                             </h3>
-                            <p className="text-xs lg:text-sm text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
+                            <p className="text-[12px] text-muted-foreground mb-2 line-clamp-2 leading-relaxed">
                               {post.description}
                             </p>
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                              <div className="flex items-center gap-1 text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                              <span className="flex items-center gap-1 text-muted-foreground">
                                 <Clock className="h-3 w-3" />
-                                <span>{timeAgo(post.createdAt)}</span>
-                              </div>
+                                {timeAgo(post.createdAt)}
+                              </span>
                               {post.companyName && (
-                                <Badge variant="secondary" className="text-[10px] h-5">
-                                  <Building2 className="h-3 w-3 mr-1" />
+                                <Badge variant="secondary" className="text-[11px]">
+                                  <Building2 className="h-3 w-3 mr-0.5" />
                                   {post.companyName}
                                 </Badge>
                               )}
                               {post.helpfulCount > 0 && (
-                                <Badge className="text-[10px] h-5 bg-blue-600">
-                                  <ThumbsUp className="h-3 w-3 mr-1" />
+                                <Badge variant="default" className="text-[11px]">
+                                  <ThumbsUp className="h-3 w-3 mr-0.5" />
                                   {post.helpfulCount}
                                 </Badge>
                               )}
@@ -441,19 +412,16 @@ export default function UserPublicProfile() {
                       ))}
                     </div>
 
-                    {/* Loading More Indicator */}
                     {loadingMorePosts && (
-                      <div className="text-center py-6 mt-4">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                        <p className="text-xs text-muted-foreground mt-2">Loading more posts...</p>
+                      <div className="text-center py-4 mt-2">
+                        <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+                        <p className="text-[11px] text-muted-foreground mt-1">Loading more...</p>
                       </div>
                     )}
 
-                    {/* End of List */}
                     {!hasMore && posts.length > 0 && !loadingMorePosts && (
-                      <div className="text-center py-6 mt-4 border-t">
-                        <p className="text-sm text-muted-foreground">You've reached the end</p>
-                        <p className="text-xs text-muted-foreground mt-1">All {totalPosts} posts loaded</p>
+                      <div className="text-center py-4 mt-2 border-t">
+                        <p className="text-[11px] text-muted-foreground">All {totalPosts} posts loaded</p>
                       </div>
                     )}
                   </>

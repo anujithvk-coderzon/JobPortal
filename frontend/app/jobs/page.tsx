@@ -3,10 +3,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { JobCardSkeletonList } from '@/components/JobCardSkeleton';
 import { JobMatchScore } from '@/components/JobMatchScore';
@@ -42,6 +41,7 @@ import {
   ChevronRight,
   XCircle,
   TrendingUp,
+  Share2,
 } from 'lucide-react';
 
 function JobsPageContent() {
@@ -194,273 +194,278 @@ function JobsPageContent() {
     }
   };
 
-
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Search Header */}
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Find Your Next Opportunity</h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Browse {pagination.total} available job opportunities
+      <div className="max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold">Jobs</h1>
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            Browse {pagination.total} available opportunities
           </p>
         </div>
 
-        {/* Professional Search Bar */}
-        <div className="mb-6">
+        {/* Search Bar */}
+        <div className="mb-4">
           <form onSubmit={handleSearch}>
-            <div className="flex gap-1.5 sm:gap-2 p-1.5 sm:p-2 bg-background rounded-lg shadow-lg border">
-              <div className="flex-1 flex items-center gap-2 sm:gap-3 px-2 sm:px-4">
-                <Search className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Search jobs..."
+                  placeholder="Search by title, company, or keyword..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm sm:text-base"
+                  className="pl-9 h-9 text-[13px]"
                 />
               </div>
-              <Button type="submit" size="default" className="px-4 sm:px-6 md:px-8 text-sm sm:text-base h-9 sm:h-10">
-                <span className="hidden sm:inline">Search</span>
-                <Search className="h-4 w-4 sm:hidden" />
+              <Button type="submit" size="sm" className="h-9 px-4">
+                <Search className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline text-[13px]">Search</span>
               </Button>
             </div>
           </form>
+        </div>
 
-          {/* Quick Filter Chips */}
-          <div className="flex flex-wrap gap-2 mt-4">
+        {/* Quick Filter Chips + More Filters Toggle */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          <Badge
+            variant={filters.locationType === 'REMOTE' ? 'default' : 'outline'}
+            className="cursor-pointer hover:bg-accent/50 transition-colors text-[11px] h-6 px-2 rounded-md"
+            onClick={() => {
+              const newValue = filters.locationType === 'REMOTE' ? 'ALL' : 'REMOTE';
+              const newFilters = { ...filters, locationType: newValue };
+              setFilters(newFilters);
+              setPagination({ ...pagination, page: 1 });
+              fetchJobs(newFilters, 1);
+            }}
+          >
+            <MapPin className="h-3 w-3 mr-1" />
+            Remote
+          </Badge>
+          <Badge
+            variant={filters.employmentType === 'FULL_TIME' ? 'default' : 'outline'}
+            className="cursor-pointer hover:bg-accent/50 transition-colors text-[11px] h-6 px-2 rounded-md"
+            onClick={() => {
+              const newValue = filters.employmentType === 'FULL_TIME' ? 'ALL' : 'FULL_TIME';
+              const newFilters = { ...filters, employmentType: newValue };
+              setFilters(newFilters);
+              setPagination({ ...pagination, page: 1 });
+              fetchJobs(newFilters, 1);
+            }}
+          >
+            <Briefcase className="h-3 w-3 mr-1" />
+            Full-time
+          </Badge>
+          <Badge
+            variant={filters.experienceLevel === 'ENTRY' ? 'default' : 'outline'}
+            className="cursor-pointer hover:bg-accent/50 transition-colors text-[11px] h-6 px-2 rounded-md"
+            onClick={() => {
+              const newValue = filters.experienceLevel === 'ENTRY' ? 'ALL' : 'ENTRY';
+              const newFilters = { ...filters, experienceLevel: newValue };
+              setFilters(newFilters);
+              setPagination({ ...pagination, page: 1 });
+              fetchJobs(newFilters, 1);
+            }}
+          >
+            Entry Level
+          </Badge>
+          <Badge
+            variant={filters.experienceLevel === 'SENIOR' ? 'default' : 'outline'}
+            className="cursor-pointer hover:bg-accent/50 transition-colors text-[11px] h-6 px-2 rounded-md"
+            onClick={() => {
+              const newValue = filters.experienceLevel === 'SENIOR' ? 'ALL' : 'SENIOR';
+              const newFilters = { ...filters, experienceLevel: newValue };
+              setFilters(newFilters);
+              setPagination({ ...pagination, page: 1 });
+              fetchJobs(newFilters, 1);
+            }}
+          >
+            Senior Level
+          </Badge>
+          {isAuthenticated && (
             <Badge
-              variant={filters.locationType === 'REMOTE' ? 'default' : 'outline'}
-              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
+              variant={filters.sortBy === 'match' ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-accent/50 transition-colors text-[11px] h-6 px-2 rounded-md"
               onClick={() => {
-                const newValue = filters.locationType === 'REMOTE' ? 'ALL' : 'REMOTE';
-                const newFilters = { ...filters, locationType: newValue };
+                const newValue = filters.sortBy === 'match' ? 'recent' : 'match';
+                const newFilters = { ...filters, sortBy: newValue };
                 setFilters(newFilters);
                 setPagination({ ...pagination, page: 1 });
                 fetchJobs(newFilters, 1);
               }}
             >
-              <MapPin className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Remote Only</span>
-              <span className="sm:hidden">Remote</span>
+              <TrendingUp className="h-3 w-3 mr-1" />
+              Best Match
             </Badge>
-            <Badge
-              variant={filters.employmentType === 'FULL_TIME' ? 'default' : 'outline'}
-              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
-              onClick={() => {
-                const newValue = filters.employmentType === 'FULL_TIME' ? 'ALL' : 'FULL_TIME';
-                const newFilters = { ...filters, employmentType: newValue };
-                setFilters(newFilters);
-                setPagination({ ...pagination, page: 1 });
-                fetchJobs(newFilters, 1);
-              }}
-            >
-              <Briefcase className="h-3 w-3 mr-1" />
-              Full-time
-            </Badge>
-            <Badge
-              variant={filters.experienceLevel === 'ENTRY' ? 'default' : 'outline'}
-              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
-              onClick={() => {
-                const newValue = filters.experienceLevel === 'ENTRY' ? 'ALL' : 'ENTRY';
-                const newFilters = { ...filters, experienceLevel: newValue };
-                setFilters(newFilters);
-                setPagination({ ...pagination, page: 1 });
-                fetchJobs(newFilters, 1);
-              }}
-            >
-              Entry Level
-            </Badge>
-            <Badge
-              variant={filters.experienceLevel === 'SENIOR' ? 'default' : 'outline'}
-              className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
-              onClick={() => {
-                const newValue = filters.experienceLevel === 'SENIOR' ? 'ALL' : 'SENIOR';
-                const newFilters = { ...filters, experienceLevel: newValue };
-                setFilters(newFilters);
-                setPagination({ ...pagination, page: 1 });
-                fetchJobs(newFilters, 1);
-              }}
-            >
-              Senior Level
-            </Badge>
-            {isAuthenticated && (
-              <Badge
-                variant={filters.sortBy === 'match' ? 'default' : 'outline'}
-                className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1.5"
-                onClick={() => {
-                  const newValue = filters.sortBy === 'match' ? 'recent' : 'match';
-                  const newFilters = { ...filters, sortBy: newValue };
-                  setFilters(newFilters);
-                  setPagination({ ...pagination, page: 1 });
-                  fetchJobs(newFilters, 1);
-                }}
-              >
-                <TrendingUp className="h-3 w-3 mr-1" />
-                Best Match
-              </Badge>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="ml-auto"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              More Filters
-            </Button>
-          </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="ml-auto h-6 text-[11px] px-2"
+          >
+            <Filter className="h-3 w-3 mr-1" />
+            Filters
+          </Button>
         </div>
 
         {/* Advanced Filters Panel */}
         {showFilters && (
-          <Card className="mb-6">
-              <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 pt-4 md:pt-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-2 block">Employment Type</label>
-                    <Select
-                      value={filters.employmentType}
-                      onValueChange={(value) => handleFilterChange('employmentType', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Any</SelectItem>
-                        {EMPLOYMENT_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+          <div className="border bg-card rounded-lg p-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Employment Type</label>
+                <Select
+                  value={filters.employmentType}
+                  onValueChange={(value) => handleFilterChange('employmentType', value)}
+                >
+                  <SelectTrigger className="h-8 text-[13px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Any</SelectItem>
+                    {EMPLOYMENT_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-2 block">Experience Level</label>
-                    <Select
-                      value={filters.experienceLevel}
-                      onValueChange={(value) => handleFilterChange('experienceLevel', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Any</SelectItem>
-                        {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Experience Level</label>
+                <Select
+                  value={filters.experienceLevel}
+                  onValueChange={(value) => handleFilterChange('experienceLevel', value)}
+                >
+                  <SelectTrigger className="h-8 text-[13px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Any</SelectItem>
+                    {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-2 block">Location Type</label>
-                    <Select
-                      value={filters.locationType}
-                      onValueChange={(value) => handleFilterChange('locationType', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Any</SelectItem>
-                        {LOCATION_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Location Type</label>
+                <Select
+                  value={filters.locationType}
+                  onValueChange={(value) => handleFilterChange('locationType', value)}
+                >
+                  <SelectTrigger className="h-8 text-[13px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Any</SelectItem>
+                    {LOCATION_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-2 block">Sort By</label>
-                    <Select
-                      value={filters.sortBy}
-                      onValueChange={(value) => handleFilterChange('sortBy', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {JOB_SORT_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Sort By</label>
+                <Select
+                  value={filters.sortBy}
+                  onValueChange={(value) => handleFilterChange('sortBy', value)}
+                >
+                  <SelectTrigger className="h-8 text-[13px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {JOB_SORT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 mt-4">
-                  <Button onClick={applyFilters} disabled={isFiltering} className="flex-1 sm:flex-none">
-                    {isFiltering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Apply Filters
-                  </Button>
-                  <Button variant="outline" onClick={clearFilters} disabled={isFiltering} className="flex-1 sm:flex-none">
-                    Clear All
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            <div className="flex gap-2 mt-3 pt-3 border-t">
+              <Button size="sm" onClick={applyFilters} disabled={isFiltering} className="h-7 text-[12px]">
+                {isFiltering && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                Apply Filters
+              </Button>
+              <Button variant="outline" size="sm" onClick={clearFilters} disabled={isFiltering} className="h-7 text-[12px]">
+                Clear All
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Job Listings */}
         {loading ? (
           <JobCardSkeletonList count={5} />
         ) : jobs.length === 0 ? (
-          <Card>
-            <CardContent className="pt-0 pb-3 md:pb-4 px-3 md:px-4 lg:px-6 py-20 text-center">
-              <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
-              <p className="text-muted-foreground mb-4">
-                Try adjusting your search or filters to find more opportunities
-              </p>
-              <Button variant="outline" onClick={clearFilters}>
-                Clear Filters
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="rounded-lg border bg-card p-12 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/8 mb-3">
+              <Briefcase className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h3 className="text-sm font-semibold mb-1">No jobs found</h3>
+            <p className="text-[12px] text-muted-foreground mb-4">
+              Try adjusting your search or filters to find more opportunities.
+            </p>
+            <Button variant="outline" size="sm" onClick={clearFilters} className="text-[12px]">
+              Clear Filters
+            </Button>
+          </div>
         ) : (
           <>
-            <div className="space-y-3 md:space-y-4">
+            <div className="space-y-2">
               {jobs.map((job) => (
-                <Card
+                <div
                   key={job.id}
-                  className="hover:shadow-lg hover:border-primary/50 transition-all duration-200 cursor-pointer"
+                  className="rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors cursor-pointer"
                   onClick={() => router.push(`/jobs/${job.id}`)}
                 >
-                  <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 px-3 md:px-4 lg:px-6 space-y-3">
-                    <div>
-                      <h3 className="text-lg md:text-xl font-semibold mb-2 leading-snug">{job.title}</h3>
-                      <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-muted-foreground mb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold leading-snug mb-1">{job.title}</h3>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground mb-2">
                         <span className="flex items-center gap-1">
-                          <Building2 className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-                          <span className="font-medium truncate">{job.company?.name || job.companyName || 'Company'}</span>
+                          <Building2 className="h-3 w-3 flex-shrink-0" />
+                          <span className="font-medium">{job.company?.name || job.companyName || 'Company'}</span>
                         </span>
                         {job.location && (
                           <>
-                            <span className="hidden sm:inline">•</span>
+                            <span className="text-border">|</span>
                             <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
-                              <span className="truncate">{job.location}</span>
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              <span>{job.location}</span>
                             </span>
                           </>
                         )}
+                        <span className="text-border">|</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <span>{timeAgo(job.createdAt)}</span>
+                        </span>
+                        {job._count && (
+                          <>
+                            <span className="text-border">|</span>
+                            <span>{job._count?.applications || 0} applicants</span>
+                          </>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-2 mb-3 items-center">
-                        <Badge variant="secondary" className="text-xs">{getEmploymentTypeLabel(job.employmentType)}</Badge>
-                        <Badge variant="secondary" className="text-xs">{getExperienceLevelLabel(job.experienceLevel)}</Badge>
-                        <Badge variant="secondary" className="text-xs">{getLocationTypeLabel(job.locationType)}</Badge>
+                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                        <Badge variant="secondary" className="text-[11px] h-5 font-normal">{getEmploymentTypeLabel(job.employmentType)}</Badge>
+                        <Badge variant="secondary" className="text-[11px] h-5 font-normal">{getExperienceLevelLabel(job.experienceLevel)}</Badge>
+                        <Badge variant="secondary" className="text-[11px] h-5 font-normal">{getLocationTypeLabel(job.locationType)}</Badge>
                         {job.salaryMin && job.showSalary !== false && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-[11px] h-5 font-normal">
                             {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}
                           </Badge>
                         )}
@@ -470,54 +475,70 @@ function JobsPageContent() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                      <p className="text-[13px] text-muted-foreground line-clamp-2 leading-relaxed">
                         {job.description.replace(/<[^>]*>/g, '').substring(0, 200)}...
                       </p>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t">
-                      <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span>{timeAgo(job.createdAt)}</span>
-                        </span>
-                        {job._count && (
-                          <span>{job._count?.applications || 0} applicants</span>
-                        )}
-                      </div>
-                      <Button size="sm" className="w-full sm:w-auto" onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/jobs/${job.id}`);
-                      }}>
-                        View Details
+                    <div className="hidden sm:flex flex-col gap-1.5 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[12px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/jobs/${job.id}`);
+                        }}
+                      >
+                        View
+                        <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-[12px] text-muted-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const shareText = `${job.title} at ${job.company?.name || job.companyName || 'Company'}\n\n${window.location.origin}/jobs/${job.id}`;
+                          if (navigator.share) {
+                            navigator.share({ text: shareText }).catch(() => {});
+                          } else {
+                            navigator.clipboard.writeText(shareText).then(() => {
+                              toast({ title: 'Link copied', description: 'Job link copied to clipboard' });
+                            }).catch(() => {});
+                          }
+                        }}
+                      >
+                        <Share2 className="h-3 w-3 mr-1" />
+                        Share
                       </Button>
                     </div>
-                  </CardHeader>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
 
-            {/* Load More Button */}
+            {/* Load More */}
             {pagination.page < pagination.totalPages && (
-              <div className="flex flex-col items-center justify-center gap-3 mt-6 md:mt-8">
-                <p className="text-xs md:text-sm text-muted-foreground">
+              <div className="flex flex-col items-center gap-2 mt-6">
+                <p className="text-[11px] text-muted-foreground">
                   Showing {jobs.length} of {pagination.total} jobs
                 </p>
                 <Button
                   onClick={loadMoreJobs}
                   disabled={loadingMore}
                   variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto min-w-[200px]"
+                  size="sm"
+                  className="text-[12px]"
                 >
                   {loadingMore ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      <span>Loading...</span>
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      Loading...
                     </>
                   ) : (
                     <>
-                      <span>Load More Jobs</span>
-                      <ChevronRight className="h-4 w-4 ml-2" />
+                      Load More
+                      <ChevronRight className="h-3 w-3 ml-1" />
                     </>
                   )}
                 </Button>
@@ -532,7 +553,11 @@ function JobsPageContent() {
 
 export default function JobsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background"><div className="flex items-center justify-center min-h-screen">Loading...</div></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    }>
       <JobsPageContent />
     </Suspense>
   );

@@ -5,28 +5,26 @@ import { Scale, Shield } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 mt-auto">
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Job Posting Platform. All rights reserved.
-          </div>
-
-          <div className="flex items-center gap-6">
+    <footer className="border-t border-border/60 mt-auto">
+      <div className="px-4 sm:px-6 lg:px-8 py-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-[11px] text-muted-foreground/60 order-2 sm:order-1">
+            &copy; {new Date().getFullYear()} JobConnect
+          </p>
+          <div className="flex items-center gap-4 order-1 sm:order-2">
             <Link
               href="/privacy"
-              className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+              className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors flex items-center gap-1"
             >
-              <Shield className="h-3.5 w-3.5" />
-              Privacy Policy
+              <Shield className="h-3 w-3" />
+              Privacy
             </Link>
-
             <Link
               href="/terms"
-              className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+              className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors flex items-center gap-1"
             >
-              <Scale className="h-3.5 w-3.5" />
-              Terms of Service
+              <Scale className="h-3 w-3" />
+              Terms
             </Link>
           </div>
         </div>

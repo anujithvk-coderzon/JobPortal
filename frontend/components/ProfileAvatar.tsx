@@ -74,9 +74,9 @@ export function ProfileAvatar({
   };
 
   const sizeClasses = {
-    sm: 'h-8 w-8',
-    md: 'h-10 w-10',
-    lg: 'h-12 w-12',
+    sm: 'h-7 w-7 sm:h-9 sm:w-9',
+    md: 'h-9 w-9 sm:h-10 sm:w-10',
+    lg: 'h-11 w-11 sm:h-12 sm:w-12',
   };
 
   const shouldShowCompletion = showCompletionRing && !loading && completionScore !== null && completionScore < 100;
@@ -94,9 +94,9 @@ export function ProfileAvatar({
       </Avatar>
       {shouldShowCompletion && completionScore !== null && (
         <span
-          className="absolute bg-white rounded-full px-1 py-0 text-[10px] font-bold shadow-md ring-1 ring-black/5 leading-tight"
+          className="absolute bg-white rounded-full px-0.5 sm:px-1 py-0 text-[7px] sm:text-[9px] font-bold shadow-md ring-1 ring-black/5 leading-tight whitespace-nowrap"
           style={{
-            bottom: '-0.125rem',
+            bottom: '-0.25rem',
             right: '-0.625rem',
             color: getTextColor()
           }}

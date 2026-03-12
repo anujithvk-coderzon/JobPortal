@@ -1,18 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { authAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { Briefcase, Loader2, User, Building2, Eye, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Briefcase, Loader2, Eye, EyeOff } from 'lucide-react';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
 
@@ -58,18 +57,16 @@ export default function RegisterPage() {
       });
 
       toast({
-        title: isResend ? 'Code Resent! 📧' : 'Verification Code Sent! 📧',
+        title: isResend ? 'Code Resent!' : 'Verification Code Sent!',
         description: 'Please check your email for the 4-digit verification code. Check spam folder if not in inbox.',
       });
 
       setShowVerification(true);
     } catch (error: any) {
-      // Check if we can resend
       if (error.response?.data?.canResend) {
         setCanResend(true);
       }
 
-      // Show detailed validation errors if available
       let errorMessage = 'Failed to send verification code. Please try again.';
       if (error.response?.data?.errors && error.response.data.errors.length > 0) {
         errorMessage = error.response.data.errors.map((e: any) => e.message).join(', ');
@@ -92,7 +89,6 @@ export default function RegisterPage() {
 
     // Step 1: Request verification code
     if (!showVerification) {
-      // Validate name
       if (!formData.name.trim()) {
         toast({
           title: 'Error',
@@ -102,7 +98,6 @@ export default function RegisterPage() {
         return;
       }
 
-      // Validate email
       if (!formData.email.trim()) {
         toast({
           title: 'Error',
@@ -156,11 +151,10 @@ export default function RegisterPage() {
       setAuth(user, token);
 
       toast({
-        title: 'Welcome to Job Portal! 🎉',
+        title: 'Welcome to Job Portal!',
         description: 'Your account has been created successfully. Start exploring!',
       });
 
-      // Redirect to home page - less overwhelming for new users
       router.push('/');
     } catch (error: any) {
       toast({
@@ -177,11 +171,9 @@ export default function RegisterPage() {
     setGoogleLoading(true);
 
     try {
-      // Sign in with Google
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Send to backend
       const response = await authAPI.googleRegister({
         email: user.email,
         name: user.displayName,
@@ -195,7 +187,7 @@ export default function RegisterPage() {
       setAuth(dbUser, token);
 
       toast({
-        title: 'Welcome to Job Portal! 🎉',
+        title: 'Welcome to Job Portal!',
         description: 'Your account has been created successfully with Google.',
       });
 
@@ -203,7 +195,6 @@ export default function RegisterPage() {
     } catch (error: any) {
       console.error('Google sign-up error:', error);
 
-      // Check if user already exists
       if (error.response?.data?.isRegistered) {
         toast({
           title: 'Account Already Exists',
@@ -226,44 +217,47 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/20 px-4 py-8 md:py-12">
-      <div className="w-full max-w-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+      <div className="w-full max-w-[460px]">
         {/* Logo */}
-        <Link href="/" className="flex items-center justify-center space-x-2 mb-6 md:mb-8">
-          <Briefcase className="h-7 w-7 md:h-8 md:w-8 text-primary" />
-          <span className="font-bold text-xl md:text-2xl">Job Portal</span>
+        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/8">
+            <Briefcase className="h-4 w-4 text-primary" />
+          </div>
+          <span className="text-sm font-semibold">Job Portal</span>
         </Link>
 
-        <Card>
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl md:text-2xl font-bold text-center">Create an account</CardTitle>
-            <CardDescription className="text-center text-sm">
-              Join our community to discover opportunities and connect with professionals
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Card className="rounded-lg border bg-card">
+          <CardContent className="p-6">
+            <div className="text-center mb-6">
+              <h1 className="text-lg font-semibold">Create an account</h1>
+              <p className="text-[13px] text-muted-foreground mt-1">
+                Join our community to discover opportunities
+              </p>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Verification Code Step */}
               {showVerification ? (
                 <div className="space-y-4">
-                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-sm text-center mb-2">
+                  <div className="p-4 rounded-lg border bg-primary/5">
+                    <p className="text-[13px] text-center mb-1">
                       We sent a 4-digit verification code to:
                     </p>
-                    <p className="text-sm font-semibold text-center mb-2">{formData.email}</p>
-                    <p className="text-xs text-muted-foreground text-center">
-                      Please enter the code below to complete your registration.
+                    <p className="text-[13px] font-semibold text-center break-all">{formData.email}</p>
+                    <p className="text-[11px] text-muted-foreground text-center mt-1">
+                      Check your spam folder if you don&apos;t see the email.
                     </p>
                     {canResend && (
-                      <div className="mt-3 pt-3 border-t border-primary/20">
-                        <p className="text-xs text-center text-muted-foreground mb-2">
-                          Haven't received the code?
+                      <div className="mt-3 pt-3 border-t">
+                        <p className="text-[11px] text-center text-muted-foreground mb-2">
+                          Haven&apos;t received the code?
                         </p>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="w-full"
+                          className="w-full text-[13px]"
                           onClick={() => requestCode(true)}
                           disabled={loading}
                         >
@@ -280,8 +274,8 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="verificationCode">Verification Code</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="verificationCode" className="text-[13px] font-medium">Verification Code</Label>
                     <Input
                       id="verificationCode"
                       name="verificationCode"
@@ -295,17 +289,18 @@ export default function RegisterPage() {
                       maxLength={4}
                       required
                       disabled={loading}
-                      className="text-center text-2xl tracking-widest"
+                      className="h-11 text-xl tracking-[0.3em] text-center"
                     />
-                    <p className="text-xs text-muted-foreground text-center">
-                      Check your spam folder if you don't see the email
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      Check your spam folder if you don&apos;t see the email
                     </p>
                   </div>
 
                   <Button
                     type="button"
                     variant="ghost"
-                    className="w-full text-sm"
+                    size="sm"
+                    className="w-full text-[13px]"
                     onClick={() => {
                       setShowVerification(false);
                       setVerificationCode('');
@@ -316,10 +311,10 @@ export default function RegisterPage() {
                     Back to edit information
                   </Button>
 
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" size="sm" className="w-full text-[13px] h-9" disabled={loading}>
                     {loading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                         Verifying...
                       </>
                     ) : (
@@ -329,110 +324,116 @@ export default function RegisterPage() {
                 </div>
               ) : (
                 <>
-                  {/* Two Column Layout for larger screens */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name" className="text-[13px] font-medium">Full Name</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        type="text"
+                        placeholder="John Doe"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        disabled={loading}
+                        className="h-9 text-[13px]"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-[13px] font-medium">Email</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        disabled={loading}
+                        className="h-9 text-[13px]"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="password" className="text-[13px] font-medium">Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Min. 6 characters"
+                          value={formData.password}
+                          onChange={handleChange}
+                          required
+                          disabled={loading}
+                          className="h-9 text-[13px] pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="confirmPassword" className="text-[13px] font-medium">Confirm Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          placeholder="Re-enter password"
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          required
+                          disabled={loading}
+                          className="h-9 text-[13px] pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded"
+                          tabIndex={-1}
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone" className="text-[13px] font-medium">
+                        Phone <span className="text-muted-foreground font-normal">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="+1 (555) 000-0000"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className="h-9 text-[13px]"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="location" className="text-[13px] font-medium">
+                        Location <span className="text-muted-foreground font-normal">(Optional)</span>
+                      </Label>
+                      <LocationAutocomplete
+                        id="location"
+                        value={formData.location}
+                        onChange={(value) => setFormData({ ...formData, location: value })}
+                        placeholder="City, State"
+                        disabled={loading}
+                      />
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone (Optional)</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    placeholder="+1 (555) 000-0000"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location (Optional)</Label>
-                  <LocationAutocomplete
-                    id="location"
-                    value={formData.location}
-                    onChange={(value) => setFormData({ ...formData, location: value })}
-                    placeholder="City, State"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
 
                   {/* Terms and Privacy Agreement */}
                   <div className="flex items-start gap-2">
@@ -442,24 +443,24 @@ export default function RegisterPage() {
                       checked={agreedToTerms}
                       onChange={(e) => setAgreedToTerms(e.target.checked)}
                       disabled={loading}
-                      className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                     />
-                    <label htmlFor="agreeTerms" className="text-xs md:text-sm text-muted-foreground cursor-pointer select-none">
+                    <label htmlFor="agreeTerms" className="text-[12px] text-muted-foreground cursor-pointer select-none leading-relaxed">
                       I agree to the{' '}
-                      <Link href="/terms" target="_blank" className="text-primary hover:underline font-medium">
+                      <Link href="/terms" target="_blank" className="text-primary hover:underline">
                         Terms of Service
                       </Link>{' '}
                       and{' '}
-                      <Link href="/privacy" target="_blank" className="text-primary hover:underline font-medium">
+                      <Link href="/privacy" target="_blank" className="text-primary hover:underline">
                         Privacy Policy
                       </Link>
                     </label>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={loading || googleLoading || !agreedToTerms}>
+                  <Button type="submit" size="sm" className="w-full text-[13px] h-9" disabled={loading || googleLoading || !agreedToTerms}>
                     {loading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                         Sending verification code...
                       </>
                     ) : (
@@ -473,30 +474,33 @@ export default function RegisterPage() {
             {/* Google Sign-Up - only show when not in verification step */}
             {!showVerification && (
               <>
-                <div className="relative my-4">
+                <div className="relative my-5">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
+                    <div className="w-full border-t" />
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  <div className="relative flex justify-center">
+                    <span className="bg-card px-2 text-[11px] text-muted-foreground uppercase tracking-wide">
+                      or
+                    </span>
                   </div>
                 </div>
 
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full"
+                  size="sm"
+                  className="w-full text-[13px] h-9"
                   onClick={handleGoogleSignUp}
                   disabled={loading || googleLoading || !agreedToTerms}
                 >
                   {googleLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                       Signing up with Google...
                     </>
                   ) : (
                     <>
-                      <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                      <svg className="mr-2 h-3.5 w-3.5" viewBox="0 0 24 24">
                         <path
                           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                           fill="#4285F4"
@@ -521,15 +525,14 @@ export default function RegisterPage() {
               </>
             )}
 
-            <div className="mt-4 text-center text-sm">
-              <span className="text-muted-foreground">Already have an account? </span>
+            <p className="text-[13px] text-center mt-5 text-muted-foreground">
+              Already have an account?{' '}
               <Link href="/auth/login" className="text-primary hover:underline font-medium">
                 Sign in
               </Link>
-            </div>
+            </p>
           </CardContent>
         </Card>
-
       </div>
     </div>
   );

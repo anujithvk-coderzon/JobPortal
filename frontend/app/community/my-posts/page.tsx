@@ -2,15 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { Navbar } from '@/components/Navbar';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
-import { timeAgo, getInitials } from '@/lib/utils';
+import { timeAgo } from '@/lib/utils';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import {
   Search,
@@ -20,14 +19,13 @@ import {
   Loader2,
   ChevronRight,
   ExternalLink,
-  ArrowLeft,
   ThumbsUp,
   Edit,
-  Trash2,
   Plus,
   Newspaper,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { Breadcrumb } from '@/components/Breadcrumb';
 import Image from 'next/image';
 
 interface Post {
@@ -128,11 +126,8 @@ function MyPostsPageContent() {
 
   if (!isHydrated || loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -140,79 +135,65 @@ function MyPostsPageContent() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <Navbar />
-      <div className="container mx-auto py-3 md:py-6 lg:py-8 px-2 md:px-4 lg:px-6 max-w-7xl">
+    <div className="min-h-screen bg-background">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
         {/* Header */}
-        <div className="mb-3 md:mb-4 lg:mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="mb-2 md:mb-3 lg:mb-4 h-8 md:h-9 px-2 md:px-4"
-            size="sm"
-          >
-            <ArrowLeft className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-            <span className="text-xs md:text-sm">Back</span>
-          </Button>
+        <div className="mb-6">
+          <Breadcrumb items={[{ label: 'Community', href: '/community' }, { label: 'My Posts' }]} />
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 md:mb-2">
-                My Community Posts
-              </h1>
-              <p className="text-xs md:text-sm lg:text-base text-gray-600">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
+            <div>
+              <h1 className="text-lg font-semibold mb-0.5">My Community Posts</h1>
+              <p className="text-[13px] text-muted-foreground">
                 {pagination.total} {pagination.total === 1 ? 'post' : 'posts'} shared
               </p>
             </div>
             <Button
               onClick={() => router.push('/community/create')}
-              className="w-full sm:w-auto h-9 md:h-10 text-xs md:text-sm"
+              size="sm"
             >
-              <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-              <span className="hidden xs:inline">Create New Post</span>
-              <span className="xs:hidden">New Post</span>
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Create New Post
             </Button>
           </div>
         </div>
 
         {/* Search */}
-        <Card className="mb-3 md:mb-4 lg:mb-6 shadow-md hover:shadow-lg transition-shadow">
-          <CardContent className="pt-3 md:pt-4 lg:pt-6 pb-3 md:pb-4 lg:pb-6">
-            <form onSubmit={handleSearch} className="flex gap-2 md:gap-3 lg:gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-2 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3.5 w-3.5 md:h-4 md:w-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search your posts..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 md:pl-10 h-9 md:h-10 text-xs md:text-sm"
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="h-9 md:h-10 px-3 md:px-4 text-xs md:text-sm">
-                <span className="hidden sm:inline">Search</span>
-                <Search className="h-3.5 w-3.5 sm:hidden" />
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <div className="mb-6">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-3.5 w-3.5" />
+              <Input
+                type="text"
+                placeholder="Search your posts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-[13px]"
+              />
+            </div>
+            <Button type="submit" size="sm" className="h-9 px-4">
+              <span className="hidden sm:inline text-[13px]">Search</span>
+              <Search className="h-3.5 w-3.5 sm:hidden" />
+            </Button>
+          </form>
+        </div>
 
-        {/* Posts Grid */}
+        {/* Posts */}
         {posts.length === 0 ? (
-          <Card className="shadow-md">
-            <CardContent className="py-8 md:py-12 lg:py-16 px-3 md:px-6 text-center">
-              <Newspaper className="h-10 w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 text-gray-400 mx-auto mb-3 md:mb-4 opacity-50" />
-              <h3 className="text-base md:text-lg lg:text-xl font-semibold mb-1.5 md:mb-2">No posts yet</h3>
-              <p className="text-xs md:text-sm lg:text-base text-gray-600 mb-4 md:mb-6 max-w-md mx-auto">
+          <Card className="rounded-lg border bg-card">
+            <CardContent className="py-16 text-center">
+              <div className="p-3 rounded-lg bg-primary/8 w-fit mx-auto mb-4">
+                <Newspaper className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-sm font-semibold mb-1">No posts yet</h3>
+              <p className="text-[13px] text-muted-foreground mb-4 max-w-sm mx-auto">
                 {searchQuery
                   ? 'No posts found matching your search.'
                   : 'Share your first community post and connect with others!'}
               </p>
               {!searchQuery && (
-                <Button onClick={() => router.push('/community/create')} className="h-9 md:h-10 text-xs md:text-sm">
-                  <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+                <Button onClick={() => router.push('/community/create')} size="sm">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
                   Create Your First Post
                 </Button>
               )}
@@ -220,39 +201,39 @@ function MyPostsPageContent() {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6 mb-3 md:mb-4 lg:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {posts.map((post) => (
                 <Card
                   key={post.id}
-                  className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 border-l-purple-500"
+                  className="rounded-lg border bg-card group hover:border-primary/20 transition-colors cursor-pointer flex flex-col"
                   onClick={() => router.push(`/community/${post.id}`)}
                 >
-                  <CardHeader className="pb-2 md:pb-3 pt-3 md:pt-4 lg:pt-6 px-3 md:px-4 lg:px-6">
-                    <div className="flex items-start justify-between mb-2 md:mb-3">
+                  <div className="p-4 pb-2 flex-shrink-0">
+                    <div className="flex items-start justify-between mb-3">
                       <Badge
-                        variant={post.isActive !== false ? 'default' : 'secondary'}
-                        className="text-[9px] md:text-xs px-1.5 md:px-2 h-4 md:h-5"
+                        variant={post.isActive !== false ? 'success' : 'secondary'}
+                        className="text-[10px]"
                       >
                         {post.isActive !== false ? 'Active' : 'Inactive'}
                       </Badge>
-                      <div className="flex gap-0.5 md:gap-1" onClick={(e) => e.stopPropagation()}>
+                      <div onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 w-7 md:h-8 md:w-8 p-0 hover:bg-purple-50 hover:text-purple-600"
+                          className="h-7 w-7 p-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/community/${post.id}/edit`);
                           }}
                         >
-                          <Edit className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                          <Edit className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
 
                     {/* Poster or Video Thumbnail */}
                     {post.poster && (
-                      <div className="relative w-full h-36 md:h-44 lg:h-48 mb-2 md:mb-3 lg:mb-4 rounded-md md:rounded-lg overflow-hidden bg-gray-100 shadow-sm">
+                      <div className="relative w-full rounded-lg overflow-hidden aspect-video mb-3 bg-muted">
                         <Image
                           src={post.poster}
                           alt={post.title}
@@ -262,80 +243,79 @@ function MyPostsPageContent() {
                       </div>
                     )}
                     {post.video && !post.poster && (
-                      <div className="mb-2 md:mb-3 lg:mb-4">
+                      <div className="mb-3 rounded-lg overflow-hidden aspect-video">
                         <VideoPlayer videoUrl={post.video} />
                       </div>
                     )}
 
-                    <CardTitle className="text-sm md:text-base lg:text-lg font-semibold mb-1.5 md:mb-2 line-clamp-2 leading-tight">
+                    <h3 className="text-sm font-semibold mb-1.5 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
                       {post.title}
-                    </CardTitle>
-                  </CardHeader>
+                    </h3>
+                  </div>
 
-                  <CardContent className="pt-0 pb-3 md:pb-4 lg:pb-6 px-3 md:px-4 lg:px-6">
-                    <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-3 leading-relaxed">
+                  <div className="px-4 pb-4 flex-1 flex flex-col">
+                    <p className="text-[13px] text-muted-foreground mb-3 line-clamp-3 leading-relaxed flex-1">
                       {post.description}
                     </p>
 
-                    <div className="space-y-1.5 md:space-y-2">
+                    <div className="space-y-1.5">
                       {post.companyName && (
-                        <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-500">
-                          <Building2 className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Building2 className="h-3 w-3 flex-shrink-0" />
                           <span className="truncate">{post.companyName}</span>
                         </div>
                       )}
-
                       {post.location && (
-                        <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-gray-500">
-                          <MapPin className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
                           <span className="truncate">{post.location}</span>
                         </div>
                       )}
-
                       {post.externalLink && (
-                        <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-blue-600">
-                          <ExternalLink className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-                          <span className="truncate text-xs md:text-sm">External link attached</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-primary">
+                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">External link attached</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between mt-3 md:mt-4 pt-3 md:pt-4 border-t">
-                      <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-gray-500">
-                        <div className="flex items-center gap-1 md:gap-1.5">
-                          <ThumbsUp className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <ThumbsUp className="h-3 w-3" />
                           <span>{post.helpfulCount || 0}</span>
                         </div>
-                        <div className="flex items-center gap-1 md:gap-1.5">
-                          <Clock className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
                           <span className="truncate">{timeAgo(post.createdAt)}</span>
                         </div>
                       </div>
-                      <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>
 
             {/* Load More */}
             {pagination.page < pagination.totalPages && (
-              <div className="text-center">
+              <div className="text-center mt-6">
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={handleLoadMore}
                   disabled={loadingMore}
-                  className="w-full sm:w-auto h-9 md:h-10 text-xs md:text-sm px-4 md:px-6"
+                  className="min-w-[160px]"
                 >
                   {loadingMore ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2 animate-spin" />
-                      <span>Loading...</span>
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      Loading...
                     </>
                   ) : (
                     <>
-                      <span>Load More Posts</span>
-                      <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1.5 md:ml-2" />
+                      Load More Posts
+                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
                     </>
                   )}
                 </Button>
@@ -352,10 +332,8 @@ export default function MyPostsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50">
-          <div className="flex items-center justify-center min-h-screen">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       }
     >

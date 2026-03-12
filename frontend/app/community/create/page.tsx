@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Navbar } from '@/components/Navbar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,8 +11,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { jobNewsAPI } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { Loader2, ArrowLeft, Upload, Image as ImageIcon, Video, X, MessageSquarePlus, Sparkles } from 'lucide-react';
-import Link from 'next/link';
+import { Breadcrumb } from '@/components/Breadcrumb';
+import {
+  Loader2,
+  Image as ImageIcon,
+  Video,
+  X,
+  Send,
+  Link2,
+  Building2,
+  MapPin,
+  Newspaper,
+  Info,
+} from 'lucide-react';
 
 export default function CreatePostPage() {
   const router = useRouter();
@@ -21,6 +31,7 @@ export default function CreatePostPage() {
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,55 +41,36 @@ export default function CreatePostPage() {
     externalLink: '',
   });
 
-  // Media upload states
+  // Media
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [videoAspectRatio, setVideoAspectRatio] = useState<string | null>(null);
-  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [showOptional, setShowOptional] = useState(false);
 
   useEffect(() => {
     if (!isHydrated) return;
-
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
+    if (!isAuthenticated) { router.push('/auth/login'); return; }
   }, [isAuthenticated, isHydrated, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Error',
-        description: 'Please select an image file (JPG, PNG, etc.)',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please select an image file (JPG, PNG, etc.)', variant: 'destructive' });
       return;
     }
-
-    // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'Error',
-        description: 'Poster image must be less than 10MB',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Poster image must be less than 10MB', variant: 'destructive' });
       return;
     }
 
-    // Validate aspect ratio - supports multiple LinkedIn-style ratios
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
 
@@ -87,33 +79,23 @@ export default function CreatePostPage() {
       const height = img.height;
       const aspectRatio = width / height;
 
-      // Minimum width check (LinkedIn standard)
       if (width < 200) {
-        toast({
-          title: 'Image Too Small',
-          description: 'Image width must be at least 200px.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Image Too Small', description: 'Image width must be at least 200px.', variant: 'destructive' });
         URL.revokeObjectURL(objectUrl);
         return;
       }
 
-      // Supported aspect ratios like LinkedIn
       const supportedRatios = [
-        { ratio: 1.91, name: 'Landscape (1.91:1)', example: '1200×628px' },
-        { ratio: 1, name: 'Square (1:1)', example: '1200×1200px' },
-        { ratio: 0.8, name: 'Portrait (4:5)', example: '1080×1350px' },
+        { ratio: 1.91, name: 'Landscape (1.91:1)' },
+        { ratio: 1, name: 'Square (1:1)' },
+        { ratio: 0.8, name: 'Portrait (4:5)' },
       ];
-      const tolerance = 0.1;
 
-      const matchedRatio = supportedRatios.find(
-        (r) => Math.abs(aspectRatio - r.ratio) <= tolerance
-      );
-
+      const matchedRatio = supportedRatios.find((r) => Math.abs(aspectRatio - r.ratio) <= 0.1);
       if (!matchedRatio) {
         toast({
           title: 'Invalid Aspect Ratio',
-          description: `Your image is ${width}×${height}px (${aspectRatio.toFixed(2)}:1). Supported: Landscape (1.91:1), Square (1:1), or Portrait (4:5).`,
+          description: `Your image is ${width}x${height}px (${aspectRatio.toFixed(2)}:1). Supported: Landscape (1.91:1), Square (1:1), or Portrait (4:5).`,
           variant: 'destructive',
         });
         URL.revokeObjectURL(objectUrl);
@@ -122,29 +104,19 @@ export default function CreatePostPage() {
 
       URL.revokeObjectURL(objectUrl);
       setPosterFile(file);
-
-      // Clear video if poster is selected (mutual exclusion)
       setVideoFile(null);
       setVideoPreview(null);
       setVideoAspectRatio(null);
 
-      // Create preview
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPosterPreview(reader.result as string);
-      };
+      reader.onloadend = () => setPosterPreview(reader.result as string);
       reader.readAsDataURL(file);
     };
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      toast({
-        title: 'Error',
-        description: 'Failed to load image. Please try another file.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to load image.', variant: 'destructive' });
     };
-
     img.src = objectUrl;
   };
 
@@ -152,27 +124,15 @@ export default function CreatePostPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('video/')) {
-      toast({
-        title: 'Error',
-        description: 'Please select a video file (MP4, MOV, etc.)',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please select a video file (MP4, MOV, etc.)', variant: 'destructive' });
       return;
     }
-
-    // Validate file size (200MB max)
     if (file.size > 200 * 1024 * 1024) {
-      toast({
-        title: 'Error',
-        description: 'Video must be less than 200MB',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Video must be less than 200MB', variant: 'destructive' });
       return;
     }
 
-    // Validate aspect ratio - supports multiple LinkedIn-style ratios
     const video = document.createElement('video');
     const objectUrl = URL.createObjectURL(file);
 
@@ -181,23 +141,18 @@ export default function CreatePostPage() {
       const height = video.videoHeight;
       const aspectRatio = width / height;
 
-      // Supported aspect ratios like LinkedIn
       const supportedRatios = [
-        { ratio: 16 / 9, name: 'Landscape (16:9)', example: '1920×1080px' },
-        { ratio: 1, name: 'Square (1:1)', example: '1080×1080px' },
-        { ratio: 4 / 5, name: 'Portrait (4:5)', example: '1080×1350px' },
-        { ratio: 9 / 16, name: 'Vertical (9:16)', example: '1080×1920px' },
+        { ratio: 16 / 9, name: '16:9' },
+        { ratio: 1, name: '1:1' },
+        { ratio: 4 / 5, name: '4:5' },
+        { ratio: 9 / 16, name: '9:16' },
       ];
-      const tolerance = 0.1;
 
-      const matchedRatio = supportedRatios.find(
-        (r) => Math.abs(aspectRatio - r.ratio) <= tolerance
-      );
-
+      const matchedRatio = supportedRatios.find((r) => Math.abs(aspectRatio - r.ratio) <= 0.1);
       if (!matchedRatio) {
         toast({
           title: 'Invalid Aspect Ratio',
-          description: `Your video is ${width}×${height}px (${aspectRatio.toFixed(2)}:1). Supported: 16:9, 1:1, 4:5, or 9:16.`,
+          description: `Your video is ${width}x${height}px (${aspectRatio.toFixed(2)}:1). Supported: 16:9, 1:1, 4:5, or 9:16.`,
           variant: 'destructive',
         });
         URL.revokeObjectURL(objectUrl);
@@ -206,57 +161,30 @@ export default function CreatePostPage() {
 
       URL.revokeObjectURL(objectUrl);
       setVideoFile(file);
-
-      // Clear poster if video is selected (mutual exclusion)
       setPosterFile(null);
       setPosterPreview(null);
+      setVideoAspectRatio(matchedRatio.name);
 
-      // Store the detected aspect ratio for display
-      const ratioKey = matchedRatio.ratio === 16/9 ? '16:9' :
-                       matchedRatio.ratio === 1 ? '1:1' :
-                       matchedRatio.ratio === 4/5 ? '4:5' : '9:16';
-      setVideoAspectRatio(ratioKey);
-
-      // Create preview
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setVideoPreview(reader.result as string);
-      };
+      reader.onloadend = () => setVideoPreview(reader.result as string);
       reader.readAsDataURL(file);
     };
 
     video.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      toast({
-        title: 'Error',
-        description: 'Failed to load video. Please try another file.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to load video.', variant: 'destructive' });
     };
-
     video.src = objectUrl;
   };
 
-  const handleRemovePoster = () => {
-    setPosterFile(null);
-    setPosterPreview(null);
-  };
-
-  const handleRemoveVideo = () => {
-    setVideoFile(null);
-    setVideoPreview(null);
-    setVideoAspectRatio(null);
-  };
+  const handleRemovePoster = () => { setPosterFile(null); setPosterPreview(null); };
+  const handleRemoveVideo = () => { setVideoFile(null); setVideoPreview(null); setVideoAspectRatio(null); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title.trim() || !formData.description.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
       return;
     }
 
@@ -264,28 +192,20 @@ export default function CreatePostPage() {
     setUploadingMedia(true);
 
     try {
-      // Filter out empty optional fields to avoid validation errors
       const payload: any = {
         title: formData.title.trim(),
         description: formData.description.trim(),
       };
 
-      // Only include optional fields if they have values
       if (formData.companyName.trim()) payload.companyName = formData.companyName.trim();
       if (formData.location.trim()) payload.location = formData.location.trim();
       if (formData.source.trim()) payload.source = formData.source.trim();
       if (formData.externalLink.trim()) payload.externalLink = formData.externalLink.trim();
 
-      // Convert poster to base64 if present
       if (posterFile) {
-        const reader = new FileReader();
         const posterBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
-            const base64 = result.split(',')[1];
-            resolve(base64);
-          };
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
           reader.onerror = reject;
           reader.readAsDataURL(posterFile);
         });
@@ -293,30 +213,23 @@ export default function CreatePostPage() {
         payload.posterMimeType = posterFile.type;
       }
 
-      // Convert video to base64 if present
       if (videoFile) {
-        const reader = new FileReader();
         const videoBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            const base64 = result.split(',')[1];
-            resolve(base64);
-          };
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
           reader.onerror = reject;
           reader.readAsDataURL(videoFile);
         });
         payload.video = videoBase64;
         payload.videoMimeType = videoFile.type;
-        if (videoAspectRatio) {
-          payload.videoAspectRatio = videoAspectRatio;
-        }
+        if (videoAspectRatio) payload.videoAspectRatio = videoAspectRatio;
       }
 
       const response = await jobNewsAPI.createJobNews(payload);
 
       toast({
-        title: 'Success!',
-        description: response.data.message || 'Your post has been submitted successfully. It will be live shortly!',
+        title: 'Post submitted!',
+        description: response.data.message || 'Your post will be live shortly after review.',
         variant: 'success',
       });
 
@@ -334,424 +247,306 @@ export default function CreatePostPage() {
     }
   };
 
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </div>
-    );
+  if (!isHydrated || !isAuthenticated || !user) {
+    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
-  // Prevent rendering for unauthenticated users
-  if (!isHydrated || !isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </div>
-    );
-  }
+  const hasMedia = !!posterPreview || !!videoPreview;
+  const hasOptionalData = formData.companyName || formData.location || formData.source || formData.externalLink;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px]">
+      <Breadcrumb items={[
+        { label: 'Community', href: '/community' },
+        { label: 'Create Post' },
+      ]} />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Header with Blue Theme */}
-        <div className="mb-6 sm:mb-8">
-          <Link
-            href="/community"
-            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 mb-4 font-medium"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Community
-          </Link>
-
-          {/* Decorative Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 sm:p-8 text-white shadow-lg mb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <MessageSquarePlus className="h-6 w-6 sm:h-7 sm:w-7" />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">Share to Community</h1>
-              </div>
-            </div>
-            <p className="text-blue-50 text-sm sm:text-base">
-              Share job leads, career tips, articles, or industry insights with the community
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                <Sparkles className="h-3 w-3" />
-                Tips & Articles
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                <Sparkles className="h-3 w-3" />
-                Job Leads
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                <Sparkles className="h-3 w-3" />
-                Discussions
-              </span>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* Left — Form */}
+        <div>
+          <div className="mb-5">
+            <h1 className="text-lg font-semibold tracking-tight">Create Community Post</h1>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Share job leads, career tips, or industry news with the community</p>
           </div>
-        </div>
 
-        {/* Form */}
-        <Card className="border-blue-100 shadow-sm">
-          <CardHeader className="bg-blue-50/50 border-b border-blue-100">
-            <CardTitle className="flex items-center gap-2 text-blue-900">
-              <MessageSquarePlus className="h-5 w-5 text-blue-600" />
-              Post Details
-            </CardTitle>
-            <CardDescription className="text-blue-700">
-              Share valuable content with the community. Required fields are marked with an asterisk (*)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Essential Information */}
-              <div className="space-y-5">
-                <div>
-                  <h3 className="text-sm font-semibold text-blue-900 mb-4 flex items-center gap-2">
-                    <div className="h-6 w-1 bg-blue-600 rounded-full"></div>
-                    Essential Information
-                  </h3>
-
-                  {/* Title with character counter */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="title" className="text-sm font-medium">
-                        Post Title <span className="text-red-500">*</span>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Title & Description */}
+            <Card>
+              <div className="p-4 sm:p-5">
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label htmlFor="title" className="text-[12px] font-medium">
+                        Title <span className="text-destructive">*</span>
                       </Label>
-                      <span className="text-xs text-muted-foreground">
-                        {formData.title.length}/100
-                      </span>
+                      <span className="text-[11px] text-muted-foreground">{formData.title.length}/100</span>
                     </div>
                     <Input
                       id="title"
                       name="title"
-                      type="text"
                       maxLength={100}
-                      placeholder="E.g., Software Engineer Opening at TechCorp"
+                      placeholder="e.g., Software Engineer Opening at TechCorp"
                       value={formData.title}
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className="h-11 text-base border-blue-100 focus:border-blue-300 focus:ring-blue-200"
+                      className="h-9 text-[13px]"
                     />
-                    <p className="text-xs text-blue-600/70">
-                      💡 Make it clear and engaging
-                    </p>
                   </div>
 
-                  {/* Description with character counter */}
-                  <div className="space-y-2 mt-5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="description" className="text-sm font-medium">
-                        Description <span className="text-red-500">*</span>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label htmlFor="description" className="text-[12px] font-medium">
+                        Description <span className="text-destructive">*</span>
                       </Label>
-                      <span className="text-xs text-muted-foreground">
-                        {formData.description.length}/2000
-                      </span>
+                      <span className="text-[11px] text-muted-foreground">{formData.description.length}/2000</span>
                     </div>
                     <Textarea
                       id="description"
                       name="description"
                       maxLength={2000}
-                      placeholder="Share the details... What should people know? Include key information, requirements, or tips."
+                      placeholder="Share the details — what should people know? Include key information, requirements, or tips."
                       value={formData.description}
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      rows={10}
-                      className="resize-none border-blue-100 focus:border-blue-300 focus:ring-blue-200"
-                    />
-                    <div className="flex items-start gap-2 text-xs text-blue-600/70">
-                      <span className="mt-0.5">💡</span>
-                      <p>Use clear paragraphs, bullet points work great for lists</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Details (Collapsible) */}
-              <div className="border-t border-blue-100 pt-6">
-                <h3 className="text-sm font-semibold text-blue-900 mb-4 flex items-center gap-2">
-                  <div className="h-6 w-1 bg-blue-400 rounded-full"></div>
-                  Additional Details <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Company Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="companyName" className="text-sm font-medium">
-                      Company Name
-                    </Label>
-                    <Input
-                      id="companyName"
-                      name="companyName"
-                      type="text"
-                      placeholder="E.g., Google, Microsoft"
-                      value={formData.companyName}
-                      onChange={handleChange}
-                      disabled={loading}
-                      className="border-blue-100 focus:border-blue-300"
-                    />
-                  </div>
-
-                  {/* Location */}
-                  <div className="space-y-2">
-                    <Label htmlFor="location" className="text-sm font-medium">
-                      Location
-                    </Label>
-                    <LocationAutocomplete
-                      id="location"
-                      value={formData.location}
-                      onChange={(value) => setFormData({ ...formData, location: value })}
-                      placeholder="City, State, or Remote"
-                      disabled={loading}
-                    />
-                  </div>
-
-                  {/* Source */}
-                  <div className="space-y-2">
-                    <Label htmlFor="source" className="text-sm font-medium">
-                      Source
-                    </Label>
-                    <Input
-                      id="source"
-                      name="source"
-                      type="text"
-                      placeholder="E.g., LinkedIn, Company Career Page"
-                      value={formData.source}
-                      onChange={handleChange}
-                      disabled={loading}
-                      className="border-blue-100 focus:border-blue-300"
-                    />
-                  </div>
-
-                  {/* External Link */}
-                  <div className="space-y-2">
-                    <Label htmlFor="externalLink" className="text-sm font-medium">
-                      External Link
-                    </Label>
-                    <Input
-                      id="externalLink"
-                      name="externalLink"
-                      type="url"
-                      placeholder="https://example.com/job-posting"
-                      value={formData.externalLink}
-                      onChange={handleChange}
-                      disabled={loading}
-                      className="border-blue-100 focus:border-blue-300"
+                      rows={6}
+                      className="resize-none text-[13px]"
                     />
                   </div>
                 </div>
               </div>
+            </Card>
 
-              {/* Media Uploads */}
-              <div className="border-t border-blue-100 pt-6">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                  <div className="h-6 w-1 bg-blue-300 rounded-full"></div>
-                  Media <span className="text-xs font-normal text-muted-foreground">(Optional - Make your post stand out!)</span>
-                </h3>
-                <p className="text-xs text-amber-600 mb-4 bg-amber-50 px-3 py-2 rounded-md border border-amber-200">
-                  Note: You can upload either a poster image OR a video, but not both.
-                </p>
+            {/* Media — Image or Video */}
+            <Card>
+              <div className="p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">Media</h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Add an image or video (optional, only one)</p>
+                  </div>
+                  {hasMedia && (
+                    <Button type="button" variant="ghost" size="sm" className="text-[12px] h-7 text-destructive hover:text-destructive" onClick={() => { handleRemovePoster(); handleRemoveVideo(); }}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Poster Image Upload */}
-                  <div className="space-y-2">
-                    <Label htmlFor="poster" className="text-sm font-medium flex items-center gap-2">
-                      <ImageIcon className="h-4 w-4" />
-                      Poster Image
-                    </Label>
-                    {posterPreview ? (
-                      <div className="relative rounded-lg overflow-hidden border-2 border-blue-200 bg-blue-50/50 p-3">
-                        <img
-                          src={posterPreview}
-                          alt="Poster preview"
-                          className="w-full h-48 object-cover rounded-md"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-5 right-5 h-8 w-8 p-0 rounded-full shadow-lg"
-                          onClick={handleRemovePoster}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                        <div className="mt-2 text-xs text-center text-blue-600">
-                          Image uploaded successfully
+                {posterPreview ? (
+                  <div className="relative rounded-md overflow-hidden border">
+                    <img src={posterPreview} alt="Preview" className="w-full max-h-[240px] object-cover" />
+                    <button type="button" onClick={handleRemovePoster} className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : videoPreview ? (
+                  <div className="relative rounded-md overflow-hidden border bg-black">
+                    <video src={videoPreview} controls className="w-full max-h-[240px]" />
+                    <button type="button" onClick={handleRemoveVideo} className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Image Upload */}
+                    <div>
+                      <input type="file" id="poster" accept="image/*" onChange={handlePosterUpload} disabled={loading} className="hidden" />
+                      <label htmlFor="poster" className="block cursor-pointer border-2 border-dashed rounded-md p-4 text-center hover:border-primary/30 transition-colors">
+                        <div className="h-9 w-9 mx-auto rounded-md bg-blue-500/8 flex items-center justify-center mb-2">
+                          <ImageIcon className="h-4 w-4 text-blue-600" />
                         </div>
-                      </div>
-                    ) : (
-                      <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
-                        videoFile || videoPreview
-                          ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-                          : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer group'
-                      }`}>
-                        <input
-                          type="file"
-                          id="poster"
-                          accept="image/*"
-                          onChange={handlePosterUpload}
-                          disabled={loading || !!videoFile || !!videoPreview}
-                          className="hidden"
-                        />
-                        <label htmlFor="poster" className={videoFile || videoPreview ? 'cursor-not-allowed' : 'cursor-pointer block'}>
-                          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${
-                            videoFile || videoPreview ? 'bg-gray-200' : 'bg-blue-100 group-hover:bg-blue-200'
-                          }`}>
-                            <ImageIcon className={`h-6 w-6 ${videoFile || videoPreview ? 'text-gray-400' : 'text-blue-600'}`} />
-                          </div>
-                          {videoFile || videoPreview ? (
-                            <p className="font-medium text-sm text-gray-500 mb-1">Video selected - remove video to upload image</p>
-                          ) : (
-                            <>
-                              <p className="font-medium text-sm text-blue-900 mb-1">Click to upload image</p>
-                              <p className="text-xs text-muted-foreground mb-2">
-                                JPG, PNG or GIF (max 10MB)
-                              </p>
-                              <div className="mt-3 pt-3 border-t border-blue-200">
-                                <p className="text-xs font-semibold text-blue-700 mb-1">📐 Supported Aspect Ratios:</p>
-                                <p className="text-xs text-blue-600 font-medium">Landscape (1.91:1) • Square (1:1) • Portrait (4:5)</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Recommended: 1200×628, 1200×1200, or 1080×1350px
-                                </p>
-                              </div>
-                            </>
-                          )}
-                        </label>
-                      </div>
-                    )}
-                  </div>
+                        <p className="text-[13px] font-medium mb-0.5">Image</p>
+                        <p className="text-[11px] text-muted-foreground">JPG, PNG · max 10MB</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">1.91:1, 1:1, or 4:5</p>
+                      </label>
+                    </div>
 
-                  {/* Video Upload */}
-                  <div className="space-y-2">
-                    <Label htmlFor="video" className="text-sm font-medium flex items-center gap-2">
-                      <Video className="h-4 w-4" />
-                      Video
-                    </Label>
-                    {videoPreview ? (
-                      <div className="relative rounded-lg overflow-hidden border-2 border-blue-200 bg-black p-3">
-                        <video
-                          src={videoPreview}
-                          controls
-                          className="w-full h-48 rounded-md"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-5 right-5 h-8 w-8 p-0 rounded-full shadow-lg"
-                          onClick={handleRemoveVideo}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                        <div className="mt-2 text-xs text-center text-blue-600">
-                          Video uploaded successfully
+                    {/* Video Upload */}
+                    <div>
+                      <input type="file" id="video" accept="video/*" onChange={handleVideoUpload} disabled={loading} className="hidden" />
+                      <label htmlFor="video" className="block cursor-pointer border-2 border-dashed rounded-md p-4 text-center hover:border-primary/30 transition-colors">
+                        <div className="h-9 w-9 mx-auto rounded-md bg-violet-500/8 flex items-center justify-center mb-2">
+                          <Video className="h-4 w-4 text-violet-600" />
                         </div>
-                      </div>
-                    ) : (
-                      <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
-                        posterFile || posterPreview
-                          ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-                          : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer group'
-                      }`}>
-                        <input
-                          type="file"
-                          id="video"
-                          accept="video/*"
-                          onChange={handleVideoUpload}
-                          disabled={loading || !!posterFile || !!posterPreview}
-                          className="hidden"
-                        />
-                        <label htmlFor="video" className={posterFile || posterPreview ? 'cursor-not-allowed' : 'cursor-pointer block'}>
-                          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${
-                            posterFile || posterPreview ? 'bg-gray-200' : 'bg-blue-100 group-hover:bg-blue-200'
-                          }`}>
-                            <Video className={`h-6 w-6 ${posterFile || posterPreview ? 'text-gray-400' : 'text-blue-600'}`} />
-                          </div>
-                          {posterFile || posterPreview ? (
-                            <p className="font-medium text-sm text-gray-500 mb-1">Image selected - remove image to upload video</p>
-                          ) : (
-                            <>
-                              <p className="font-medium text-sm text-blue-900 mb-1">Click to upload video</p>
-                              <p className="text-xs text-muted-foreground mb-2">
-                                MP4, MOV or WebM (max 200MB)
-                              </p>
-                              <div className="mt-3 pt-3 border-t border-blue-200">
-                                <p className="text-xs font-semibold text-blue-700 mb-1">📐 Supported Aspect Ratios:</p>
-                                <p className="text-xs text-blue-600 font-medium">16:9 • 1:1 • 4:5 • 9:16</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  1920×1080, 1080×1080, 1080×1350, or 1080×1920px
-                                </p>
-                              </div>
-                            </>
-                          )}
-                        </label>
-                      </div>
-                    )}
+                        <p className="text-[13px] font-medium mb-0.5">Video</p>
+                        <p className="text-[11px] text-muted-foreground">MP4, MOV · max 200MB</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">16:9, 1:1, 4:5, or 9:16</p>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Optional Details — Collapsible */}
+            <Card>
+              <button
+                type="button"
+                onClick={() => setShowOptional(!showOptional)}
+                className="w-full p-4 sm:p-5 flex items-center justify-between text-left"
+              >
+                <div>
+                  <h3 className="text-sm font-semibold">Additional Details</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Company, location, source & link (optional)
+                    {hasOptionalData && ' — filled'}
+                  </p>
+                </div>
+                <span className="text-[12px] text-primary font-medium">{showOptional ? 'Hide' : 'Show'}</span>
+              </button>
+              {showOptional && (
+                <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-0">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="companyName" className="text-[12px] font-medium flex items-center gap-1.5 mb-1">
+                        <Building2 className="h-3 w-3 text-muted-foreground" /> Company <span className="text-muted-foreground font-normal ml-1">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="companyName"
+                        name="companyName"
+                        placeholder="e.g., Google"
+                        value={formData.companyName}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className="h-9 text-[13px]"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="location" className="text-[12px] font-medium flex items-center gap-1.5 mb-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" /> Location <span className="text-muted-foreground font-normal ml-1">(Optional)</span>
+                      </Label>
+                      <LocationAutocomplete
+                        id="location"
+                        value={formData.location}
+                        onChange={(value) => setFormData({ ...formData, location: value })}
+                        placeholder="City, State, or Remote"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="source" className="text-[12px] font-medium flex items-center gap-1.5 mb-1">
+                        <Newspaper className="h-3 w-3 text-muted-foreground" /> Source <span className="text-muted-foreground font-normal ml-1">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="source"
+                        name="source"
+                        placeholder="e.g., LinkedIn, Company Page"
+                        value={formData.source}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className="h-9 text-[13px]"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="externalLink" className="text-[12px] font-medium flex items-center gap-1.5 mb-1">
+                        <Link2 className="h-3 w-3 text-muted-foreground" /> External Link <span className="text-muted-foreground font-normal ml-1">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="externalLink"
+                        name="externalLink"
+                        type="url"
+                        placeholder="https://example.com/job"
+                        value={formData.externalLink}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className="h-9 text-[13px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Submit */}
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-[13px]"
+                onClick={() => router.back()}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="text-[13px]"
+                disabled={loading || !formData.title.trim() || !formData.description.trim()}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {uploadingMedia ? 'Uploading...' : 'Publishing...'}
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-1.5 h-3.5 w-3.5" />
+                    Publish Post
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* Right Sidebar — Tips */}
+        <div className="hidden lg:block">
+          <div className="sticky top-4 space-y-4">
+            <Card>
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold">Posting Tips</h3>
+                </div>
+                <div className="space-y-3 text-[12px] text-muted-foreground leading-relaxed">
+                  <div className="flex gap-2">
+                    <span className="h-5 w-5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold flex items-center justify-center flex-shrink-0">1</span>
+                    <p>Use a clear, specific title that describes the opportunity or topic</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="h-5 w-5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold flex items-center justify-center flex-shrink-0">2</span>
+                    <p>Include key details: role, company, requirements, and how to apply</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="h-5 w-5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold flex items-center justify-center flex-shrink-0">3</span>
+                    <p>Add an image or video to make your post stand out in the feed</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="h-5 w-5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold flex items-center justify-center flex-shrink-0">4</span>
+                    <p>Include a source link so others can verify the information</p>
                   </div>
                 </div>
               </div>
+            </Card>
 
-              {/* Submit Section */}
-              <div className="border-t border-blue-100 pt-6">
-                <div className="bg-blue-50/50 rounded-lg p-5 mb-5">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-blue-900 mb-1">Ready to share?</h4>
-                      <p className="text-sm text-blue-700/80">
-                        Your post will be visible to all community members and can help someone land their dream job!
-                      </p>
-                    </div>
+            <Card>
+              <div className="p-4">
+                <h3 className="text-sm font-semibold mb-2">What can you share?</h3>
+                <div className="space-y-2 text-[12px] text-muted-foreground">
+                  <div className="flex items-start gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                    <p>Job openings & referral opportunities</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                    <p>Career tips & interview advice</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                    <p>Industry news & salary insights</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
+                    <p>Hiring alerts & walk-in drives</p>
                   </div>
                 </div>
-
-                <div className="flex flex-col-reverse sm:flex-row gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1 h-12 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
-                    onClick={() => router.back()}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
-                    disabled={loading || !formData.title.trim() || !formData.description.trim()}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        {uploadingMedia ? 'Uploading Media...' : 'Publishing Post...'}
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquarePlus className="mr-2 h-5 w-5" />
-                        Share to Community
-                      </>
-                    )}
-                  </Button>
-                </div>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

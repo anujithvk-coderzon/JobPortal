@@ -3,10 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -26,7 +24,8 @@ import {
   LOCATION_TYPE_OPTIONS,
   SALARY_FORMAT_OPTIONS,
 } from '@/lib/constants';
-import { Loader2, Plus, X, Briefcase, DollarSign, Building2, Sparkles, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, X, Briefcase, Building2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Breadcrumb } from '@/components/Breadcrumb';
 import Image from 'next/image';
 
 interface Company {
@@ -208,66 +207,46 @@ function PostJobPageContent() {
   // Prevent rendering for unauthenticated users
   if (!isHydrated || !isAuthenticated || !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <div className="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
+        <Breadcrumb items={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Post a Job' }]} />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Header with Orange Theme */}
-        <div className="mb-6 sm:mb-8">
-          {/* Decorative Header */}
-          <div className="bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg p-6 sm:p-8 text-white shadow-lg mb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <Briefcase className="h-6 w-6 sm:h-7 sm:w-7" />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">Post Official Job</h1>
-              </div>
-            </div>
-            <p className="text-orange-50 text-sm sm:text-base mb-4">
-              Post a verified job opportunity on behalf of your company
-            </p>
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4">
-              <p className="text-sm text-orange-50">
-                💡 <strong>Looking to share job tips or leads?</strong> Use{' '}
-                <button
-                  type="button"
-                  onClick={() => router.push('/community/create')}
-                  className="underline font-semibold hover:text-white transition-colors"
-                >
-                  Share to Community
-                </button>{' '}
-                instead for informal job-related content.
-              </p>
-            </div>
-          </div>
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold">Post a Job</h1>
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            Post a verified job opportunity on behalf of your company.{' '}
+            <button
+              type="button"
+              onClick={() => router.push('/community/create')}
+              className="text-primary hover:underline font-medium"
+            >
+              Share to Community
+            </button>{' '}
+            instead for informal content.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Company Selection */}
           {companiesLoading ? (
-            <Card className="border-orange-100 shadow-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-lg border bg-card p-6 flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
           ) : searchParams.get('companyId') && selectedCompanyId ? (
-            /* Compact view when coming from company page */
-            <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
+            <div className="rounded-lg border bg-card p-4">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
                     {companies.find(c => c.id === selectedCompanyId)?.logo ? (
-                      <div className="relative w-12 h-12 rounded-lg overflow-hidden border-2 border-orange-200 shadow-sm">
+                      <div className="relative w-8 h-8 rounded-md overflow-hidden border">
                         <Image
                           src={companies.find(c => c.id === selectedCompanyId)!.logo!}
                           alt={companies.find(c => c.id === selectedCompanyId)!.name}
@@ -276,14 +255,14 @@ function PostJobPageContent() {
                         />
                       </div>
                     ) : (
-                      <div className="w-12 h-12 bg-orange-200 rounded-lg flex items-center justify-center">
-                        <Building2 className="h-6 w-6 text-orange-700" />
+                      <div className="w-8 h-8 bg-primary/8 rounded-md flex items-center justify-center">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
                       </div>
                     )}
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Posting as</p>
-                    <h3 className="text-base font-bold text-orange-900">{companies.find(c => c.id === selectedCompanyId)?.name}</h3>
+                    <p className="text-[11px] text-muted-foreground">Posting as</p>
+                    <p className="text-[13px] font-semibold">{companies.find(c => c.id === selectedCompanyId)?.name}</p>
                   </div>
                 </div>
                 {companies.length > 1 && (
@@ -292,28 +271,22 @@ function PostJobPageContent() {
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedCompanyId('')}
-                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    className="h-7 text-[11px]"
                   >
-                    Change Company
+                    Change
                   </Button>
                 )}
               </div>
             </div>
           ) : (
-            /* Full selection view when accessing directly */
-            <Card className="border-orange-100 shadow-sm">
-              <CardHeader className="bg-orange-50/50 border-b border-orange-100">
-                <CardTitle className="flex items-center gap-2 text-orange-900">
-                  <Building2 className="h-5 w-5 text-orange-600" />
-                  Select Company
-                </CardTitle>
-                <CardDescription className="text-orange-700">Choose the company posting this job</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="space-y-2">
-                  <Label htmlFor="company">Company <span className="text-red-500">*</span></Label>
+            <div className="rounded-lg border bg-card p-4 sm:p-5">
+              <h2 className="text-sm font-semibold mb-0.5">Select Company</h2>
+              <p className="text-[12px] text-muted-foreground mb-3">Choose the company posting this job</p>
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="company" className="text-[13px] font-medium mb-1 block">Company <span className="text-red-500">*</span></Label>
                   <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-                    <SelectTrigger id="company" className="border-orange-200 focus:ring-orange-500">
+                    <SelectTrigger id="company" className="h-9 text-[13px]">
                       <SelectValue placeholder="Select a company" />
                     </SelectTrigger>
                     <SelectContent>
@@ -330,7 +303,7 @@ function PostJobPageContent() {
                                 />
                               </div>
                             ) : (
-                              <Building2 className="h-4 w-4 text-orange-600" />
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
                             )}
                             <span>{company.name}</span>
                           </div>
@@ -338,40 +311,35 @@ function PostJobPageContent() {
                       ))}
                     </SelectContent>
                   </Select>
-                  {!selectedCompanyId && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Don't have a company yet?{' '}
-                      <button
-                        type="button"
-                        onClick={() => router.push('/company/create')}
-                        className="text-orange-600 hover:text-orange-700 font-medium underline"
-                      >
-                        Create one now
-                      </button>
-                    </p>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
+                {!selectedCompanyId && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Don&apos;t have a company yet?{' '}
+                    <button
+                      type="button"
+                      onClick={() => router.push('/company/create')}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Create one now
+                    </button>
+                  </p>
+                )}
+              </div>
+            </div>
           )}
 
-          {/* Basic Information */}
-          <Card className="border-orange-100 shadow-sm">
-            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
-              <CardTitle className="flex items-center gap-2 text-orange-900">
-                <Briefcase className="h-5 w-5 text-orange-600" />
-                Job Details
-              </CardTitle>
-              <CardDescription className="text-orange-700">Essential details about the position</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-6">
+          {/* Job Details */}
+          <div className="rounded-lg border bg-card p-4 sm:p-5">
+            <h2 className="text-sm font-semibold mb-0.5">Job Details</h2>
+            <p className="text-[12px] text-muted-foreground mb-4">Essential details about the position</p>
+            <div className="space-y-4">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label htmlFor="title">Job Title <span className="text-red-500">*</span></Label>
-                  <span className={`text-xs font-medium transition-colors ${
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="title" className="text-[13px] font-medium">Job Title <span className="text-red-500">*</span></Label>
+                  <span className={`text-[11px] text-muted-foreground transition-colors ${
                     formData.title.length > 100 ? 'text-red-500' :
                     formData.title.length > 85 ? 'text-orange-500' :
-                    'text-muted-foreground'
+                    ''
                   }`}>
                     {formData.title.length}/100
                   </span>
@@ -383,20 +351,20 @@ function PostJobPageContent() {
                   placeholder="e.g., Senior Software Engineer"
                   maxLength={100}
                   required
-                  className={formData.title.length > 100 ? 'border-red-500 focus:ring-red-500' : ''}
+                  className={`h-9 text-[13px] ${formData.title.length > 100 ? 'border-red-500 focus:ring-red-500' : ''}`}
                 />
-                <p className="text-xs text-muted-foreground mt-1.5">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   A clear, specific job title helps attract the right candidates
                 </p>
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label htmlFor="description">Job Description <span className="text-red-500">*</span></Label>
-                  <span className={`text-xs font-medium transition-colors ${
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="description" className="text-[13px] font-medium">Job Description <span className="text-red-500">*</span></Label>
+                  <span className={`text-[11px] text-muted-foreground transition-colors ${
                     formData.description.length > 5000 ? 'text-red-500' :
                     formData.description.length > 4500 ? 'text-orange-500' :
-                    'text-muted-foreground'
+                    ''
                   }`}>
                     {formData.description.length}/5000
                   </span>
@@ -406,24 +374,24 @@ function PostJobPageContent() {
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   placeholder="Describe the role, company culture, and what makes this opportunity unique..."
-                  rows={8}
+                  rows={6}
                   maxLength={5000}
                   required
-                  className={`resize-none ${formData.description.length > 5000 ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  className={`resize-none text-[13px] ${formData.description.length > 5000 ? 'border-red-500 focus:ring-red-500' : ''}`}
                 />
-                <p className="text-xs text-muted-foreground mt-1.5">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   Include key details about the role, team, culture, and growth opportunities
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="employmentType">Employment Type *</Label>
+                  <Label htmlFor="employmentType" className="text-[13px] font-medium mb-1 block">Employment Type *</Label>
                   <Select
                     value={formData.employmentType}
                     onValueChange={(value) => handleInputChange('employmentType', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 text-[13px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -437,12 +405,12 @@ function PostJobPageContent() {
                 </div>
 
                 <div>
-                  <Label htmlFor="experienceLevel">Experience Level *</Label>
+                  <Label htmlFor="experienceLevel" className="text-[13px] font-medium mb-1 block">Experience Level *</Label>
                   <Select
                     value={formData.experienceLevel}
                     onValueChange={(value) => handleInputChange('experienceLevel', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 text-[13px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -456,14 +424,14 @@ function PostJobPageContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="locationType">Location Type *</Label>
+                  <Label htmlFor="locationType" className="text-[13px] font-medium mb-1 block">Location Type *</Label>
                   <Select
                     value={formData.locationType}
                     onValueChange={(value) => handleInputChange('locationType', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 text-[13px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -477,7 +445,7 @@ function PostJobPageContent() {
                 </div>
 
                 <div>
-                  <Label htmlFor="location">Location</Label>
+                  <Label htmlFor="location" className="text-[13px] font-medium mb-1 block">Location <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                   <LocationAutocomplete
                     id="location"
                     value={formData.location}
@@ -487,9 +455,9 @@ function PostJobPageContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="numberOfOpenings">Number of Openings <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="numberOfOpenings" className="text-[13px] font-medium mb-1 block">Number of Openings <span className="text-red-500">*</span></Label>
                   <Input
                     id="numberOfOpenings"
                     type="number"
@@ -497,14 +465,15 @@ function PostJobPageContent() {
                     value={formData.numberOfOpenings}
                     onChange={(e) => handleInputChange('numberOfOpenings', e.target.value)}
                     required
+                    className="h-9 text-[13px]"
                   />
-                  <p className="text-xs text-muted-foreground mt-1.5">
+                  <p className="text-[11px] text-muted-foreground mt-1">
                     How many positions are you hiring for?
                   </p>
                 </div>
 
                 <div>
-                  <Label htmlFor="applicationDeadline">Application Deadline</Label>
+                  <Label htmlFor="applicationDeadline" className="text-[13px] font-medium mb-1 block">Application Deadline <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                   <Input
                     id="applicationDeadline"
                     type="date"
@@ -512,44 +481,37 @@ function PostJobPageContent() {
                     max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                     value={formData.applicationDeadline}
                     onChange={(e) => handleInputChange('applicationDeadline', e.target.value)}
+                    className="h-9 text-[13px]"
                   />
-                  <p className="text-xs text-muted-foreground mt-1.5">
+                  <p className="text-[11px] text-muted-foreground mt-1">
                     Optional - Maximum 30 days from today
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Compensation */}
-          <Card className="border-orange-100 shadow-sm">
-            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
-              <CardTitle className="flex items-center gap-2 text-orange-900">
-                <DollarSign className="h-5 w-5 text-orange-600" />
-                Compensation
-              </CardTitle>
-              <CardDescription className="text-orange-700">Salary range for this position (optional but recommended)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-orange-50/50 border border-orange-100 rounded-lg p-3.5 mb-4">
-                <div className="flex items-start gap-2.5">
-                  <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-orange-800 leading-relaxed">
-                    <strong className="font-semibold">Transparency tip:</strong> Including salary information can increase application rates by up to 30%. It helps attract serious candidates and saves time for both parties.
-                  </p>
-                </div>
+          <div className="rounded-lg border bg-card p-4 sm:p-5">
+            <h2 className="text-sm font-semibold mb-0.5">Compensation <span className="text-muted-foreground font-normal text-[12px] ml-1">(Optional)</span></h2>
+            <p className="text-[12px] text-muted-foreground mb-4">Salary range for this position (optional but recommended)</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-2 rounded-md border p-3 bg-primary/8">
+                <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <strong className="font-semibold">Tip:</strong> Including salary information can increase application rates by up to 30%.
+                </p>
               </div>
 
-              {/* Salary Format Selection */}
               <div>
-                <Label htmlFor="salaryPeriod">Salary Format</Label>
+                <Label htmlFor="salaryPeriod" className="text-[13px] font-medium mb-1 block">Salary Format</Label>
                 <Select
                   value={formData.salaryPeriod}
                   onValueChange={(value) => {
                     setFormData(prev => ({ ...prev, salaryPeriod: value, salaryMin: '', salaryMax: '' }));
                   }}
                 >
-                  <SelectTrigger id="salaryPeriod">
+                  <SelectTrigger id="salaryPeriod" className="h-9 text-[13px]">
                     <SelectValue placeholder="Select salary format" />
                   </SelectTrigger>
                   <SelectContent>
@@ -562,11 +524,10 @@ function PostJobPageContent() {
                 </Select>
               </div>
 
-              {/* Conditional Salary Inputs */}
               {formData.salaryPeriod === 'MONTHLY' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="salaryMin">Minimum Salary (₹)</Label>
+                    <Label htmlFor="salaryMin" className="text-[13px] font-medium mb-1 block">Minimum Salary (&#8377;)</Label>
                     <Input
                       id="salaryMin"
                       type="text"
@@ -577,11 +538,11 @@ function PostJobPageContent() {
                         handleInputChange('salaryMin', val);
                       }}
                       placeholder="e.g. 25000"
-                      className="[appearance:textfield]"
+                      className="h-9 text-[13px] [appearance:textfield]"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="salaryMax">Maximum Salary (₹)</Label>
+                    <Label htmlFor="salaryMax" className="text-[13px] font-medium mb-1 block">Maximum Salary (&#8377;)</Label>
                     <Input
                       id="salaryMax"
                       type="text"
@@ -592,14 +553,14 @@ function PostJobPageContent() {
                         handleInputChange('salaryMax', val);
                       }}
                       placeholder="e.g. 40000"
-                      className="[appearance:textfield]"
+                      className="h-9 text-[13px] [appearance:textfield]"
                     />
                   </div>
                 </div>
               ) : (
                 <div>
-                  <Label htmlFor="salaryMin">
-                    {formData.salaryPeriod === 'LPA' ? 'Salary in LPA (₹)' : 'CTC in Lakhs (₹)'}
+                  <Label htmlFor="salaryMin" className="text-[13px] font-medium mb-1 block">
+                    {formData.salaryPeriod === 'LPA' ? 'Salary in LPA (&#8377;)' : 'CTC in Lakhs (&#8377;)'}
                   </Label>
                   <Input
                     id="salaryMin"
@@ -611,9 +572,9 @@ function PostJobPageContent() {
                       handleInputChange('salaryMin', val);
                     }}
                     placeholder={formData.salaryPeriod === 'LPA' ? 'e.g. 6' : 'e.g. 8'}
-                    className="[appearance:textfield]"
+                    className="h-9 text-[13px] [appearance:textfield]"
                   />
-                  <p className="text-xs text-muted-foreground mt-1.5">
+                  <p className="text-[11px] text-muted-foreground mt-1">
                     {formData.salaryPeriod === 'LPA'
                       ? 'Enter the annual salary in lakhs, e.g. 6 for 6 LPA'
                       : 'Enter the CTC in lakhs, e.g. 8 for 8L CTC'}
@@ -622,10 +583,10 @@ function PostJobPageContent() {
               )}
 
               {(formData.salaryMin || formData.salaryMax) && (
-                <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center justify-between rounded-md border p-3">
                   <div>
-                    <Label htmlFor="showSalary" className="text-sm font-medium">Show salary in job post</Label>
-                    <p className="text-xs text-muted-foreground">When off, salary won&apos;t be visible to applicants</p>
+                    <Label htmlFor="showSalary" className="text-[13px] font-medium">Show salary in job post</Label>
+                    <p className="text-[11px] text-muted-foreground">When off, salary won&apos;t be visible to applicants</p>
                   </div>
                   <Switch
                     id="showSalary"
@@ -634,55 +595,37 @@ function PostJobPageContent() {
                   />
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 Leave blank if you prefer not to disclose salary information
               </p>
-            </CardContent>
-          </Card>
-
-          {/* Divider */}
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-orange-200"></div>
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-background px-4 text-xs font-semibold text-orange-600 uppercase tracking-wider">
-                Position Details
-              </span>
             </div>
           </div>
 
           {/* Responsibilities */}
-          <Card className="border-orange-100 shadow-sm">
-            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
-              <CardTitle className="text-orange-900">Responsibilities</CardTitle>
-              <CardDescription className="text-orange-700">Day-to-day tasks and key responsibilities</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground mb-3">
-                List the primary responsibilities this role will handle. Be specific and use action verbs.
-              </p>
+          <div className="rounded-lg border bg-card p-4 sm:p-5">
+            <h2 className="text-sm font-semibold mb-0.5">Responsibilities <span className="text-muted-foreground font-normal text-[12px] ml-1">(Optional)</span></h2>
+            <p className="text-[12px] text-muted-foreground mb-3">Day-to-day tasks and key responsibilities</p>
+            <div className="space-y-2">
               {responsibilities.map((responsibility, index) => (
                 <div key={index} className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      value={responsibility}
-                      onChange={(e) =>
-                        handleArrayChange(responsibilities, setResponsibilities, index, e.target.value)
-                      }
-                      placeholder={index === 0 ? "e.g., Design and implement scalable backend services" : "e.g., Collaborate with cross-functional teams"}
-                      maxLength={200}
-                    />
-                  </div>
+                  <Input
+                    value={responsibility}
+                    onChange={(e) =>
+                      handleArrayChange(responsibilities, setResponsibilities, index, e.target.value)
+                    }
+                    placeholder={index === 0 ? "e.g., Design and implement scalable backend services" : "e.g., Collaborate with cross-functional teams"}
+                    maxLength={200}
+                    className="h-9 text-[13px]"
+                  />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(responsibilities, setResponsibilities, index)}
                     disabled={responsibilities.length === 1}
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 h-9 w-9"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               ))}
@@ -691,45 +634,39 @@ function PostJobPageContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(responsibilities, setResponsibilities)}
-                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
+                className="h-7 text-[11px]"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 mr-1" />
                 Add Responsibility
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Required Qualifications */}
-          <Card className="border-orange-100 shadow-sm">
-            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
-              <CardTitle className="text-orange-900">Required Qualifications</CardTitle>
-              <CardDescription className="text-orange-700">Essential qualifications candidates must have</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground mb-3">
-                Include education, certifications, years of experience, or specific achievements required.
-              </p>
+          <div className="rounded-lg border bg-card p-4 sm:p-5">
+            <h2 className="text-sm font-semibold mb-0.5">Required Qualifications <span className="text-muted-foreground font-normal text-[12px] ml-1">(Optional)</span></h2>
+            <p className="text-[12px] text-muted-foreground mb-3">Essential qualifications candidates must have</p>
+            <div className="space-y-2">
               {requiredQualifications.map((qualification, index) => (
                 <div key={index} className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      value={qualification}
-                      onChange={(e) =>
-                        handleArrayChange(requiredQualifications, setRequiredQualifications, index, e.target.value)
-                      }
-                      placeholder={index === 0 ? "e.g., Bachelor's degree in Computer Science or related field" : "e.g., 5+ years of professional software development"}
-                      maxLength={200}
-                    />
-                  </div>
+                  <Input
+                    value={qualification}
+                    onChange={(e) =>
+                      handleArrayChange(requiredQualifications, setRequiredQualifications, index, e.target.value)
+                    }
+                    placeholder={index === 0 ? "e.g., Bachelor's degree in Computer Science or related field" : "e.g., 5+ years of professional software development"}
+                    maxLength={200}
+                    className="h-9 text-[13px]"
+                  />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(requiredQualifications, setRequiredQualifications, index)}
                     disabled={requiredQualifications.length === 1}
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 h-9 w-9"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               ))}
@@ -738,45 +675,39 @@ function PostJobPageContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(requiredQualifications, setRequiredQualifications)}
-                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
+                className="h-7 text-[11px]"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 mr-1" />
                 Add Qualification
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Preferred Qualifications */}
-          <Card className="border-orange-100 shadow-sm">
-            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
-              <CardTitle className="text-orange-900">Preferred Qualifications</CardTitle>
-              <CardDescription className="text-orange-700">Bonus qualifications that would make a candidate stand out</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground mb-3">
-                Optional qualifications that would be beneficial but aren't deal-breakers.
-              </p>
+          <div className="rounded-lg border bg-card p-4 sm:p-5">
+            <h2 className="text-sm font-semibold mb-0.5">Preferred Qualifications <span className="text-muted-foreground font-normal text-[12px] ml-1">(Optional)</span></h2>
+            <p className="text-[12px] text-muted-foreground mb-3">Bonus qualifications that would make a candidate stand out</p>
+            <div className="space-y-2">
               {preferredQualifications.map((qualification, index) => (
                 <div key={index} className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      value={qualification}
-                      onChange={(e) =>
-                        handleArrayChange(preferredQualifications, setPreferredQualifications, index, e.target.value)
-                      }
-                      placeholder={index === 0 ? "e.g., Experience with cloud platforms (AWS, Azure, GCP)" : "e.g., Open source contributions or published technical writing"}
-                      maxLength={200}
-                    />
-                  </div>
+                  <Input
+                    value={qualification}
+                    onChange={(e) =>
+                      handleArrayChange(preferredQualifications, setPreferredQualifications, index, e.target.value)
+                    }
+                    placeholder={index === 0 ? "e.g., Experience with cloud platforms (AWS, Azure, GCP)" : "e.g., Open source contributions or published technical writing"}
+                    maxLength={200}
+                    className="h-9 text-[13px]"
+                  />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(preferredQualifications, setPreferredQualifications, index)}
                     disabled={preferredQualifications.length === 1}
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 h-9 w-9"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               ))}
@@ -785,45 +716,39 @@ function PostJobPageContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(preferredQualifications, setPreferredQualifications)}
-                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
+                className="h-7 text-[11px]"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 mr-1" />
                 Add Qualification
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Required Skills */}
-          <Card className="border-orange-100 shadow-sm">
-            <CardHeader className="bg-orange-50/50 border-b border-orange-100">
-              <CardTitle className="text-orange-900">Required Skills</CardTitle>
-              <CardDescription className="text-orange-700">Technical and soft skills candidates need</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground mb-3">
-                List specific technologies, frameworks, tools, and soft skills needed for success in this role.
-              </p>
+          <div className="rounded-lg border bg-card p-4 sm:p-5">
+            <h2 className="text-sm font-semibold mb-0.5">Required Skills <span className="text-muted-foreground font-normal text-[12px] ml-1">(Optional)</span></h2>
+            <p className="text-[12px] text-muted-foreground mb-3">Technical and soft skills candidates need</p>
+            <div className="space-y-2">
               {requiredSkills.map((skill, index) => (
                 <div key={index} className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      value={skill}
-                      onChange={(e) =>
-                        handleArrayChange(requiredSkills, setRequiredSkills, index, e.target.value)
-                      }
-                      placeholder={index === 0 ? "e.g., JavaScript, TypeScript, React" : index === 1 ? "e.g., RESTful APIs, GraphQL" : "e.g., Strong communication and teamwork"}
-                      maxLength={150}
-                    />
-                  </div>
+                  <Input
+                    value={skill}
+                    onChange={(e) =>
+                      handleArrayChange(requiredSkills, setRequiredSkills, index, e.target.value)
+                    }
+                    placeholder={index === 0 ? "e.g., JavaScript, TypeScript, React" : index === 1 ? "e.g., RESTful APIs, GraphQL" : "e.g., Strong communication and teamwork"}
+                    maxLength={150}
+                    className="h-9 text-[13px]"
+                  />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => removeArrayItem(requiredSkills, setRequiredSkills, index)}
                     disabled={requiredSkills.length === 1}
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 h-9 w-9"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               ))}
@@ -832,62 +757,41 @@ function PostJobPageContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => addArrayItem(requiredSkills, setRequiredSkills)}
-                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
+                className="h-7 text-[11px]"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 mr-1" />
                 Add Skill
               </Button>
-            </CardContent>
-          </Card>
-
-          {/* Motivational Submit Section */}
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-lg p-5 sm:p-6 border border-orange-200 shadow-sm">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-600 to-orange-700 rounded-full flex items-center justify-center shadow-md">
-                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-base sm:text-lg font-semibold text-orange-900 mb-1.5">Ready to find your next team member?</h4>
-                <p className="text-sm text-orange-800 leading-relaxed mb-3">
-                  Your job posting will be visible to all candidates on the platform. Make sure all information is accurate and complete to attract the best talent for your team.
-                </p>
-                <div className="bg-white/60 rounded-lg p-3 backdrop-blur-sm border border-orange-200/50">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-orange-700 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-orange-900 leading-relaxed">
-                      <strong className="font-semibold">Pro tip:</strong> Jobs with complete information (including salary ranges and detailed descriptions) receive 2-3x more qualified applications. Take a moment to review everything before posting.
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Submit Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row gap-3">
+          {/* Submit */}
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => router.back()}
               disabled={loading}
-              className="flex-1 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+              className="text-[13px]"
             >
               Cancel
             </Button>
             <Button
               type="submit"
+              size="sm"
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white shadow-md hover:shadow-lg transition-all"
+              className="text-[13px]"
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Posting Job...
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Posting...
                 </>
               ) : (
                 <>
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  Post Official Job
+                  <Briefcase className="mr-1.5 h-3.5 w-3.5" />
+                  Post Job
                 </>
               )}
             </Button>
@@ -901,11 +805,8 @@ function PostJobPageContent() {
 export default function PostJobPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     }>
       <PostJobPageContent />

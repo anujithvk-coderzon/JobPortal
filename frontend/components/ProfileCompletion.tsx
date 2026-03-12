@@ -1,12 +1,9 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import {
   CheckCircle2,
-  Circle,
   Camera,
   FileText,
   Briefcase,
@@ -26,7 +23,6 @@ interface ProfileCompletionProps {
 interface CompletionItem {
   id: string;
   label: string;
-  description: string;
   completed: boolean;
   points: number;
   icon: React.ReactNode;
@@ -34,190 +30,91 @@ interface CompletionItem {
 }
 
 export function ProfileCompletion({ user, profile, onNavigate, className = '' }: ProfileCompletionProps) {
-  // Calculate completion items
   const completionItems: CompletionItem[] = [
-    {
-      id: 'photo',
-      label: 'Profile Photo',
-      description: 'Upload a professional photo',
-      completed: !!user?.profilePhoto,
-      points: 10,
-      icon: <Camera className="h-4 w-4" />,
-      tab: 'basic',
-    },
-    {
-      id: 'bio',
-      label: 'Bio',
-      description: 'Tell us about yourself',
-      completed: !!profile?.bio,
-      points: 10,
-      icon: <User className="h-4 w-4" />,
-      tab: 'basic',
-    },
-    {
-      id: 'resume',
-      label: 'Resume',
-      description: 'Upload your resume/CV',
-      completed: !!profile?.resume,
-      points: 15,
-      icon: <FileText className="h-4 w-4" />,
-      tab: 'basic',
-    },
-    {
-      id: 'skills',
-      label: 'Skills',
-      description: 'Add your technical skills',
-      completed: profile?.skills && profile.skills.length > 0,
-      points: 15,
-      icon: <Award className="h-4 w-4" />,
-      tab: 'skills',
-    },
-    {
-      id: 'experience',
-      label: 'Work Experience',
-      description: 'Add your work history',
-      completed: profile?.experiences && profile.experiences.length > 0,
-      points: 15,
-      icon: <Briefcase className="h-4 w-4" />,
-      tab: 'experience',
-    },
-    {
-      id: 'education',
-      label: 'Education',
-      description: 'Add your educational background',
-      completed: profile?.education && profile.education.length > 0,
-      points: 15,
-      icon: <GraduationCap className="h-4 w-4" />,
-      tab: 'education',
-    },
+    { id: 'photo', label: 'Profile Photo', completed: !!user?.profilePhoto, points: 10, icon: <Camera className="h-3.5 w-3.5" />, tab: 'basic' },
+    { id: 'bio', label: 'Bio', completed: !!profile?.bio, points: 10, icon: <User className="h-3.5 w-3.5" />, tab: 'basic' },
+    { id: 'resume', label: 'Resume', completed: !!profile?.resume, points: 15, icon: <FileText className="h-3.5 w-3.5" />, tab: 'basic' },
+    { id: 'skills', label: 'Skills', completed: profile?.skills?.length > 0, points: 15, icon: <Award className="h-3.5 w-3.5" />, tab: 'skills' },
+    { id: 'experience', label: 'Experience', completed: profile?.experiences?.length > 0, points: 15, icon: <Briefcase className="h-3.5 w-3.5" />, tab: 'experience' },
+    { id: 'education', label: 'Education', completed: profile?.education?.length > 0, points: 15, icon: <GraduationCap className="h-3.5 w-3.5" />, tab: 'education' },
   ];
 
   const completedItems = completionItems.filter((item) => item.completed);
   const incompleteItems = completionItems.filter((item) => !item.completed);
+  const completionScore = profile?.completionScore || 20;
 
-  // Use completion score from backend if available, otherwise calculate it
-  const completionScore = profile?.completionScore || 20; // Default to base score if no profile
-
-  const getBadgeStyles = () => {
-    if (completionScore >= 80) {
-      return 'bg-green-600 text-white border-green-600 hover:bg-green-700';
-    }
-    if (completionScore >= 50) {
-      return 'bg-yellow-600 text-white border-yellow-600 hover:bg-yellow-700';
-    }
-    return 'bg-red-600 text-white border-red-600 hover:bg-red-700';
+  const getColor = () => {
+    if (completionScore >= 80) return 'text-emerald-600';
+    if (completionScore >= 50) return 'text-amber-600';
+    return 'text-red-500';
   };
 
-  const getCompletionMessage = () => {
-    if (completionScore === 100) return 'Your profile is complete!';
-    if (completionScore >= 80) return 'Almost there! Just a few more steps.';
-    if (completionScore >= 50) return 'You\'re halfway there!';
-    return 'Let\'s get your profile started!';
+  const getBarColor = () => {
+    if (completionScore >= 80) return 'bg-emerald-500';
+    if (completionScore >= 50) return 'bg-amber-500';
+    return 'bg-red-500';
   };
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-xl">Profile Completion</CardTitle>
-            <CardDescription>{getCompletionMessage()}</CardDescription>
-          </div>
-          <Badge
-            variant="outline"
-            className={`text-lg px-3 py-1 ${getBadgeStyles()}`}
-          >
-            {completionScore}%
-          </Badge>
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold">Profile Completion</h2>
+          <span className={`text-lg font-semibold ${getColor()}`}>{completionScore}%</span>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+
         {/* Progress Bar */}
-        <div className="space-y-2">
-          <Progress value={completionScore} className="h-3" />
-          <p className="text-xs text-muted-foreground text-center">
-            {completedItems.length} of {completionItems.length} sections completed
-          </p>
+        <div className="w-full bg-muted rounded-full h-1.5 mb-1.5">
+          <div className={`${getBarColor()} rounded-full h-1.5 transition-all`} style={{ width: `${completionScore}%` }} />
         </div>
+        <p className="text-[11px] text-muted-foreground mb-4">
+          {completedItems.length}/{completionItems.length} sections completed
+        </p>
 
         {/* Incomplete Items */}
         {incompleteItems.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-muted-foreground">Complete your profile:</h4>
-            <div className="space-y-2">
-              {incompleteItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate?.(item.tab || 'basic')}
-                  className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors group text-left"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="flex-shrink-0 p-2 bg-primary/10 rounded-full text-primary">
-                      {item.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Badge variant="outline" className="text-xs">
-                        +{item.points}%
-                      </Badge>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+          <div className="space-y-0.5 mb-3">
+            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">To do</p>
+            {incompleteItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onNavigate?.(item.tab || 'basic')}
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-[13px] hover:bg-accent/60 transition-colors group"
+              >
+                <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-muted-foreground">
+                  {item.icon}
+                </div>
+                <span className="flex-1 text-left">{item.label}</span>
+                <Badge variant="outline" className="text-[10px] h-5 px-1.5">+{item.points}%</Badge>
+                <ChevronRight className="h-3 w-3 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
+              </button>
+            ))}
           </div>
         )}
 
         {/* Completed Items */}
         {completedItems.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-muted-foreground">Completed:</h4>
-            <div className="space-y-1">
-              {completedItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-2 p-2 text-sm text-muted-foreground"
-                >
-                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span className="flex-1">{item.label}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    +{item.points}%
-                  </Badge>
-                </div>
-              ))}
-            </div>
+          <div className="space-y-0.5">
+            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Done</p>
+            {completedItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-2.5 px-2 py-1.5 text-[13px] text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                <span className="flex-1">{item.label}</span>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Completion Incentive */}
-        {completionScore < 100 && (
-          <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-            <p className="text-sm font-medium mb-1">Why complete your profile?</p>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Stand out to potential employers</li>
-              <li>• Get better job recommendations</li>
-              <li>• Increase your chances of being contacted</li>
-            </ul>
-          </div>
-        )}
-
-        {/* Success Message */}
+        {/* Success */}
         {completionScore === 100 && (
-          <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-400 mb-2">
-              <CheckCircle2 className="h-5 w-5" />
-              <p className="text-sm font-semibold">Profile Complete!</p>
+          <div className="mt-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-md">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+              <p className="text-[12px] font-medium">Profile complete!</p>
             </div>
-            <p className="text-xs text-green-600 dark:text-green-500">
-              Your profile is fully optimized. Keep it updated to attract the best opportunities!
-            </p>
           </div>
         )}
-      </CardContent>
+      </div>
     </Card>
   );
 }

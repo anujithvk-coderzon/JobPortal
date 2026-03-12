@@ -1,10 +1,9 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, ChevronRight, User } from 'lucide-react';
+import { ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProfileCompletionCardProps {
@@ -14,90 +13,49 @@ interface ProfileCompletionCardProps {
 }
 
 export function ProfileCompletionCard({ user, profile, className = '' }: ProfileCompletionCardProps) {
-  // Use completion score from backend
-  const completionScore = profile?.completionScore || 20; // Default to base score if no profile
+  const completionScore = profile?.completionScore || 20;
 
-  // Track completion items for displaying count
   const items = [
-    { completed: !!user?.profilePhoto, points: 10 },
-    { completed: !!profile?.bio, points: 10 },
-    { completed: !!profile?.resume, points: 15 },
-    { completed: profile?.skills && profile.skills.length > 0, points: 15 },
-    { completed: profile?.experiences && profile.experiences.length > 0, points: 15 },
-    { completed: profile?.education && profile.education.length > 0, points: 15 },
+    { label: 'Profile photo', completed: !!user?.profilePhoto, points: 10 },
+    { label: 'Bio', completed: !!profile?.bio, points: 10 },
+    { label: 'Resume', completed: !!profile?.resume, points: 15 },
+    { label: 'Skills', completed: profile?.skills && profile.skills.length > 0, points: 15 },
+    { label: 'Experience', completed: profile?.experiences && profile.experiences.length > 0, points: 15 },
+    { label: 'Education', completed: profile?.education && profile.education.length > 0, points: 15 },
   ];
 
-  const completedItems = items.filter((item) => item.completed);
+  const completedCount = items.filter((item) => item.completed).length;
 
-  if (completionScore === 100) {
-    return null; // Don't show if profile is complete
-  }
-
-  const getBadgeStyles = () => {
-    if (completionScore >= 80) {
-      return 'bg-green-600 text-white border-green-600 hover:bg-green-700';
-    }
-    if (completionScore >= 50) {
-      return 'bg-yellow-600 text-white border-yellow-600 hover:bg-yellow-700';
-    }
-    return 'bg-red-600 text-white border-red-600 hover:bg-red-700';
-  };
-
-  const getCompletionMessage = () => {
-    if (completionScore >= 80) return 'Almost there! Just a few more steps.';
-    if (completionScore >= 50) return 'You\'re halfway there!';
-    return 'Complete your profile to stand out!';
-  };
+  if (completionScore === 100) return null;
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Complete Your Profile
-            </CardTitle>
-            <CardDescription className="mt-1">{getCompletionMessage()}</CardDescription>
+    <Card className={`overflow-hidden ${className}`}>
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+              <p className="text-[13px] font-semibold">Complete your profile</p>
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                completionScore >= 80 ? 'bg-emerald-500/10 text-emerald-600' :
+                completionScore >= 50 ? 'bg-amber-500/10 text-amber-600' :
+                'bg-destructive/10 text-destructive'
+              }`}>
+                {completionScore}%
+              </span>
+            </div>
+            <Progress value={completionScore} className="h-1.5 mb-2" />
+            <p className="text-[12px] text-muted-foreground">
+              {completedCount} of {items.length} sections completed
+            </p>
           </div>
-          <Badge
-            variant="outline"
-            className={`text-base px-2.5 py-0.5 ${getBadgeStyles()}`}
-          >
-            {completionScore}%
-          </Badge>
+          <Button asChild size="sm" variant="outline" className="flex-shrink-0">
+            <Link href="/profile">
+              Complete <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+            </Link>
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Progress value={completionScore} className="h-2.5" />
-
-        <div className="text-sm text-muted-foreground">
-          <p className="mb-3">
-            {completedItems.length} of {items.length} sections completed
-          </p>
-          <ul className="space-y-1 text-xs">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary" />
-              <span>Stand out to employers</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary" />
-              <span>Get better job matches</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary" />
-              <span>Increase interview chances</span>
-            </li>
-          </ul>
-        </div>
-
-        <Button asChild className="w-full" size="sm">
-          <Link href="/profile">
-            Complete Profile
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Link>
-        </Button>
-      </CardContent>
+      </div>
     </Card>
   );
 }

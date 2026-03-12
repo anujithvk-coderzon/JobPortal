@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { DEGREE_OPTIONS, getFieldsOfStudy } from '@/lib/degrees';
 import { Loader2, ArrowLeft, Briefcase, Building2, MapPin, Send, Save, AlertCircle, CheckCircle, Plus, Pencil, Trash2, X, Upload, FileText } from 'lucide-react';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 interface ProfileData {
   name: string;
@@ -102,17 +102,14 @@ export default function ApplyJobPage() {
 
   useEffect(() => {
     if (!isHydrated) return;
-
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;
     }
-
     fetchJobAndProfile();
   }, [isAuthenticated, isHydrated, router, jobId]);
 
   useEffect(() => {
-    // Check if profile has changed
     const hasChanged =
       profileData.name !== originalProfileData.name ||
       profileData.phone !== originalProfileData.phone ||
@@ -128,50 +125,35 @@ export default function ApplyJobPage() {
   const fetchJobAndProfile = async () => {
     try {
       setLoading(true);
-
-      // Fetch job details
       const jobResponse = await jobAPI.getJobById(jobId);
       setJob(jobResponse.data.data);
 
       if (jobResponse.data.data.hasApplied) {
-        toast({
-          title: 'Already Applied',
-          description: 'You have already applied for this job',
-        });
+        toast({ title: 'Already Applied', description: 'You have already applied for this job' });
         router.push(`/jobs/${jobId}`);
         return;
       }
 
-      // Fetch user profile
       const profileResponse = await userAPI.getProfile();
-
       if (profileResponse.data.success) {
         const userData = profileResponse.data.data;
-
         const profile = {
           name: userData.name || '',
           email: userData.email || '',
           phone: userData.phone || '',
           location: userData.location || '',
           bio: userData.profile?.bio || '',
-          experience: userData.profile?.experiences || [], // Backend returns 'experiences' not 'experience'
+          experience: userData.profile?.experiences || [],
           education: userData.profile?.education || [],
           skills: userData.profile?.skills || [],
         };
-
         setProfileData(profile);
         setOriginalProfileData(profile);
         setProfileSaved(!hasEmptyRequiredFields(profile));
-
-        // Set resume URL
         setResumeUrl(userData.profile?.resume || null);
       }
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load job details',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to load job details', variant: 'destructive' });
       router.push('/jobs');
     } finally {
       setLoading(false);
@@ -185,31 +167,19 @@ export default function ApplyJobPage() {
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      // Update basic info
       await userAPI.updateBasicInfo({
         name: profileData.name,
         phone: profileData.phone,
         location: profileData.location,
       });
-
-      // Update bio
       await userAPI.updateProfile({ bio: profileData.bio });
-
       setOriginalProfileData(profileData);
       setProfileSaved(true);
       setProfileChanged(false);
       triggerProfileUpdate();
-
-      toast({
-        title: 'Success',
-        description: 'Profile updated successfully',
-      });
+      toast({ title: 'Success', description: 'Profile updated successfully' });
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save profile',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to save profile', variant: 'destructive' });
     } finally {
       setSavingProfile(false);
     }
@@ -222,25 +192,19 @@ export default function ApplyJobPage() {
       } else {
         await userAPI.addExperience(data);
       }
-
       await fetchJobAndProfile();
       triggerProfileUpdate();
       setShowExperienceForm(false);
       setEditingItem(null);
       toast({ title: 'Success', description: `Experience ${editingItem ? 'updated' : 'added'} successfully` });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to save experience',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to save experience', variant: 'destructive' });
     }
   };
 
   const deleteExperience = async (id: string) => {
     try {
       await userAPI.deleteExperience(id);
-
       await fetchJobAndProfile();
       triggerProfileUpdate();
       setDeleteExperienceId(null);
@@ -257,25 +221,19 @@ export default function ApplyJobPage() {
       } else {
         await userAPI.addEducation(data);
       }
-
       await fetchJobAndProfile();
       triggerProfileUpdate();
       setShowEducationForm(false);
       setEditingItem(null);
       toast({ title: 'Success', description: `Education ${editingItem ? 'updated' : 'added'} successfully` });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to save education',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to save education', variant: 'destructive' });
     }
   };
 
   const deleteEducation = async (id: string) => {
     try {
       await userAPI.deleteEducation(id);
-
       await fetchJobAndProfile();
       triggerProfileUpdate();
       setDeleteEducationId(null);
@@ -288,24 +246,18 @@ export default function ApplyJobPage() {
   const addSkill = async (name: string, level?: string) => {
     try {
       await userAPI.addSkill({ name, level });
-
       await fetchJobAndProfile();
       triggerProfileUpdate();
       setShowSkillForm(false);
       toast({ title: 'Success', description: 'Skill added successfully' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to add skill',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to add skill', variant: 'destructive' });
     }
   };
 
   const deleteSkill = async (id: string) => {
     try {
       await userAPI.deleteSkill(id);
-
       await fetchJobAndProfile();
       triggerProfileUpdate();
       toast({ title: 'Success', description: 'Skill deleted successfully' });
@@ -318,64 +270,41 @@ export default function ApplyJobPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: 'Error',
-        description: 'Please upload a PDF or Word document',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please upload a PDF or Word document', variant: 'destructive' });
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'Error',
-        description: 'Resume size must be less than 10MB',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Resume size must be less than 10MB', variant: 'destructive' });
       return;
     }
 
     try {
       setUploadingResume(true);
-
-      // Convert to base64
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64File = reader.result as string;
-
         const response = await userAPI.uploadResume({
           file: base64File,
           mimeType: file.type,
           fileName: file.name,
         });
-
         if (response.data.success) {
           setResumeUrl(response.data.data.resume);
           triggerProfileUpdate();
-          toast({
-            title: 'Success',
-            description: 'Resume uploaded successfully',
-          });
+          toast({ title: 'Success', description: 'Resume uploaded successfully' });
         }
       };
-
       reader.onerror = () => {
         throw new Error('Failed to read file');
       };
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to upload resume',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to upload resume', variant: 'destructive' });
     } finally {
       setUploadingResume(false);
-      // Reset input
       event.target.value = '';
     }
   };
@@ -387,16 +316,9 @@ export default function ApplyJobPage() {
       setResumeUrl(null);
       triggerProfileUpdate();
       setDeleteResumeDialogOpen(false);
-      toast({
-        title: 'Success',
-        description: 'Resume removed successfully',
-      });
+      toast({ title: 'Success', description: 'Resume removed successfully' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to delete resume',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to delete resume', variant: 'destructive' });
     } finally {
       setUploadingResume(false);
     }
@@ -405,74 +327,42 @@ export default function ApplyJobPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check if resume is uploaded
     if (!resumeUrl) {
-      toast({
-        title: 'Resume Required',
-        description: 'Please upload your resume before applying',
-        variant: 'destructive',
-      });
+      toast({ title: 'Resume Required', description: 'Please upload your resume before applying', variant: 'destructive' });
       return;
     }
 
-    // Check if required profile fields are filled
     if (hasEmptyRequiredFields(profileData)) {
-      toast({
-        title: 'Incomplete Profile',
-        description: 'Please fill in all required profile fields (Name, Phone, Location, Bio, Education) and save before applying',
-        variant: 'destructive',
-      });
+      toast({ title: 'Incomplete Profile', description: 'Please fill in all required profile fields (Name, Phone, Location, Bio, Education) and save before applying', variant: 'destructive' });
       return;
     }
 
-    // Check if profile changes have been saved
     if (profileChanged) {
-      toast({
-        title: 'Unsaved Changes',
-        description: 'Please save your profile changes before submitting your application',
-        variant: 'destructive',
-      });
+      toast({ title: 'Unsaved Changes', description: 'Please save your profile changes before submitting your application', variant: 'destructive' });
       return;
     }
 
     if (!coverLetter.trim()) {
-      toast({
-        title: 'Missing Cover Letter',
-        description: 'Please write a cover letter',
-        variant: 'destructive',
-      });
+      toast({ title: 'Missing Cover Letter', description: 'Please write a cover letter', variant: 'destructive' });
       return;
     }
 
     setApplying(true);
     try {
       await applicationAPI.applyToJob(jobId, { coverLetter });
-
-      toast({
-        title: 'Success',
-        description: 'Your application has been submitted successfully!',
-      });
-
+      toast({ title: 'Success', description: 'Your application has been submitted successfully!' });
       router.push('/applications');
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to submit application',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.response?.data?.error || 'Failed to submit application', variant: 'destructive' });
     } finally {
       setApplying(false);
     }
   };
 
-  // Prevent rendering for unauthenticated users
   if (!isHydrated || !isAuthenticated || !user || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -486,105 +376,91 @@ export default function ApplyJobPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push(`/jobs/${jobId}`)}
-          className="mb-6"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Job
-        </Button>
+      <div className="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
+        <Breadcrumb items={[{ label: 'Jobs', href: '/jobs' }, { label: 'Apply' }]} />
 
         {/* Job Summary */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-2xl mb-2">{job.title}</CardTitle>
-                <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
+        <Card className="rounded-lg border bg-card mb-4">
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-semibold mb-1 truncate">{job.title}</h1>
+                <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Building2 className="h-4 w-4" />
+                    <Building2 className="h-3.5 w-3.5" />
                     {job.company?.name || job.companyName || 'Company'}
                   </span>
                   {job.location && (
                     <>
-                      <span>•</span>
+                      <span className="text-muted-foreground/40">|</span>
                       <span className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
+                        <MapPin className="h-3.5 w-3.5" />
                         {job.location}
                       </span>
                     </>
                   )}
                 </div>
               </div>
-              <Briefcase className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+              <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/8 flex-shrink-0">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+              </div>
             </div>
-          </CardHeader>
+          </div>
         </Card>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Profile Information Card */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Profile Information */}
+          <Card className="rounded-lg border bg-card">
+            <div className="px-4 sm:px-5 pt-4 pb-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                 <div>
-                  <CardTitle>Your Profile Information</CardTitle>
-                  <CardDescription>
-                    Required fields are marked with <span className="text-destructive">*</span>. All changes must be saved before submitting.
-                  </CardDescription>
+                  <h2 className="text-sm font-semibold">Your Profile Information</h2>
+                  <p className="text-[12px] text-muted-foreground">
+                    Required fields are marked with <span className="text-destructive">*</span>. Save changes before submitting.
+                  </p>
                 </div>
                 {profileChanged && (
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                  <Badge variant="warning" className="text-[11px]">
                     <AlertCircle className="h-3 w-3 mr-1" />
                     Unsaved Changes
                   </Badge>
                 )}
                 {profileSaved && !profileChanged && !hasEmptyFields && (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                  <Badge variant="success" className="text-[11px]">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Profile Complete
                   </Badge>
                 )}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            </div>
+            <CardContent className="space-y-3 px-4 sm:px-5 pb-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="name">
-                    Full Name <span className="text-destructive">*</span>
-                  </Label>
+                  <Label className="text-[12px]">Full Name <span className="text-destructive">*</span></Label>
                   <Input
-                    id="name"
                     value={profileData.name}
                     onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                     placeholder="Enter your full name"
                     required
+                    className="h-9 text-[13px] mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" value={profileData.email} disabled />
+                  <Label className="text-[12px]">Email</Label>
+                  <Input value={profileData.email} disabled className="h-9 text-[13px] mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor="phone">
-                    Phone Number <span className="text-destructive">*</span>
-                  </Label>
+                  <Label className="text-[12px]">Phone Number <span className="text-destructive">*</span></Label>
                   <Input
-                    id="phone"
                     value={profileData.phone}
                     onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                     placeholder="Enter your phone number"
                     required
+                    className="h-9 text-[13px] mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="location">
-                    Location <span className="text-destructive">*</span>
-                  </Label>
+                  <Label className="text-[12px]">Location <span className="text-destructive">*</span></Label>
                   <LocationAutocomplete
                     value={profileData.location}
                     onChange={(value) => setProfileData({ ...profileData, location: value })}
@@ -593,43 +469,36 @@ export default function ApplyJobPage() {
                   />
                 </div>
               </div>
-
               <div>
-                <Label htmlFor="bio">
-                  Professional Bio <span className="text-destructive">*</span>
-                </Label>
+                <Label className="text-[12px]">Professional Bio <span className="text-destructive">*</span></Label>
                 <Textarea
-                  id="bio"
                   value={profileData.bio}
                   onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                   placeholder="Brief introduction about yourself and your professional background..."
                   rows={4}
                   required
+                  className="text-[13px] mt-1"
                 />
               </div>
 
-              {/* Save Button */}
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">Education is required.</span> Experience and skills are optional but recommended to strengthen your application
+              {/* Save Profile Button */}
+              <div className="border-t pt-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    <span className="font-medium text-foreground">Education is required.</span> Experience and skills are optional but recommended
                   </p>
                   <Button
                     type="button"
+                    size="sm"
                     onClick={saveProfile}
                     disabled={!profileChanged || savingProfile}
                     variant={profileChanged ? 'default' : 'outline'}
+                    className="text-[13px]"
                   >
                     {savingProfile ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
+                      <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving...</>
                     ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        {profileChanged ? 'Save Profile' : 'Saved'}
-                      </>
+                      <><Save className="mr-1.5 h-3.5 w-3.5" /> {profileChanged ? 'Save Profile' : 'Saved'}</>
                     )}
                   </Button>
                 </div>
@@ -638,70 +507,53 @@ export default function ApplyJobPage() {
           </Card>
 
           {/* Experience Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Work Experience</CardTitle>
-                  <CardDescription>
-                    {profileData.experience.length > 0
-                      ? 'Your work experience will be included with your application'
-                      : 'Add work experience to strengthen your application (Optional)'}
-                  </CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditingItem(null);
-                    setShowExperienceForm(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Experience
-                </Button>
+          <Card className="rounded-lg border bg-card">
+            <div className="px-4 sm:px-5 pt-4 pb-2 flex justify-between items-start gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">Work Experience</h2>
+                <p className="text-[12px] text-muted-foreground">
+                  {profileData.experience.length > 0
+                    ? 'Your work experience will be included with your application'
+                    : 'Add work experience to strengthen your application (Optional)'}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-[12px] h-7 flex-shrink-0"
+                onClick={() => { setEditingItem(null); setShowExperienceForm(true); }}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add
+              </Button>
+            </div>
+            <CardContent className="px-4 sm:px-5 pb-5">
               {profileData.experience.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <p className="mb-2">No work experience added yet</p>
-                  <p className="text-sm">Click "Add Experience" to get started</p>
+                <div className="text-center py-5 text-muted-foreground">
+                  <p className="text-[13px] mb-0.5">No work experience added yet</p>
+                  <p className="text-[11px]">Click &quot;Add&quot; to get started</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {profileData.experience.map((exp: any) => (
-                    <div key={exp.id} className="border rounded-lg p-3">
+                    <div key={exp.id} className="rounded-lg border p-3">
                       <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{exp.title}</h4>
-                          <p className="text-sm text-muted-foreground">{exp.company}</p>
-                          {exp.location && <p className="text-sm text-muted-foreground">{exp.location}</p>}
-                          <p className="text-xs text-muted-foreground mt-1">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-[13px] font-medium">{exp.title}</h4>
+                          <p className="text-[12px] text-muted-foreground">{exp.company}</p>
+                          {exp.location && <p className="text-[12px] text-muted-foreground">{exp.location}</p>}
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
                             {new Date(exp.startDate).toLocaleDateString()} - {exp.current ? 'Present' : exp.endDate ? new Date(exp.endDate).toLocaleDateString() : ''}
                           </p>
-                          {exp.description && <p className="text-sm mt-2">{exp.description}</p>}
+                          {exp.description && <p className="text-[12px] mt-1.5">{exp.description}</p>}
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingItem(exp);
-                              setShowExperienceForm(true);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditingItem(exp); setShowExperienceForm(true); }}>
+                            <Pencil className="h-3 w-3" />
                           </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteExperienceId(exp.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setDeleteExperienceId(exp.id)}>
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
@@ -713,72 +565,55 @@ export default function ApplyJobPage() {
           </Card>
 
           {/* Education Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>
-                    Education <span className="text-destructive">*</span>
-                  </CardTitle>
-                  <CardDescription>
-                    {profileData.education.length > 0
-                      ? 'Your educational background will be included with your application'
-                      : 'Add at least one education entry - Required to apply'}
-                  </CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditingItem(null);
-                    setShowEducationForm(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Education
-                </Button>
+          <Card className="rounded-lg border bg-card">
+            <div className="px-4 sm:px-5 pt-4 pb-2 flex justify-between items-start gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">
+                  Education <span className="text-destructive">*</span>
+                </h2>
+                <p className="text-[12px] text-muted-foreground">
+                  {profileData.education.length > 0
+                    ? 'Your educational background will be included with your application'
+                    : 'Add at least one education entry - Required to apply'}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-[12px] h-7 flex-shrink-0"
+                onClick={() => { setEditingItem(null); setShowEducationForm(true); }}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add
+              </Button>
+            </div>
+            <CardContent className="px-4 sm:px-5 pb-5">
               {profileData.education.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <p className="mb-2 font-medium text-destructive">No education added yet - Required</p>
-                  <p className="text-sm">Click "Add Education" to add your educational background</p>
+                <div className="text-center py-5 text-muted-foreground">
+                  <p className="text-[13px] font-medium text-destructive mb-0.5">No education added yet - Required</p>
+                  <p className="text-[11px]">Click &quot;Add&quot; to add your educational background</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {profileData.education.map((edu: any) => (
-                    <div key={edu.id} className="border rounded-lg p-3">
+                    <div key={edu.id} className="rounded-lg border p-3">
                       <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{edu.degree} in {edu.fieldOfStudy}</h4>
-                          <p className="text-sm text-muted-foreground">{edu.institution}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-[13px] font-medium">{edu.degree} in {edu.fieldOfStudy}</h4>
+                          <p className="text-[12px] text-muted-foreground">{edu.institution}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
                             {new Date(edu.startDate).toLocaleDateString()} - {edu.current ? 'Present' : edu.endDate ? new Date(edu.endDate).toLocaleDateString() : ''}
                           </p>
-                          {edu.grade && <p className="text-sm mt-1">Grade: {edu.grade}</p>}
-                          {edu.description && <p className="text-sm mt-2">{edu.description}</p>}
+                          {edu.grade && <p className="text-[12px] mt-0.5">Grade: {edu.grade}</p>}
+                          {edu.description && <p className="text-[12px] mt-1.5">{edu.description}</p>}
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingItem(edu);
-                              setShowEducationForm(true);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditingItem(edu); setShowEducationForm(true); }}>
+                            <Pencil className="h-3 w-3" />
                           </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteEducationId(edu.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setDeleteEducationId(edu.id)}>
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
@@ -790,45 +625,40 @@ export default function ApplyJobPage() {
           </Card>
 
           {/* Skills Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Skills</CardTitle>
-                  <CardDescription>
-                    {profileData.skills.length > 0
-                      ? 'Your skills will be included with your application'
-                      : 'Add skills to strengthen your application (Optional)'}
-                  </CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSkillForm(true)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Skill
-                </Button>
+          <Card className="rounded-lg border bg-card">
+            <div className="px-4 sm:px-5 pt-4 pb-2 flex justify-between items-start gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">Skills</h2>
+                <p className="text-[12px] text-muted-foreground">
+                  {profileData.skills.length > 0
+                    ? 'Your skills will be included with your application'
+                    : 'Add skills to strengthen your application (Optional)'}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-[12px] h-7 flex-shrink-0"
+                onClick={() => setShowSkillForm(true)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add
+              </Button>
+            </div>
+            <CardContent className="px-4 sm:px-5 pb-5">
               {profileData.skills.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <p className="mb-2">No skills added yet</p>
-                  <p className="text-sm">Click "Add Skill" to get started</p>
+                <div className="text-center py-5 text-muted-foreground">
+                  <p className="text-[13px] mb-0.5">No skills added yet</p>
+                  <p className="text-[11px]">Click &quot;Add&quot; to get started</p>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {profileData.skills.map((skill: any) => (
-                    <Badge key={skill.id} variant="secondary" className="text-sm px-3 py-1">
+                    <Badge key={skill.id} variant="secondary" className="text-[12px] px-2.5 py-0.5">
                       {skill.name}
                       {skill.level && ` (${skill.level})`}
-                      <button
-                        type="button"
-                        onClick={() => deleteSkill(skill.id)}
-                        className="ml-2 hover:text-destructive"
-                      >
+                      <button type="button" onClick={() => deleteSkill(skill.id)} className="ml-1.5 hover:text-destructive">
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
@@ -839,31 +669,24 @@ export default function ApplyJobPage() {
           </Card>
 
           {/* Resume Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Resume <span className="text-destructive">*</span></CardTitle>
-              <CardDescription>
-                Upload your resume (PDF or Word document, max 10MB)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <Card className="rounded-lg border bg-card">
+            <div className="px-4 sm:px-5 pt-4 pb-2">
+              <h2 className="text-sm font-semibold">Resume <span className="text-destructive">*</span></h2>
+              <p className="text-[12px] text-muted-foreground">Upload your resume (PDF or Word document, max 10MB)</p>
+            </div>
+            <CardContent className="space-y-3 px-4 sm:px-5 pb-5">
               {resumeUrl ? (
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-8 w-8 text-primary" />
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="flex items-center gap-2.5">
+                    <FileText className="h-6 w-6 text-primary flex-shrink-0" />
                     <div>
-                      <p className="font-medium">Resume uploaded</p>
-                      <a
-                        href={resumeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline"
-                      >
+                      <p className="text-[13px] font-medium">Resume uploaded</p>
+                      <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="text-[12px] text-primary hover:underline">
                         View resume
                       </a>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <input
                       type="file"
                       id="resume-replace-input"
@@ -873,26 +696,17 @@ export default function ApplyJobPage() {
                       disabled={uploadingResume}
                     />
                     <label htmlFor="resume-replace-input">
-                      <Button variant="outline" size="sm" asChild disabled={uploadingResume}>
-                        <span className="cursor-pointer">
-                          <Upload className="h-4 w-4 mr-2" />
-                          Change
-                        </span>
+                      <Button variant="outline" size="sm" asChild disabled={uploadingResume} className="h-7 text-[12px]">
+                        <span className="cursor-pointer"><Upload className="h-3 w-3 mr-1" /> Change</span>
                       </Button>
                     </label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeleteResumeDialogOpen(true)}
-                      disabled={uploadingResume}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Remove
+                    <Button variant="outline" size="sm" className="h-7 text-[12px]" onClick={() => setDeleteResumeDialogOpen(true)} disabled={uploadingResume}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Remove
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="border-2 border-dashed rounded-lg p-8">
+                <div className="border-2 border-dashed rounded-lg p-6">
                   <input
                     type="file"
                     id="resume-input"
@@ -901,20 +715,17 @@ export default function ApplyJobPage() {
                     className="hidden"
                     disabled={uploadingResume}
                   />
-                  <label
-                    htmlFor="resume-input"
-                    className="flex flex-col items-center justify-center cursor-pointer"
-                  >
+                  <label htmlFor="resume-input" className="flex flex-col items-center justify-center cursor-pointer">
                     {uploadingResume ? (
                       <>
-                        <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-                        <p className="text-sm text-muted-foreground">Uploading...</p>
+                        <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
+                        <p className="text-[12px] text-muted-foreground">Uploading...</p>
                       </>
                     ) : (
                       <>
-                        <Upload className="h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-sm font-medium mb-1">Click to upload resume</p>
-                        <p className="text-xs text-muted-foreground">PDF or Word (max 10MB)</p>
+                        <Upload className="h-8 w-8 text-muted-foreground mb-3" />
+                        <p className="text-[13px] font-medium mb-0.5">Click to upload resume</p>
+                        <p className="text-[11px] text-muted-foreground">PDF or Word (max 10MB)</p>
                       </>
                     )}
                   </label>
@@ -924,24 +735,22 @@ export default function ApplyJobPage() {
           </Card>
 
           {/* Cover Letter */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Cover Letter <span className="text-destructive">*</span></CardTitle>
-              <CardDescription>
-                Tell the employer why you're interested in this position (Required)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Card className="rounded-lg border bg-card">
+            <div className="px-4 sm:px-5 pt-4 pb-2">
+              <h2 className="text-sm font-semibold">Cover Letter <span className="text-destructive">*</span></h2>
+              <p className="text-[12px] text-muted-foreground">Tell the employer why you're interested in this position</p>
+            </div>
+            <CardContent className="px-4 sm:px-5 pb-5">
               <Textarea
                 id="coverLetter"
                 value={coverLetter}
                 onChange={(e) => setCoverLetter(e.target.value)}
                 placeholder="Dear Hiring Manager,&#10;&#10;I am writing to express my interest in the [position] role at [company]...&#10;&#10;With my experience in [...], I am confident that I can contribute to your team by [...]."
-                rows={12}
+                rows={10}
                 required
-                className="resize-none"
+                className="resize-none text-[13px]"
               />
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 {coverLetter.length} characters
               </p>
             </CardContent>
@@ -949,47 +758,32 @@ export default function ApplyJobPage() {
 
           {/* Validation Messages */}
           {(hasEmptyFields || profileChanged || !coverLetter.trim()) && (
-            <Card className="border-yellow-300 bg-yellow-50">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div className="space-y-2">
-                    <p className="font-medium text-yellow-900">Before you can submit:</p>
-                    <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
-                      {hasEmptyFields && (
-                        <li>Fill in all required profile fields (marked with *)</li>
-                      )}
-                      {profileChanged && (
-                        <li>Save your profile changes using the "Save Profile" button</li>
-                      )}
-                      {!coverLetter.trim() && (
-                        <li>Write a cover letter</li>
-                      )}
-                    </ul>
-                  </div>
+            <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-[13px] font-medium text-yellow-900 dark:text-yellow-200">Before you can submit:</p>
+                  <ul className="text-[12px] text-yellow-800 dark:text-yellow-300 space-y-0.5 list-disc list-inside">
+                    {hasEmptyFields && <li>Fill in all required profile fields (marked with *)</li>}
+                    {profileChanged && <li>Save your profile changes using the &quot;Save Profile&quot; button</li>}
+                    {!coverLetter.trim() && <li>Write a cover letter</li>}
+                  </ul>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
-          {/* Submit Buttons */}
-          <div className="flex gap-4">
+          {/* Submit */}
+          <div className="flex gap-2">
             <Button
               type="submit"
               disabled={!canSubmit || applying}
-              className="flex-1"
-              size="lg"
+              className="flex-1 text-[13px]"
             >
               {applying ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting Application...
-                </>
+                <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Submitting...</>
               ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Submit Application
-                </>
+                <><Send className="mr-1.5 h-3.5 w-3.5" /> Submit Application</>
               )}
             </Button>
             <Button
@@ -997,7 +791,7 @@ export default function ApplyJobPage() {
               variant="outline"
               onClick={() => router.push(`/jobs/${jobId}`)}
               disabled={applying}
-              size="lg"
+              className="text-[13px]"
             >
               Cancel
             </Button>
@@ -1009,10 +803,7 @@ export default function ApplyJobPage() {
           <ExperienceForm
             initialData={editingItem}
             onSave={addExperience}
-            onCancel={() => {
-              setShowExperienceForm(false);
-              setEditingItem(null);
-            }}
+            onCancel={() => { setShowExperienceForm(false); setEditingItem(null); }}
           />
         )}
 
@@ -1021,10 +812,7 @@ export default function ApplyJobPage() {
           <EducationForm
             initialData={editingItem}
             onSave={addEducation}
-            onCancel={() => {
-              setShowEducationForm(false);
-              setEditingItem(null);
-            }}
+            onCancel={() => { setShowEducationForm(false); setEditingItem(null); }}
           />
         )}
 
@@ -1040,16 +828,14 @@ export default function ApplyJobPage() {
         <AlertDialog open={!!deleteEducationId} onOpenChange={(open) => !open && setDeleteEducationId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Education</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-sm font-semibold">Delete Education</AlertDialogTitle>
+              <AlertDialogDescription className="text-[13px]">
                 Are you sure you want to delete this education entry? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteEducationId && deleteEducation(deleteEducationId)}>
-                Delete
-              </AlertDialogAction>
+              <AlertDialogCancel className="text-[13px]">Cancel</AlertDialogCancel>
+              <AlertDialogAction className="text-[13px]" onClick={() => deleteEducationId && deleteEducation(deleteEducationId)}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -1058,16 +844,14 @@ export default function ApplyJobPage() {
         <AlertDialog open={!!deleteExperienceId} onOpenChange={(open) => !open && setDeleteExperienceId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Experience</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-sm font-semibold">Delete Experience</AlertDialogTitle>
+              <AlertDialogDescription className="text-[13px]">
                 Are you sure you want to delete this experience entry? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteExperienceId && deleteExperience(deleteExperienceId)}>
-                Delete
-              </AlertDialogAction>
+              <AlertDialogCancel className="text-[13px]">Cancel</AlertDialogCancel>
+              <AlertDialogAction className="text-[13px]" onClick={() => deleteExperienceId && deleteExperience(deleteExperienceId)}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -1076,16 +860,14 @@ export default function ApplyJobPage() {
         <AlertDialog open={deleteResumeDialogOpen} onOpenChange={setDeleteResumeDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove Resume</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogTitle className="text-sm font-semibold">Remove Resume</AlertDialogTitle>
+              <AlertDialogDescription className="text-[13px]">
                 Are you sure you want to remove your resume? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteResume}>
-                Remove
-              </AlertDialogAction>
+              <AlertDialogCancel className="text-[13px]">Cancel</AlertDialogCancel>
+              <AlertDialogAction className="text-[13px]" onClick={handleDeleteResume}>Remove</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -1121,137 +903,73 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>{initialData ? 'Edit' : 'Add'} Education</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border bg-card">
+        <div className="px-4 sm:px-5 pt-4 pb-2">
+          <h3 className="text-sm font-semibold">{initialData ? 'Edit' : 'Add'} Education</h3>
+        </div>
+        <CardContent className="px-4 sm:px-5 pb-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
-                <Label>Institution *</Label>
-                <Input
-                  value={formData.institution}
-                  onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
-                  placeholder="Harvard University, MIT, Stanford University"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">School, college, or university name</p>
+                <Label className="text-[12px]">Institution *</Label>
+                <Input value={formData.institution} onChange={(e) => setFormData({ ...formData, institution: e.target.value })} placeholder="Harvard University, MIT, Stanford University" required className="h-9 text-[13px] mt-1" />
+                <p className="text-[11px] text-muted-foreground mt-0.5">School, college, or university name</p>
               </div>
               <div>
-                <Label>Degree *</Label>
-                <Select
-                  value={formData.degree}
-                  onValueChange={(value) => setFormData({ ...formData, degree: value, fieldOfStudy: '' })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select degree" />
-                  </SelectTrigger>
+                <Label className="text-[12px]">Degree *</Label>
+                <Select value={formData.degree} onValueChange={(value) => setFormData({ ...formData, degree: value, fieldOfStudy: '' })} required>
+                  <SelectTrigger className="h-9 text-[13px] mt-1"><SelectValue placeholder="Select degree" /></SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     {DEGREE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">Select your degree type</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Select your degree type</p>
                 {formData.degree === 'Other' && (
-                  <Input
-                    value={customDegree}
-                    onChange={(e) => setCustomDegree(e.target.value)}
-                    placeholder="Enter your degree"
-                    className="mt-2"
-                    required
-                  />
+                  <Input value={customDegree} onChange={(e) => setCustomDegree(e.target.value)} placeholder="Enter your degree" className="mt-1.5 h-9 text-[13px]" required />
                 )}
               </div>
               <div>
-                <Label>Field of Study *</Label>
-                <Select
-                  value={formData.fieldOfStudy}
-                  onValueChange={(value) => setFormData({ ...formData, fieldOfStudy: value })}
-                  required
-                  disabled={!formData.degree}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.degree ? "Select field of study" : "Select degree first"} />
-                  </SelectTrigger>
+                <Label className="text-[12px]">Field of Study *</Label>
+                <Select value={formData.fieldOfStudy} onValueChange={(value) => setFormData({ ...formData, fieldOfStudy: value })} required disabled={!formData.degree}>
+                  <SelectTrigger className="h-9 text-[13px] mt-1"><SelectValue placeholder={formData.degree ? "Select field of study" : "Select degree first"} /></SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     {getFieldsOfStudy(formData.degree).map((field) => (
-                      <SelectItem key={field} value={field}>
-                        {field}
-                      </SelectItem>
+                      <SelectItem key={field} value={field}>{field}</SelectItem>
                     ))}
                     <SelectItem value="Other Field">Other (Specify)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">Select your specialization</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Select your specialization</p>
                 {formData.fieldOfStudy === 'Other Field' && (
-                  <Input
-                    value={customField}
-                    onChange={(e) => setCustomField(e.target.value)}
-                    placeholder="Enter your field of study"
-                    className="mt-2"
-                    required
-                  />
+                  <Input value={customField} onChange={(e) => setCustomField(e.target.value)} placeholder="Enter your field of study" className="mt-1.5 h-9 text-[13px]" required />
                 )}
               </div>
               <div>
-                <Label>Grade (Optional)</Label>
-                <Input
-                  value={formData.grade}
-                  onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                  placeholder="8.5 CGPA, 85%, First Class"
-                />
-                <p className="text-xs text-muted-foreground mt-1">GPA, percentage, or class</p>
+                <Label className="text-[12px]">Grade (Optional)</Label>
+                <Input value={formData.grade} onChange={(e) => setFormData({ ...formData, grade: e.target.value })} placeholder="8.5 CGPA, 85%, First Class" className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>Start Date *</Label>
-                <Input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you started studying</p>
+                <Label className="text-[12px]">Start Date *</Label>
+                <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  disabled={formData.current}
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you graduated or will graduate</p>
+                <Label className="text-[12px]">End Date</Label>
+                <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} disabled={formData.current} className="h-9 text-[13px] mt-1" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="current-edu"
-                checked={formData.current}
-                onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })}
-              />
-              <Label htmlFor="current-edu">Currently studying here (Check if ongoing)</Label>
+              <input type="checkbox" id="current-edu" checked={formData.current} onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })} />
+              <Label htmlFor="current-edu" className="text-[12px]">Currently studying here (Check if ongoing)</Label>
             </div>
             <div>
-              <Label>Description (Optional)</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Additional details about your education, achievements, relevant coursework, projects, etc."
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground mt-1">Any notable achievements, projects, or activities</p>
+              <Label className="text-[12px]">Description (Optional)</Label>
+              <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Additional details about your education, achievements, relevant coursework, projects, etc." rows={3} className="text-[13px] mt-1" />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit">Save</Button>
+              <Button type="button" variant="outline" size="sm" className="text-[13px]" onClick={onCancel}>Cancel</Button>
+              <Button type="submit" size="sm" className="text-[13px]">Save</Button>
             </div>
           </form>
         </CardContent>
@@ -1279,87 +997,49 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>{initialData ? 'Edit' : 'Add'} Experience</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border bg-card">
+        <div className="px-4 sm:px-5 pt-4 pb-2">
+          <h3 className="text-sm font-semibold">{initialData ? 'Edit' : 'Add'} Experience</h3>
+        </div>
+        <CardContent className="px-4 sm:px-5 pb-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Job Title *</Label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Software Engineer, Project Manager"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">Your role or position</p>
+                <Label className="text-[12px]">Job Title *</Label>
+                <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Software Engineer, Project Manager" required className="h-9 text-[13px] mt-1" />
+                <p className="text-[11px] text-muted-foreground mt-0.5">Your role or position</p>
               </div>
               <div>
-                <Label>Company *</Label>
-                <Input
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  placeholder="Google, Microsoft, ABC Company"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">Company or organization name</p>
+                <Label className="text-[12px]">Company *</Label>
+                <Input value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} placeholder="Google, Microsoft, ABC Company" required className="h-9 text-[13px] mt-1" />
+                <p className="text-[11px] text-muted-foreground mt-0.5">Company or organization name</p>
               </div>
               <div className="md:col-span-2">
-                <Label>Location (Optional)</Label>
-                <LocationAutocomplete
-                  value={formData.location}
-                  onChange={(value) => setFormData({ ...formData, location: value })}
-                  placeholder="San Francisco, CA or Remote"
-                />
-                <p className="text-xs text-muted-foreground mt-1">City, state/country or Remote</p>
+                <Label className="text-[12px]">Location (Optional)</Label>
+                <LocationAutocomplete value={formData.location} onChange={(value) => setFormData({ ...formData, location: value })} placeholder="San Francisco, CA or Remote" />
+                <p className="text-[11px] text-muted-foreground mt-0.5">City, state/country or Remote</p>
               </div>
               <div>
-                <Label>Start Date *</Label>
-                <Input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you started this job</p>
+                <Label className="text-[12px]">Start Date *</Label>
+                <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required className="h-9 text-[13px] mt-1" />
               </div>
               <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  disabled={formData.current}
-                />
-                <p className="text-xs text-muted-foreground mt-1">When you left or will leave</p>
+                <Label className="text-[12px]">End Date</Label>
+                <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} disabled={formData.current} className="h-9 text-[13px] mt-1" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="current-job"
-                checked={formData.current}
-                onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })}
-              />
-              <Label htmlFor="current-job">Currently working here (Check if this is your current job)</Label>
+              <input type="checkbox" id="current-job" checked={formData.current} onChange={(e) => setFormData({ ...formData, current: e.target.checked, endDate: '' })} />
+              <Label htmlFor="current-job" className="text-[12px]">Currently working here (Check if this is your current job)</Label>
             </div>
             <div>
-              <Label>Description (Optional)</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe your responsibilities, achievements, and key projects. Example: Led development of mobile app, managed team of 5 engineers, improved system performance by 40%"
-                rows={4}
-              />
-              <p className="text-xs text-muted-foreground mt-1">Your responsibilities, achievements, and key projects</p>
+              <Label className="text-[12px]">Description (Optional)</Label>
+              <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe your responsibilities, achievements, and key projects." rows={4} className="text-[13px] mt-1" />
+              <p className="text-[11px] text-muted-foreground mt-0.5">Your responsibilities, achievements, and key projects</p>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit">Save</Button>
+              <Button type="button" variant="outline" size="sm" className="text-[13px]" onClick={onCancel}>Cancel</Button>
+              <Button type="submit" size="sm" className="text-[13px]">Save</Button>
             </div>
           </form>
         </CardContent>
@@ -1382,42 +1062,31 @@ function SkillForm({ onSave, onCancel }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Add Skill</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <Card className="w-full max-w-md rounded-lg border bg-card">
+        <div className="px-4 sm:px-5 pt-4 pb-2">
+          <h3 className="text-sm font-semibold">Add Skill</h3>
+        </div>
+        <CardContent className="px-4 sm:px-5 pb-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <Label>Skill Name *</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="JavaScript, Python, Project Management"
-                required
-              />
-              <p className="text-xs text-muted-foreground mt-1">Technical skills, tools, or soft skills you possess</p>
+              <Label className="text-[12px]">Skill Name *</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="JavaScript, Python, Project Management" required className="h-9 text-[13px] mt-1" />
+              <p className="text-[11px] text-muted-foreground mt-0.5">Technical skills, tools, or soft skills you possess</p>
             </div>
             <div>
-              <Label>Proficiency Level (Optional)</Label>
-              <select
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-                className="w-full border rounded-md p-2"
-              >
+              <Label className="text-[12px]">Proficiency Level (Optional)</Label>
+              <select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full border rounded-md p-2 text-[13px] h-9 mt-1 bg-background">
                 <option value="">Select level (optional)</option>
                 <option value="Beginner">Beginner - Just started learning</option>
                 <option value="Intermediate">Intermediate - Can work independently</option>
                 <option value="Advanced">Advanced - High expertise</option>
                 <option value="Expert">Expert - Master level</option>
               </select>
-              <p className="text-xs text-muted-foreground mt-1">How proficient are you with this skill?</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">How proficient are you with this skill?</p>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit">Add Skill</Button>
+              <Button type="button" variant="outline" size="sm" className="text-[13px]" onClick={onCancel}>Cancel</Button>
+              <Button type="submit" size="sm" className="text-[13px]">Add Skill</Button>
             </div>
           </form>
         </CardContent>
