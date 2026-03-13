@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,12 @@ function MyPostsPageContent() {
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
     fetchPosts();
@@ -120,9 +125,30 @@ function MyPostsPageContent() {
     fetchPosts();
   };
 
-  const handleLoadMore = () => {
-    setPagination(prev => ({ ...prev, page: prev.page + 1 }));
-  };
+  const loadingMoreRef = useRef(false);
+  const myPostsObserver = useRef<IntersectionObserver | null>(null);
+
+  const lastMyPostRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (myPostsObserver.current) myPostsObserver.current.disconnect();
+      if (!node || loadingMore || pagination.page >= pagination.totalPages) return;
+
+      myPostsObserver.current = new IntersectionObserver(
+        async (entries) => {
+          if (!entries[0].isIntersecting || loadingMoreRef.current) return;
+          loadingMoreRef.current = true;
+          setLoadingMore(true);
+          await new Promise((r) => setTimeout(r, 1000));
+          const nextPage = pagination.page + 1;
+          setPagination((prev) => ({ ...prev, page: nextPage }));
+          loadingMoreRef.current = false;
+        },
+        { threshold: 0.1 }
+      );
+      myPostsObserver.current.observe(node);
+    },
+    [loadingMore, pagination]
+  );
 
   if (!isHydrated || loading) {
     return (
@@ -202,9 +228,10 @@ function MyPostsPageContent() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {posts.map((post) => (
+              {posts.map((post, index) => (
                 <Card
                   key={post.id}
+                  ref={index === posts.length - 1 ? lastMyPostRef : null}
                   className="rounded-lg border bg-card group hover:border-primary/20 transition-colors cursor-pointer flex flex-col"
                   onClick={() => router.push(`/community/${post.id}`)}
                 >
@@ -297,29 +324,21 @@ function MyPostsPageContent() {
               ))}
             </div>
 
-            {/* Load More */}
-            {pagination.page < pagination.totalPages && (
-              <div className="text-center mt-6">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className="min-w-[160px]"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      Load More Posts
-                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                    </>
-                  )}
-                </Button>
+            {loadingMore && (
+              <div className="flex flex-col items-center justify-center gap-1.5 py-6">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.15s' }} />
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.3s' }} />
+                </div>
+                <span className="text-[11px] text-muted-foreground">Loading</span>
               </div>
+            )}
+
+            {pagination.page >= pagination.totalPages && posts.length > 0 && !loadingMore && (
+              <p className="text-center text-[11px] text-muted-foreground py-4 border-t border-border/60 mt-4">
+                All {pagination.total} posts loaded
+              </p>
             )}
           </>
         )}

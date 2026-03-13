@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useSWRConfig } from 'swr';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { jobNewsAPI } from '@/lib/api';
 import { timeAgo, getInitials } from '@/lib/utils';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { useJobNewsById } from '@/hooks/use-job-news';
 import {
   ArrowLeft,
   Building2,
@@ -68,45 +70,46 @@ export default function PostDetailPage() {
   const params = useParams();
   const { user, isAuthenticated } = useAuthStore();
   const { toast } = useToast();
+  const { mutate } = useSWRConfig();
 
-  const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: postData, error: postError, isLoading: loading } = useJobNewsById(params.id as string || null);
+
+  const post: Post | null = postData || null;
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isHelpful, setIsHelpful] = useState(false);
   const [helpfulCount, setHelpfulCount] = useState(0);
+  const [helpfulInitialized, setHelpfulInitialized] = useState(false);
   const [updatingHelpful, setUpdatingHelpful] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Sync helpful state from SWR data
   useEffect(() => {
-    if (params.id) fetchPost();
-  }, [params.id]);
-
-  const fetchPost = async () => {
-    try {
-      const response = await jobNewsAPI.getJobNewsById(params.id as string);
-      const postData = response.data.data;
-      setPost(postData);
+    if (postData && !helpfulInitialized) {
       setHelpfulCount(postData.helpfulCount || 0);
       setIsHelpful(postData.userHasMarkedHelpful || false);
-    } catch (error: any) {
+      setHelpfulInitialized(true);
+    }
+  }, [postData, helpfulInitialized]);
+
+  // Handle fetch error
+  useEffect(() => {
+    if (postError && !loading && !post) {
       toast({
         title: 'Error',
         description: 'Failed to load post. Please try again.',
         variant: 'destructive',
       });
       router.push('/community');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [postError, loading, post]);
 
   const handleHelpful = async () => {
     if (!isAuthenticated) {
       toast({
         title: 'Sign in required',
         description: 'Please sign in to mark posts as helpful.',
-        variant: 'destructive',
+        variant: 'warning',
       });
       return;
     }
@@ -117,6 +120,8 @@ export default function PostDetailPage() {
       const { isHelpful: newIsHelpful, helpfulCount: newCount } = response.data.data;
       setIsHelpful(newIsHelpful);
       setHelpfulCount(newCount);
+      mutate(`/job-news/${params.id}`);
+      mutate((key: unknown) => typeof key === 'string' && key.startsWith('/job-news'), undefined, { revalidate: true });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -132,6 +137,7 @@ export default function PostDetailPage() {
     setDeleting(true);
     try {
       await jobNewsAPI.deleteJobNews(params.id as string);
+      mutate((key: unknown) => typeof key === 'string' && key.startsWith('/job-news'), undefined, { revalidate: true });
       toast({
         title: 'Success',
         description: 'Post deleted successfully.',
@@ -408,14 +414,19 @@ export default function PostDetailPage() {
                   )}
 
                   <Button
-                    asChild
                     size="sm"
                     className="w-full h-8 text-[12px] mt-3 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        toast({ title: 'Sign in required', description: 'Please log in to view profiles.', variant: 'warning' });
+                        setTimeout(() => router.push('/auth/login'), 1500);
+                        return;
+                      }
+                      router.push(`/user/${post.user.id}`);
+                    }}
                   >
-                    <Link href={`/user/${post.user.id}`}>
-                      <Eye className="h-3.5 w-3.5 mr-1.5" />
-                      View Profile
-                    </Link>
+                    <Eye className="h-3.5 w-3.5 mr-1.5" />
+                    View Profile
                   </Button>
                 </div>
 

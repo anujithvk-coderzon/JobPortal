@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -11,17 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Building2, Plus, ChevronRight } from 'lucide-react';
-import { api } from '@/lib/api';
 import Image from 'next/image';
-
-interface Company {
-  id: string;
-  name: string;
-  logo: string | null;
-  _count?: {
-    jobs: number;
-  };
-}
+import { useCompanies } from '@/hooks/use-companies';
 
 interface CompanySelectorProps {
   isOpen: boolean;
@@ -30,41 +21,20 @@ interface CompanySelectorProps {
 
 export function CompanySelector({ isOpen, onClose }: CompanySelectorProps) {
   const router = useRouter();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { companies, isLoading: loading } = useCompanies();
 
+  // Auto-redirect logic when companies load
   useEffect(() => {
-    if (isOpen) {
-      fetchCompanies();
-    }
-  }, [isOpen]);
-
-  const fetchCompanies = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/companies');
-      if (response.success) {
-        const companiesData = response.data?.companies || response.data?.data?.companies || [];
-        setCompanies(companiesData);
-
-        // If no companies, automatically redirect to create company page
-        if (companiesData.length === 0) {
-          router.push('/company/create');
-          onClose();
-        }
-        // If exactly one company, automatically navigate to it
-        else if (companiesData.length === 1) {
-          router.push(`/company/${companiesData[0].id}`);
-          onClose();
-        }
+    if (isOpen && !loading) {
+      if (companies.length === 0) {
+        router.push('/company/create');
+        onClose();
+      } else if (companies.length === 1) {
+        router.push(`/company/${companies[0].id}`);
+        onClose();
       }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      setCompanies([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [isOpen, loading, companies, router, onClose]);
 
   const handleSelectCompany = (companyId: string) => {
     router.push(`/company/${companyId}`);
@@ -120,8 +90,8 @@ export function CompanySelector({ isOpen, onClose }: CompanySelectorProps) {
                         />
                       </div>
                     ) : (
-                      <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="h-6 w-6 text-blue-600" />
+                      <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-6 w-6 text-indigo-600" />
                       </div>
                     )}
                     <div className="text-left">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useSWRConfig } from 'swr';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
@@ -21,6 +22,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
 import { getInitials, timeAgo } from '@/lib/utils';
 import { CredibilityBadge } from '@/components/CredibilityBadge';
+import { useProfile } from '@/hooks/use-profile';
+import { useCompanies } from '@/hooks/use-companies';
+import { useMyJobNews } from '@/hooks/use-job-news';
 import {
   Mail,
   Phone,
@@ -80,29 +84,43 @@ export default function MyPage() {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
+  const { mutate: globalMutate } = useSWRConfig();
 
-  const [loading, setLoading] = useState(true);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
-  const [profileData, setProfileData] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
   const [showPrivacyMobile, setShowPrivacyMobile] = useState(false);
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [credibilityScore, setCredibilityScore] = useState<CredibilityScore>({
     level: 'Newbie', score: 0, nextLevel: 'Contributor', nextLevelAt: 10,
   });
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>({
     email: false, phone: false, location: true, bio: true, education: true, experience: true, skills: true,
   });
+
+  // SWR hooks for profile and companies
+  const { data: profileData, isLoading: profileLoading } = useProfile();
+  const { companies } = useCompanies();
+
+  // Sync privacy settings from profile data
+  const [privacyInitialized, setPrivacyInitialized] = useState(false);
+  useEffect(() => {
+    if (profileData && !privacyInitialized) {
+      if (profileData.profile?.privacySettings) {
+        setPrivacySettings(profileData.profile.privacySettings);
+      }
+      setPrivacyInitialized(true);
+    }
+  }, [profileData, privacyInitialized]);
+
+  const loading = profileLoading;
 
   const calculateCredibilityScore = (helpfulCount: number): CredibilityScore => {
     if (helpfulCount >= 100) return { level: 'Authority', score: helpfulCount, nextLevel: 'Authority', nextLevelAt: 100 };
@@ -114,32 +132,17 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (!isAuthenticated) { router.push('/auth/login'); return; }
-    fetchProfile();
-    fetchPosts();
-    fetchCompanies();
-  }, [isAuthenticated, isHydrated, router]);
-
-  const fetchCompanies = async () => {
-    try {
-      const response = await api.get('/companies');
-      if (response.success) setCompanies(response.data.companies || []);
-    } catch {}
-  };
-
-  const fetchProfile = async () => {
-    try {
-      const response = await api.get('/users/profile');
-      setProfileData(response.data);
-      if (response.data.profile?.privacySettings) {
-        setPrivacySettings(response.data.profile.privacySettings);
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to load profile', variant: 'destructive' });
-    } finally {
-      setLoading(false);
+    if (!isAuthenticated) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
+      return;
     }
-  };
+    fetchPosts();
+  }, [isAuthenticated, isHydrated, router]);
 
   const fetchPosts = useCallback(async (page = 1, search = '') => {
     try {
@@ -153,9 +156,13 @@ export default function MyPage() {
         setPosts(newPosts);
         setCredibilityScore(calculateCredibilityScore(newPosts.reduce((s: number, p: Post) => s + (p.helpfulCount || 0), 0)));
       } else {
-        const all = [...posts, ...newPosts];
-        setPosts(all);
-        setCredibilityScore(calculateCredibilityScore(all.reduce((s: number, p: Post) => s + (p.helpfulCount || 0), 0)));
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const unique = newPosts.filter((p: Post) => !existingIds.has(p.id));
+          const all = [...prev, ...unique];
+          setCredibilityScore(calculateCredibilityScore(all.reduce((s: number, p: Post) => s + (p.helpfulCount || 0), 0)));
+          return all;
+        });
       }
       setCurrentPage(pagination.page || 1);
       setTotalPages(pagination.totalPages || 1);
@@ -165,9 +172,8 @@ export default function MyPage() {
       if (page === 1) { setPosts([]); setTotalPosts(0); }
     } finally {
       setLoadingPosts(false);
-      setLoadingMorePosts(false);
     }
-  }, [posts]);
+  }, []);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -178,21 +184,32 @@ export default function MyPage() {
 
   const clearSearch = () => { setSearchQuery(''); setLoadingPosts(true); setCurrentPage(1); fetchPosts(1, ''); };
 
-  const loadMorePosts = useCallback(async () => {
-    if (loadingMorePosts || !hasMore) return;
-    setLoadingMorePosts(true);
-    await fetchPosts(currentPage + 1, searchQuery);
-  }, [loadingMorePosts, hasMore, currentPage, searchQuery, fetchPosts]);
+  const loadingRef = useRef(false);
+  const observer = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300 && hasMore && !loadingMorePosts && !loadingPosts) loadMorePosts();
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, [hasMore, loadingMorePosts, loadingPosts, loadMorePosts]);
+  // Ref callback attached to the last post element — reconnects observer on every render
+  const lastPostRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observer.current) observer.current.disconnect();
+      if (!node || loadingMorePosts || !hasMore) return;
+
+      observer.current = new IntersectionObserver(
+        async (entries) => {
+          if (!entries[0].isIntersecting || loadingRef.current) return;
+          loadingRef.current = true;
+          setLoadingMorePosts(true);
+          // Show spinner for 1s before fetching
+          await new Promise((r) => setTimeout(r, 1000));
+          await fetchPosts(currentPage + 1, searchQuery);
+          setLoadingMorePosts(false);
+          loadingRef.current = false;
+        },
+        { threshold: 0.1 }
+      );
+      observer.current.observe(node);
+    },
+    [loadingMorePosts, hasMore, currentPage, searchQuery, fetchPosts]
+  );
 
   const handlePrivacyToggle = async (field: keyof PrivacySettings) => {
     let newSettings = { ...privacySettings, [field]: !privacySettings[field] };
@@ -203,6 +220,7 @@ export default function MyPage() {
     setSavingPrivacy(true);
     try {
       await api.put('/users/privacy-settings', newSettings);
+      globalMutate('/users/profile');
       toast({ title: 'Saved', description: 'Privacy settings updated' });
     } catch {
       setPrivacySettings(privacySettings);
@@ -291,6 +309,7 @@ export default function MyPage() {
               {experiences.length > 0 && <ToggleRow icon={Briefcase} label="Experience" field="experience" count={experiences.length} />}
               {education.length > 0 && <ToggleRow icon={GraduationCap} label="Education" field="education" count={education.length} />}
             </div>
+
           </div>
         </Card>
       )}
@@ -344,7 +363,7 @@ export default function MyPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onClick={() => router.push('/community/create')}>
-                  <MessageSquarePlus className="mr-2 h-4 w-4 text-blue-600" />
+                  <MessageSquarePlus className="mr-2 h-4 w-4 text-indigo-600" />
                   <div>
                     <p className="text-[13px] font-medium">Community Post</p>
                     <p className="text-[11px] text-muted-foreground">Share job tips, news & alerts</p>
@@ -386,7 +405,7 @@ export default function MyPage() {
           )}
 
           {/* Posts List */}
-          <div ref={scrollRef} className="space-y-2">
+          <div className="space-y-2">
             {loadingPosts ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -407,7 +426,7 @@ export default function MyPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="center" className="w-56">
                       <DropdownMenuItem onClick={() => router.push('/community/create')}>
-                        <MessageSquarePlus className="mr-2 h-4 w-4 text-blue-600" />
+                        <MessageSquarePlus className="mr-2 h-4 w-4 text-indigo-600" />
                         <div>
                           <p className="text-[13px] font-medium">Community Post</p>
                           <p className="text-[11px] text-muted-foreground">Share job tips, news & alerts</p>
@@ -437,9 +456,10 @@ export default function MyPage() {
               </div>
             ) : (
               <>
-                {posts.map((post) => (
+                {posts.map((post, index) => (
                   <div
                     key={post.id}
+                    ref={index === posts.length - 1 ? lastPostRef : null}
                     onClick={() => router.push(`/community/${post.id}`)}
                     className="rounded-lg border bg-card hover:border-primary/20 transition-colors cursor-pointer overflow-hidden"
                   >
@@ -487,8 +507,13 @@ export default function MyPage() {
                 ))}
 
                 {loadingMorePosts && (
-                  <div className="text-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+                  <div className="flex flex-col items-center justify-center gap-1.5 py-6">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0s' }} />
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.15s' }} />
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.3s' }} />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">Loading</span>
                   </div>
                 )}
 
@@ -576,7 +601,7 @@ export default function MyPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56">
                   <DropdownMenuItem onClick={() => router.push('/community/create')}>
-                    <MessageSquarePlus className="mr-2 h-4 w-4 text-blue-600" />
+                    <MessageSquarePlus className="mr-2 h-4 w-4 text-indigo-600" />
                     <div>
                       <p className="text-[13px] font-medium">Community Post</p>
                       <p className="text-[11px] text-muted-foreground">Share job tips, news & alerts</p>

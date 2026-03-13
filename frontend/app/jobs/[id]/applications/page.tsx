@@ -154,7 +154,12 @@ export default function JobApplicationsPage() {
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
     fetchJobAndApplications();
@@ -666,8 +671,8 @@ ${companyName} Team`;
               {filteredApplications.map((application) => (
                 <div
                   key={application.id}
-                  className={`rounded-lg border bg-card p-4 cursor-pointer transition-colors hover:bg-accent/50 ${
-                    selectedApplication?.id === application.id ? 'ring-1 ring-primary' : ''
+                  className={`rounded-lg border p-4 cursor-pointer transition-colors hover:bg-accent/50 ${
+                    selectedApplication?.id === application.id ? 'bg-accent/60 border-primary/30' : 'bg-card'
                   }`}
                   onClick={() => setSelectedApplication(application)}
                 >

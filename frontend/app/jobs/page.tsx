@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { jobAPI } from '@/lib/api';
 import { Job } from '@/lib/types';
 import { formatSalary, timeAgo } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import { AuthGate } from '@/components/AuthGate';
 import {
   EMPLOYMENT_TYPE_OPTIONS,
   EXPERIENCE_LEVEL_OPTIONS,
@@ -66,7 +67,7 @@ function JobsPageContent() {
     employmentType: searchParams.get('employmentType') || 'ALL',
     experienceLevel: searchParams.get('experienceLevel') || 'ALL',
     locationType: searchParams.get('locationType') || 'ALL',
-    sortBy: 'recent',
+    sortBy: isAuthenticated ? 'match' : 'recent',
   });
 
   const [showFilters, setShowFilters] = useState(false);
@@ -154,7 +155,7 @@ function JobsPageContent() {
       employmentType: 'ALL',
       experienceLevel: 'ALL',
       locationType: 'ALL',
-      sortBy: 'recent',
+      sortBy: isAuthenticated ? 'match' : 'recent',
     };
     setFilters(clearedFilters);
     setJobs([]); // Clear existing jobs when clearing filters
@@ -164,35 +165,52 @@ function JobsPageContent() {
     setIsFiltering(false);
   };
 
-  const loadMoreJobs = async () => {
-    setLoadingMore(true);
-    try {
-      const nextPage = pagination.page + 1;
-      const params: any = {
-        page: nextPage,
-        limit: pagination.limit,
-        sortBy: filters.sortBy,
-      };
+  const loadingMoreRef = useRef(false);
+  const observer = useRef<IntersectionObserver | null>(null);
 
-      if (filters.search) params.search = filters.search;
-      if (filters.location) params.location = filters.location;
-      if (filters.employmentType && filters.employmentType !== 'ALL') params.employmentType = filters.employmentType;
-      if (filters.experienceLevel && filters.experienceLevel !== 'ALL') params.experienceLevel = filters.experienceLevel;
-      if (filters.locationType && filters.locationType !== 'ALL') params.locationType = filters.locationType;
+  const lastJobRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observer.current) observer.current.disconnect();
+      if (!node || loadingMore || pagination.page >= pagination.totalPages) return;
+      if (!isAuthenticated && pagination.page >= 1) return;
 
-      const response = await jobAPI.getAllJobs(params);
-      setJobs([...jobs, ...response.data.data.jobs]); // Append new jobs
-      setPagination(response.data.data.pagination); // Update pagination with response data
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load more jobs.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+      observer.current = new IntersectionObserver(
+        async (entries) => {
+          if (!entries[0].isIntersecting || loadingMoreRef.current) return;
+          loadingMoreRef.current = true;
+          setLoadingMore(true);
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const nextPage = pagination.page + 1;
+            const params: any = {
+              page: nextPage,
+              limit: pagination.limit,
+              sortBy: filters.sortBy,
+            };
+            if (filters.search) params.search = filters.search;
+            if (filters.location) params.location = filters.location;
+            if (filters.employmentType && filters.employmentType !== 'ALL') params.employmentType = filters.employmentType;
+            if (filters.experienceLevel && filters.experienceLevel !== 'ALL') params.experienceLevel = filters.experienceLevel;
+            if (filters.locationType && filters.locationType !== 'ALL') params.locationType = filters.locationType;
+            const response = await jobAPI.getAllJobs(params);
+            setJobs((prev) => {
+              const existingIds = new Set(prev.map((j) => j.id));
+              const unique = response.data.data.jobs.filter((j: Job) => !existingIds.has(j.id));
+              return [...prev, ...unique];
+            });
+            setPagination(response.data.data.pagination);
+          } catch (error: any) {
+            toast({ title: 'Error', description: 'Failed to load more jobs.', variant: 'destructive' });
+          }
+          setLoadingMore(false);
+          loadingMoreRef.current = false;
+        },
+        { threshold: 0.1 }
+      );
+      observer.current.observe(node);
+    },
+    [loadingMore, pagination, filters]
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -425,9 +443,10 @@ function JobsPageContent() {
         ) : (
           <>
             <div className="space-y-2">
-              {jobs.map((job) => (
+              {jobs.map((job, index) => (
                 <div
                   key={job.id}
+                  ref={index === jobs.length - 1 ? lastJobRef : null}
                   className="rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors cursor-pointer"
                   onClick={() => router.push(`/jobs/${job.id}`)}
                 >
@@ -517,32 +536,25 @@ function JobsPageContent() {
               ))}
             </div>
 
-            {/* Load More */}
-            {pagination.page < pagination.totalPages && (
-              <div className="flex flex-col items-center gap-2 mt-6">
-                <p className="text-[11px] text-muted-foreground">
-                  Showing {jobs.length} of {pagination.total} jobs
-                </p>
-                <Button
-                  onClick={loadMoreJobs}
-                  disabled={loadingMore}
-                  variant="outline"
-                  size="sm"
-                  className="text-[12px]"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      Load More
-                      <ChevronRight className="h-3 w-3 ml-1" />
-                    </>
-                  )}
-                </Button>
+            {loadingMore && (
+              <div className="flex flex-col items-center justify-center gap-1.5 py-6">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.15s' }} />
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.3s' }} />
+                </div>
+                <span className="text-[11px] text-muted-foreground">Loading</span>
               </div>
+            )}
+
+            {!isAuthenticated && pagination.page >= 1 && pagination.totalPages > 1 && jobs.length > 0 && (
+              <AuthGate type="jobs" />
+            )}
+
+            {isAuthenticated && pagination.page >= pagination.totalPages && jobs.length > 0 && !loadingMore && (
+              <p className="text-center text-[11px] text-muted-foreground py-4 border-t border-border/60 mt-4">
+                All {pagination.total} jobs loaded
+              </p>
             )}
           </>
         )}

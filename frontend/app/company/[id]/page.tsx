@@ -90,6 +90,11 @@ export default function CompanyDetailPage() {
     total: 0,
     totalPages: 0,
   });
+  const [stats, setStats] = useState({
+    totalJobs: 0,
+    activeJobs: 0,
+    totalApplications: 0,
+  });
 
   useEffect(() => {
     fetchCompanyDetails();
@@ -138,6 +143,15 @@ export default function CompanyDetailPage() {
           total: paginationData.total || 0,
           totalPages: paginationData.totalPages || 0,
         });
+
+        const statsData = response.data.stats;
+        if (statsData) {
+          setStats({
+            totalJobs: statsData.totalJobs || 0,
+            activeJobs: statsData.activeJobs || 0,
+            totalApplications: statsData.totalApplications || 0,
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -157,8 +171,9 @@ export default function CompanyDetailPage() {
     setDeletingJobId(jobId);
     try {
       await jobAPI.deleteJob(jobId);
-      setJobs((prev) => prev.filter((j) => j.id !== jobId));
       toast({ title: 'Job Deleted', description: 'The job has been deleted successfully.' });
+      // Re-fetch from page 1 to keep pagination, stats, and job list in sync
+      fetchCompanyJobs(1);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -206,9 +221,7 @@ export default function CompanyDetailPage() {
     return date.toLocaleDateString();
   };
 
-  const totalJobs = jobs.length;
-  const activeJobs = jobs.filter(j => j.isActive).length;
-  const totalApplications = jobs.reduce((sum, job) => sum + (job._count?.applications || 0), 0);
+  const { totalJobs, activeJobs, totalApplications } = stats;
 
   if (isLoading && !company) {
     return (

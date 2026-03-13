@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Shield, Lock, Mail, Loader2, Eye, EyeOff, AlertCircle, User } from 'lucide-react';
+import { Shield, Target, Users, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,7 +40,6 @@ export default function LoginPage() {
 
     try {
       if (isSetupMode) {
-        // Register first admin
         if (!name.trim()) {
           setError('Name is required');
           setLoading(false);
@@ -60,7 +59,6 @@ export default function LoginPage() {
           setError(response.error || 'Registration failed');
         }
       } else {
-        // Normal login
         const response = await api.login(email, password);
 
         if (response.success) {
@@ -78,187 +76,150 @@ export default function LoginPage() {
 
   if (checkingSetup) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 p-8 lg:p-12 flex-col justify-between relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,.05) 35px, rgba(255,255,255,.05) 70px)`
-          }}></div>
-        </div>
+    <div className="min-h-screen flex bg-background">
+      {/* Left Panel — Branding */}
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] relative overflow-hidden">
+        <div className="absolute inset-0 bg-slate-900" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.15),transparent_60%)]" />
 
-        {/* Content */}
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
-              <Shield className="h-7 w-7 text-white" />
-            </div>
+        <div className="relative flex flex-col justify-between p-10 w-full">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <span className="font-bold text-[17px] tracking-tight text-white">job<span className="text-indigo-300">aye</span> <span className="text-slate-400 font-normal text-[14px]">Admin</span></span>
+          </div>
+
+          {/* Hero content */}
+          <div className="space-y-8">
             <div>
-              <h1 className="text-2xl font-bold text-white">Admin Portal</h1>
-              <p className="text-blue-200 text-sm">Job Posting Platform</p>
-            </div>
-          </div>
-
-          <div className="space-y-6 max-w-md">
-            <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight">
-              Enterprise-Grade
-              <br />
-              Administration
-            </h2>
-            <p className="text-blue-100 text-lg">
-              Secure access to manage users, moderate content, and monitor platform activity.
-            </p>
-
-            <div className="space-y-4 pt-8">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-300 text-lg">&#10003;</span>
-                </div>
-                <div>
-                  <h3 className="text-white font-semibold mb-1">Real-time Monitoring</h3>
-                  <p className="text-blue-200 text-sm">Track platform metrics and user activities in real-time</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-300 text-lg">&#10003;</span>
-                </div>
-                <div>
-                  <h3 className="text-white font-semibold mb-1">Content Moderation</h3>
-                  <p className="text-blue-200 text-sm">Review and approve community posts efficiently</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-300 text-lg">&#10003;</span>
-                </div>
-                <div>
-                  <h3 className="text-white font-semibold mb-1">User Management</h3>
-                  <p className="text-blue-200 text-sm">Comprehensive tools for managing user accounts</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="relative z-10 text-blue-200 text-sm">
-          &copy; 2024 Job Portal. All rights reserved.
-        </div>
-      </div>
-
-      {/* Right Side - Login/Register Form */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-gray-50">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Shield className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Portal</h1>
-              <p className="text-gray-600 text-sm">Job Posting Platform</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 sm:p-8 lg:p-10">
-            <div className="mb-8">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                {isSetupMode ? 'Create Admin Account' : 'Welcome Back'}
+              <h2 className="text-3xl font-bold text-white tracking-tight leading-tight mb-3">
+                Welcome back to<br />
+                <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-300 bg-clip-text text-transparent">
+                  jobaye Admin
+                </span>
               </h2>
-              <p className="text-gray-600">
-                {isSetupMode
-                  ? 'Set up your first admin account to get started'
-                  : 'Sign in to access the admin dashboard'}
+              <p className="text-[14px] text-slate-400 leading-relaxed max-w-sm">
+                Sign in to manage users, moderate content, and monitor platform activity.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Features */}
+            <div className="space-y-4">
+              {[
+                { icon: Target, label: 'Real-time monitoring', desc: 'Track platform metrics and user activity' },
+                { icon: Shield, label: 'Content moderation', desc: 'Review and approve community posts' },
+                { icon: Users, label: 'User management', desc: 'Comprehensive tools for managing accounts' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-3.5">
+                  <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <item.icon className="h-4 w-4 text-indigo-300" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-semibold text-white">{item.label}</p>
+                    <p className="text-[12px] text-slate-500">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[12px] text-slate-500">
+            <Shield className="h-3.5 w-3.5" />
+            <span>Secure admin access</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel — Form */}
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8">
+        <div className="w-full max-w-[400px]">
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center justify-center gap-2.5 mb-6">
+            <span className="font-bold text-[17px] tracking-tight">job<span className="text-indigo-500">aye</span> <span className="text-muted-foreground font-normal text-[14px]">Admin</span></span>
+          </div>
+
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1.5">
+              {isSetupMode ? 'Create admin account' : 'Sign in to your account'}
+            </h1>
+            <p className="text-[14px] text-muted-foreground">
+              {isSetupMode
+                ? 'Set up your first admin account to get started'
+                : 'Access the admin dashboard'}
+            </p>
+          </div>
+
+          {/* Form Card */}
+          <div className="rounded-lg border bg-card p-4 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Error Alert */}
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-red-900 mb-1">
-                      {isSetupMode ? 'Registration Failed' : 'Authentication Failed'}
-                    </h4>
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
+                <div className="rounded-lg border-red-200 bg-red-50 border p-3 flex items-start gap-2.5">
+                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-red-700">{error}</p>
                 </div>
               )}
 
               {/* Setup Mode Info */}
               {isSetupMode && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <p className="text-sm text-blue-800">
-                    No admin accounts found. The first account you create will automatically have <strong>Super Admin</strong> privileges.
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                  <p className="text-[13px] text-indigo-800">
+                    No admin accounts found. The first account will have <strong>Super Admin</strong> privileges.
                   </p>
                 </div>
               )}
 
               {/* Name Field - Only in setup mode */}
               {isSetupMode && (
-                <div className="space-y-2">
-                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700">
-                    Full Name
+                <div className="space-y-1">
+                  <label htmlFor="name" className="text-[13px] font-medium">
+                    Full name
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                      placeholder="Your name"
-                    />
-                  </div>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={loading}
+                    className="flex h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[13px] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Your name"
+                  />
                 </div>
               )}
 
               {/* Email Field */}
-              <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
-                  Email Address
+              <div className="space-y-1">
+                <label htmlFor="email" className="text-[13px] font-medium">
+                  Email address
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                    placeholder="admin@example.com"
-                  />
-                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  className="flex h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[13px] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="admin@example.com"
+                />
               </div>
 
               {/* Password Field */}
-              <div className="space-y-2">
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
+              <div className="space-y-1">
+                <label htmlFor="password" className="text-[13px] font-medium">
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
                   <input
                     id="password"
                     name="password"
@@ -266,19 +227,17 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                    placeholder={isSetupMode ? 'Min 6 characters' : '••••••••••'}
+                    disabled={loading}
+                    className="flex h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-[13px] pr-10 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder={isSetupMode ? 'Min 6 characters' : 'Enter your password'}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 rounded-r-xl transition-colors"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-md"
+                    tabIndex={-1}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    )}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -287,30 +246,24 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-lg mt-6"
+                className="w-full h-9 sm:h-10 inline-flex items-center justify-center rounded-md bg-slate-900 text-[13px] sm:text-[14px] font-semibold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-2"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>{isSetupMode ? 'Creating account...' : 'Signing in...'}</span>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isSetupMode ? 'Creating account...' : 'Signing in...'}
                   </>
                 ) : (
-                  <>
-                    <Shield className="h-5 w-5" />
-                    <span>{isSetupMode ? 'Create Super Admin Account' : 'Sign in to Dashboard'}</span>
-                  </>
+                  isSetupMode ? 'Create Super Admin Account' : 'Sign in'
                 )}
               </button>
             </form>
-
           </div>
 
-          {/* Security Notice */}
-          <div className="mt-6 text-center text-xs text-gray-500 px-4">
-            <p>
-              This is a secure area. All access attempts are logged and monitored.
-            </p>
-          </div>
+          {/* Footer */}
+          <p className="text-[11px] text-center text-muted-foreground mt-8">
+            This is a secure area. All access attempts are logged and monitored.
+          </p>
         </div>
       </div>
     </div>

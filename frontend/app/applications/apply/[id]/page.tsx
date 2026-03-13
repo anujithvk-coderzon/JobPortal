@@ -103,7 +103,12 @@ export default function ApplyJobPage() {
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
     fetchJobAndProfile();

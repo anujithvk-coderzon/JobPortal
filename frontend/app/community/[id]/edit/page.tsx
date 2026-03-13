@@ -114,7 +114,12 @@ export default function EditPostPage() {
     if (!isHydrated) return;
 
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
 
@@ -673,8 +678,8 @@ export default function EditPostPage() {
                     }`}>
                       <input type="file" id="poster" accept="image/*" onChange={handlePosterUpload} disabled={loading || posterDisabled} className="hidden" />
                       <label htmlFor="poster" className={posterDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}>
-                        <div className={`mx-auto w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${posterDisabled ? 'bg-muted' : 'bg-blue-500/8'}`}>
-                          <ImageIcon className={`h-5 w-5 ${posterDisabled ? 'text-muted-foreground' : 'text-blue-600'}`} />
+                        <div className={`mx-auto w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${posterDisabled ? 'bg-muted' : 'bg-indigo-500/8'}`}>
+                          <ImageIcon className={`h-5 w-5 ${posterDisabled ? 'text-muted-foreground' : 'text-indigo-600'}`} />
                         </div>
                         {posterDisabled ? (
                           <p className="text-[12px] text-muted-foreground">Remove video to upload image</p>

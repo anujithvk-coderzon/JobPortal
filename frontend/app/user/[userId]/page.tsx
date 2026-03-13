@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
 import { getInitials, timeAgo, getUserFriendlyErrorMessage } from '@/lib/utils';
 import { CredibilityBadge } from '@/components/CredibilityBadge';
+import { usePublicProfile } from '@/hooks/use-profile';
 import {
   Mail,
   Phone,
@@ -50,68 +52,66 @@ export default function UserPublicProfile() {
   const params = useParams();
   const userId = params.userId as string;
   const { toast } = useToast();
+  const { isAuthenticated } = useAuthStore();
 
-  const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loadingPosts, setLoadingPosts] = useState(false);
+  // Auth redirect
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
+    }
+  }, [isAuthenticated]);
+
+  // Use SWR for public profile data
+  const { data: profileResponse, isLoading: loading, error: profileError } = usePublicProfile(
+    isAuthenticated ? userId : null
+  );
+
+  const userData = profileResponse?.user || null;
+  const initialPosts: Post[] = profileResponse?.posts || [];
+  const paginationData = profileResponse?.pagination || {};
+  const totalPosts = paginationData.total || initialPosts.length;
+
+  // For infinite scroll, we keep additional pages in local state
+  const [extraPosts, setExtraPosts] = useState<Post[]>([]);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalPosts, setTotalPosts] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Reset extra posts when SWR data changes (e.g. userId changes)
   useEffect(() => {
-    if (userId) {
-      fetchPublicProfile();
+    setExtraPosts([]);
+    setCurrentPage(1);
+    if (paginationData.page && paginationData.totalPages) {
+      setHasMore(paginationData.page < paginationData.totalPages);
     }
-  }, [userId]);
+  }, [profileResponse]);
 
-  const fetchPublicProfile = async (page = 1) => {
-    try {
-      if (page === 1) {
-        setLoading(true);
-      } else {
-        setLoadingMorePosts(true);
-      }
-
-      const response = await api.get(`/users/public-profile/${userId}`, {
-        params: { page, limit: 10 },
-      });
-
-      if (page === 1) {
-        setUserData(response.data.user);
-        setPosts(response.data.posts || []);
-      } else {
-        setPosts((prev) => [...prev, ...(response.data.posts || [])]);
-      }
-
-      const pagination = response.data.pagination || {};
-      setCurrentPage(pagination.page || 1);
-      setTotalPages(pagination.totalPages || 1);
-      setTotalPosts(pagination.total || 0);
-      setHasMore(pagination.page < pagination.totalPages);
-    } catch (error: any) {
-      console.error('Error fetching public profile:', error);
-      const errorMessage = getUserFriendlyErrorMessage(
-        error.response?.data?.error,
-        error.response?.status
-      );
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-      setLoadingMorePosts(false);
-    }
-  };
+  const posts = [...initialPosts, ...extraPosts];
 
   const loadMorePosts = useCallback(async () => {
     if (loadingMorePosts || !hasMore) return;
-    await fetchPublicProfile(currentPage + 1);
+    setLoadingMorePosts(true);
+    try {
+      const nextPage = currentPage + 1;
+      const response = await api.get(`/users/public-profile/${userId}`, {
+        params: { page: nextPage, limit: 10 },
+      });
+      const newPosts = response.data.posts || [];
+      setExtraPosts((prev) => [...prev, ...newPosts]);
+      const pagination = response.data.pagination || {};
+      setCurrentPage(pagination.page || nextPage);
+      setHasMore(pagination.page < pagination.totalPages);
+    } catch (error: any) {
+      console.error('Error loading more posts:', error);
+    } finally {
+      setLoadingMorePosts(false);
+    }
   }, [loadingMorePosts, hasMore, currentPage, userId]);
 
   // Infinite scroll

@@ -18,6 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, addDays, startOfDay, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { jobAPI } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import {
@@ -44,6 +48,7 @@ import {
   Info,
   Eye,
   EyeOff,
+  CalendarIcon,
 } from 'lucide-react';
 import { Breadcrumb } from '@/components/Breadcrumb';
 
@@ -194,7 +199,12 @@ export default function EditJobPage() {
     if (!isHydrated) return;
 
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
 
@@ -532,14 +542,35 @@ export default function EditJobPage() {
 
                   <div>
                     <Label className="text-[13px] font-medium mb-1.5 block">Application Deadline<span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                    <Input
-                      type="date"
-                      min={new Date().toISOString().split('T')[0]}
-                      max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                      value={formData.applicationDeadline}
-                      onChange={(e) => handleInputChange('applicationDeadline', e.target.value)}
-                      className="h-10 text-[13px]"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'w-full h-10 justify-start text-left text-[13px] font-normal',
+                            !formData.applicationDeadline && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          {formData.applicationDeadline
+                            ? format(parseISO(formData.applicationDeadline), 'PPP')
+                            : 'Pick a date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.applicationDeadline ? parseISO(formData.applicationDeadline) : undefined}
+                          onSelect={(date) => {
+                            handleInputChange('applicationDeadline', date ? format(date, 'yyyy-MM-dd') : '');
+                          }}
+                          disabled={(date) =>
+                            date < addDays(startOfDay(new Date()), 1) || date > addDays(new Date(), 30)
+                          }
+                          defaultMonth={addDays(new Date(), 1)}
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <p className="text-[11px] text-muted-foreground mt-1">Optional — max 30 days from today</p>
                   </div>
                 </div>
@@ -576,10 +607,11 @@ export default function EditJobPage() {
                 {formData.salaryPeriod === 'MONTHLY' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-[13px] font-medium mb-1.5 block">Minimum Salary (&#8377;)</Label>
+                      <Label className="text-[13px] font-medium mb-1.5 block">Minimum Salary (₹)</Label>
                       <Input
                         type="text"
                         inputMode="numeric"
+                        maxLength={6}
                         value={formData.salaryMin}
                         onChange={(e) => handleInputChange('salaryMin', e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="e.g. 25000"
@@ -587,10 +619,11 @@ export default function EditJobPage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-[13px] font-medium mb-1.5 block">Maximum Salary (&#8377;)</Label>
+                      <Label className="text-[13px] font-medium mb-1.5 block">Maximum Salary (₹)</Label>
                       <Input
                         type="text"
                         inputMode="numeric"
+                        maxLength={6}
                         value={formData.salaryMax}
                         onChange={(e) => handleInputChange('salaryMax', e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="e.g. 40000"
@@ -606,6 +639,7 @@ export default function EditJobPage() {
                     <Input
                       type="text"
                       inputMode="numeric"
+                      maxLength={2}
                       value={formData.salaryMin}
                       onChange={(e) => handleInputChange('salaryMin', e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder={formData.salaryPeriod === 'LPA' ? 'e.g. 6' : 'e.g. 8'}

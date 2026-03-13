@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { jobAPI } from '@/lib/api';
 import { Job } from '@/lib/types';
 import { formatSalary, timeAgo } from '@/lib/utils';
+import { format } from 'date-fns';
 import {
   getEmploymentTypeLabel,
   getExperienceLevelLabel,
@@ -66,11 +67,11 @@ export default function JobDetailPage() {
   const handleSaveJob = async () => {
     if (!isAuthenticated) {
       toast({
-        title: 'Login Required',
-        description: 'Please login to save jobs',
-        variant: 'destructive',
+        title: 'Sign in required',
+        description: 'Please log in to save jobs.',
+        variant: 'warning',
       });
-      router.push('/auth/login');
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
 
@@ -130,11 +131,11 @@ export default function JobDetailPage() {
   const handleApply = () => {
     if (!isAuthenticated) {
       toast({
-        title: 'Login Required',
-        description: 'Please login to apply for jobs',
-        variant: 'destructive',
+        title: 'Sign in required',
+        description: 'Please log in to apply for jobs.',
+        variant: 'warning',
       });
-      router.push('/auth/login');
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
 
@@ -375,9 +376,9 @@ export default function JobDetailPage() {
                     <div>
                       <p className="text-[11px] text-muted-foreground">Deadline</p>
                       <p className="text-[13px] font-medium">
-                        {new Date(job.applicationDeadline).toLocaleDateString()}
+                        {format(new Date(job.applicationDeadline), 'PPP')}
                       </p>
-                      {new Date(job.applicationDeadline) < new Date() && (
+                      {new Date(new Date(job.applicationDeadline).toDateString()) < new Date(new Date().toDateString()) && (
                         <Badge variant="destructive" className="text-[10px] h-4 mt-1">
                           Expired
                         </Badge>

@@ -9,7 +9,7 @@ export function Footer() {
       <div className="px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-[11px] text-muted-foreground/60 order-2 sm:order-1">
-            &copy; {new Date().getFullYear()} JobConnect
+            &copy; {new Date().getFullYear()} jobaye
           </p>
           <div className="flex items-center gap-4 order-1 sm:order-2">
             <Link

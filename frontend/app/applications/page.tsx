@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useSWRConfig } from 'swr';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { applicationAPI, jobAPI } from '@/lib/api';
 import { getApplicationStatusLabel, getEmploymentTypeLabel, getLocationTypeLabel } from '@/lib/constants';
 import { ApplicationStatus, EmploymentType, LocationType } from '@/lib/types';
+import { useMyApplications } from '@/hooks/use-applications';
+import { useSavedJobs } from '@/hooks/use-jobs';
 import {
   Briefcase,
   FileText,
@@ -18,7 +21,6 @@ import {
   Building2,
   MapPin,
   Loader2,
-  ChevronRight,
   ExternalLink,
   Bookmark,
   Trash2,
@@ -76,172 +78,164 @@ export default function ApplicationsPage() {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
+  const { mutate: globalMutate } = useSWRConfig();
 
   const [activeTab, setActiveTab] = useState('applications');
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'active' | 'HIRED' | 'REJECTED'>('active');
 
-  // Applications State
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loadingApplications, setLoadingApplications] = useState(true);
+  // SWR hooks for applications and saved jobs
+  const { data: applicationsData, isLoading: loadingApplications } = useMyApplications({
+    page: 1,
+    limit: 10,
+    status: statusFilter,
+  });
+  const { data: savedJobsData, isLoading: loadingSavedJobs } = useSavedJobs({
+    page: 1,
+    limit: 10,
+  });
+
+  const applications: Application[] = applicationsData?.applications || [];
+  const applicationsPagination = applicationsData?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
+  const savedJobs: SavedJob[] = savedJobsData?.savedJobs || [];
+  const savedPagination = savedJobsData?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 };
+
+  // Extra items loaded via infinite scroll
+  const [extraApplications, setExtraApplications] = useState<Application[]>([]);
   const [loadingMoreApplications, setLoadingMoreApplications] = useState(false);
-  const [applicationsPagination, setApplicationsPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [appsPage, setAppsPage] = useState(1);
 
-  // Saved Jobs State
-  const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
-  const [loadingSavedJobs, setLoadingSavedJobs] = useState(true);
+  const [extraSavedJobs, setExtraSavedJobs] = useState<SavedJob[]>([]);
   const [loadingMoreSaved, setLoadingMoreSaved] = useState(false);
-  const [savedPagination, setSavedPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [savedPage, setSavedPage] = useState(1);
 
-  // Initial load effect
+  // Reset extra items when SWR data changes
+  useEffect(() => {
+    setExtraApplications([]);
+    setAppsPage(1);
+  }, [applicationsData]);
+
+  useEffect(() => {
+    setExtraSavedJobs([]);
+    setSavedPage(1);
+  }, [savedJobsData]);
+
+  const allApplications = [...applications, ...extraApplications];
+  const allSavedJobs = [...savedJobs, ...extraSavedJobs];
+
+  // Initial load effect - only for auth redirect and tab param
   useEffect(() => {
     if (!isHydrated) return;
 
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
 
-    if (isInitialLoad) {
-      // Check for URL parameter to set initial tab
-      const urlParams = new URLSearchParams(window.location.search);
-      const tabParam = urlParams.get('tab');
-      if (tabParam === 'saved') {
-        setActiveTab('saved');
-      }
-
-      // Initial fetch with loading state
-      setLoadingApplications(true);
-      fetchApplications(true).finally(() => setLoadingApplications(false));
-      fetchSavedJobs();
-      setIsInitialLoad(false);
+    // Check for URL parameter to set initial tab
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam === 'saved') {
+      setActiveTab('saved');
     }
-  }, [isAuthenticated, isHydrated, router, isInitialLoad]);
+  }, [isAuthenticated, isHydrated, router]);
 
-  // Fetch applications when status filter changes (no loading state to avoid flicker)
-  useEffect(() => {
-    if (!isHydrated || !isAuthenticated || isInitialLoad) return;
+  const currentAppsPage = appsPage || applicationsPagination.page || 1;
+  const currentSavedPage = savedPage || savedPagination.page || 1;
 
-    fetchApplications(true);
-  }, [statusFilter]);
+  const loadingAppsRef = useRef(false);
+  const appsObserver = useRef<IntersectionObserver | null>(null);
 
-  const fetchApplications = async (resetPage = false) => {
-    try {
-      const response = await applicationAPI.getMyApplications({
-        page: resetPage ? 1 : applicationsPagination.page,
-        limit: applicationsPagination.limit,
-        status: statusFilter,
-      });
+  const lastAppRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (appsObserver.current) appsObserver.current.disconnect();
+      if (!node || loadingMoreApplications || currentAppsPage >= applicationsPagination.totalPages) return;
 
-      if (response.data.success) {
-        setApplications(response.data.data.applications || []);
-        setApplicationsPagination(response.data.data.pagination);
-      }
-    } catch (error: any) {
-      const status = error.response?.status;
-      if (status !== 404) {
-        console.error('Error fetching applications:', error);
-      }
-      setApplications([]);
-    }
-  };
+      appsObserver.current = new IntersectionObserver(
+        async (entries) => {
+          if (!entries[0].isIntersecting || loadingAppsRef.current) return;
+          loadingAppsRef.current = true;
+          setLoadingMoreApplications(true);
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const nextPage = currentAppsPage + 1;
+            const response = await applicationAPI.getMyApplications({
+              page: nextPage, limit: applicationsPagination.limit || 10, status: statusFilter,
+            });
+            if (response.data.success) {
+              const newApps = response.data.data.applications || [];
+              setExtraApplications((prev) => {
+                const existingIds = new Set([...applications, ...prev].map((a) => a.id));
+                const unique = newApps.filter((a: any) => !existingIds.has(a.id));
+                return [...prev, ...unique];
+              });
+              setAppsPage(nextPage);
+            }
+          } catch (error: any) {
+            toast({ title: 'Error', description: 'Failed to load more applications.', variant: 'destructive' });
+          }
+          setLoadingMoreApplications(false);
+          loadingAppsRef.current = false;
+        },
+        { threshold: 0.1 }
+      );
+      appsObserver.current.observe(node);
+    },
+    [loadingMoreApplications, currentAppsPage, applicationsPagination, statusFilter, applications]
+  );
 
-  const fetchSavedJobs = async () => {
-    setLoadingSavedJobs(true);
-    try {
-      const response = await jobAPI.getSavedJobs({
-        page: savedPagination.page,
-        limit: savedPagination.limit,
-      });
+  const loadingSavedRef = useRef(false);
+  const savedObserver = useRef<IntersectionObserver | null>(null);
 
-      if (response.data.success) {
-        setSavedJobs(response.data.data.savedJobs || []);
-        setSavedPagination(response.data.data.pagination);
-      }
-    } catch (error: any) {
-      const status = error.response?.status;
-      if (status !== 404) {
-        console.error('Error fetching saved jobs:', error);
-      }
-      setSavedJobs([]);
-    } finally {
-      setLoadingSavedJobs(false);
-    }
-  };
+  const lastSavedRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (savedObserver.current) savedObserver.current.disconnect();
+      if (!node || loadingMoreSaved || currentSavedPage >= savedPagination.totalPages) return;
 
-  const loadMoreApplications = async () => {
-    setLoadingMoreApplications(true);
-    try {
-      const nextPage = applicationsPagination.page + 1;
-      const response = await applicationAPI.getMyApplications({
-        page: nextPage,
-        limit: applicationsPagination.limit,
-        status: statusFilter,
-      });
-
-      if (response.data.success) {
-        const newApplications = response.data.data.applications || [];
-        setApplications([...applications, ...newApplications]);
-        setApplicationsPagination(response.data.data.pagination);
-      }
-    } catch (error: any) {
-      console.error('Error loading more applications:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load more applications.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingMoreApplications(false);
-    }
-  };
-
-  const loadMoreSavedJobs = async () => {
-    setLoadingMoreSaved(true);
-    try {
-      const nextPage = savedPagination.page + 1;
-      const response = await jobAPI.getSavedJobs({
-        page: nextPage,
-        limit: savedPagination.limit,
-      });
-
-      if (response.data.success) {
-        const newSavedJobs = response.data.data.savedJobs || [];
-        setSavedJobs([...savedJobs, ...newSavedJobs]);
-        setSavedPagination(response.data.data.pagination);
-      }
-    } catch (error: any) {
-      console.error('Error loading more saved jobs:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load more saved jobs.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingMoreSaved(false);
-    }
-  };
+      savedObserver.current = new IntersectionObserver(
+        async (entries) => {
+          if (!entries[0].isIntersecting || loadingSavedRef.current) return;
+          loadingSavedRef.current = true;
+          setLoadingMoreSaved(true);
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const nextPage = currentSavedPage + 1;
+            const response = await jobAPI.getSavedJobs({
+              page: nextPage, limit: savedPagination.limit || 10,
+            });
+            if (response.data.success) {
+              const newSaved = response.data.data.savedJobs || [];
+              setExtraSavedJobs((prev) => {
+                const existingIds = new Set([...savedJobs, ...prev].map((s) => s.id));
+                const unique = newSaved.filter((s: any) => !existingIds.has(s.id));
+                return [...prev, ...unique];
+              });
+              setSavedPage(nextPage);
+            }
+          } catch (error: any) {
+            toast({ title: 'Error', description: 'Failed to load more saved jobs.', variant: 'destructive' });
+          }
+          setLoadingMoreSaved(false);
+          loadingSavedRef.current = false;
+        },
+        { threshold: 0.1 }
+      );
+      savedObserver.current.observe(node);
+    },
+    [loadingMoreSaved, currentSavedPage, savedPagination, savedJobs]
+  );
 
   const handleUnsaveJob = async (jobId: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
     try {
       await jobAPI.unsaveJob(jobId);
-      setSavedJobs(savedJobs.filter(sj => sj.job.id !== jobId));
-      setSavedPagination({
-        ...savedPagination,
-        total: savedPagination.total - 1,
-      });
+      // Invalidate saved jobs cache
+      globalMutate((key: unknown) => typeof key === 'string' && key.startsWith('/jobs/saved'), undefined, { revalidate: true });
       toast({
         title: 'Success',
         description: 'Job removed from saved list',
@@ -274,41 +268,19 @@ export default function ApplicationsPage() {
     return new Date(job.applicationDeadline) < new Date();
   };
 
-  // Get counts from backend stats (will be fetched separately)
-  const [statusCounts, setStatusCounts] = useState({
-    active: 0,
-    hired: 0,
-    rejected: 0,
-  });
+  // SWR hooks for status counts
+  const { data: activeCountData } = useMyApplications({ page: 1, limit: 1, status: 'active' });
+  const { data: hiredCountData } = useMyApplications({ page: 1, limit: 1, status: 'HIRED' });
+  const { data: rejectedCountData } = useMyApplications({ page: 1, limit: 1, status: 'REJECTED' });
 
-  // Fetch all counts for filter buttons
-  useEffect(() => {
-    const fetchCounts = async () => {
-      if (!isAuthenticated || isInitialLoad) return;
-
-      try {
-        // Fetch counts for all statuses in parallel
-        const [activeRes, hiredRes, rejectedRes] = await Promise.all([
-          applicationAPI.getMyApplications({ page: 1, limit: 1, status: 'active' }),
-          applicationAPI.getMyApplications({ page: 1, limit: 1, status: 'HIRED' }),
-          applicationAPI.getMyApplications({ page: 1, limit: 1, status: 'REJECTED' }),
-        ]);
-
-        setStatusCounts({
-          active: activeRes.data.data.pagination.total || 0,
-          hired: hiredRes.data.data.pagination.total || 0,
-          rejected: rejectedRes.data.data.pagination.total || 0,
-        });
-      } catch (error) {
-        console.error('Error fetching status counts:', error);
-      }
-    };
-
-    fetchCounts();
-  }, [isAuthenticated, isInitialLoad, statusFilter]); // Refetch when filter changes
+  const statusCounts = {
+    active: activeCountData?.pagination?.total || 0,
+    hired: hiredCountData?.pagination?.total || 0,
+    rejected: rejectedCountData?.pagination?.total || 0,
+  };
 
   // Prevent rendering for unauthenticated users
-  if (!isHydrated || !isAuthenticated || !user || (loadingApplications && loadingSavedJobs)) {
+  if (!isHydrated || !isAuthenticated || !user || (loadingApplications && loadingSavedJobs && allApplications.length === 0 && allSavedJobs.length === 0)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -377,7 +349,7 @@ export default function ApplicationsPage() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : applications.length === 0 ? (
+            ) : allApplications.length === 0 ? (
               <Card className="rounded-lg border bg-card">
                 <CardContent className="py-12 text-center">
                   {statusFilter === 'active' ? (
@@ -438,9 +410,10 @@ export default function ApplicationsPage() {
             ) : (
               <>
                 <div className="space-y-2">
-                  {applications.map((application) => (
+                  {allApplications.map((application, index) => (
                     <Card
                       key={application.id}
+                      ref={index === allApplications.length - 1 ? lastAppRef : null}
                       className="rounded-lg border bg-card cursor-pointer hover:border-primary/30 transition-colors"
                       onClick={() => router.push(`/jobs/${application.job.id}`)}
                     >
@@ -532,31 +505,21 @@ export default function ApplicationsPage() {
                   ))}
                 </div>
 
-                {applicationsPagination.page < applicationsPagination.totalPages && (
-                  <div className="flex flex-col items-center gap-2 mt-6">
-                    <p className="text-[11px] text-muted-foreground">
-                      Showing {applications.length} of {applicationsPagination.total} {statusFilter === 'active' ? 'active' : statusFilter.toLowerCase()} applications
-                    </p>
-                    <Button
-                      onClick={loadMoreApplications}
-                      disabled={loadingMoreApplications}
-                      variant="outline"
-                      size="sm"
-                      className="text-[13px]"
-                    >
-                      {loadingMoreApplications ? (
-                        <>
-                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          Load More
-                          <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                        </>
-                      )}
-                    </Button>
+                {loadingMoreApplications && (
+                  <div className="flex flex-col items-center justify-center gap-1.5 py-6">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0s' }} />
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.15s' }} />
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.3s' }} />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">Loading</span>
                   </div>
+                )}
+
+                {currentAppsPage >= applicationsPagination.totalPages && allApplications.length > 0 && !loadingMoreApplications && (
+                  <p className="text-center text-[11px] text-muted-foreground py-4 border-t border-border/60 mt-4">
+                    All {applicationsPagination.total} applications loaded
+                  </p>
                 )}
               </>
             )}
@@ -568,7 +531,7 @@ export default function ApplicationsPage() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : savedJobs.length === 0 ? (
+            ) : allSavedJobs.length === 0 ? (
               <Card className="rounded-lg border bg-card">
                 <CardContent className="py-12 text-center">
                   <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/8 mx-auto mb-3">
@@ -589,9 +552,10 @@ export default function ApplicationsPage() {
             ) : (
               <>
                 <div className="space-y-2">
-                  {savedJobs.map((savedJob) => (
+                  {allSavedJobs.map((savedJob, index) => (
                     <Card
                       key={savedJob.id}
+                      ref={index === allSavedJobs.length - 1 ? lastSavedRef : null}
                       className="rounded-lg border bg-card cursor-pointer hover:border-primary/30 transition-colors"
                       onClick={() => router.push(`/jobs/${savedJob.job.id}`)}
                     >
@@ -668,31 +632,21 @@ export default function ApplicationsPage() {
                   ))}
                 </div>
 
-                {savedPagination.page < savedPagination.totalPages && (
-                  <div className="flex flex-col items-center gap-2 mt-6">
-                    <p className="text-[11px] text-muted-foreground">
-                      Showing {savedJobs.length} of {savedPagination.total} saved jobs
-                    </p>
-                    <Button
-                      onClick={loadMoreSavedJobs}
-                      disabled={loadingMoreSaved}
-                      variant="outline"
-                      size="sm"
-                      className="text-[13px]"
-                    >
-                      {loadingMoreSaved ? (
-                        <>
-                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          Load More
-                          <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                        </>
-                      )}
-                    </Button>
+                {loadingMoreSaved && (
+                  <div className="flex flex-col items-center justify-center gap-1.5 py-6">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0s' }} />
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.15s' }} />
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.3s' }} />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">Loading</span>
                   </div>
+                )}
+
+                {currentSavedPage >= savedPagination.totalPages && allSavedJobs.length > 0 && !loadingMoreSaved && (
+                  <p className="text-center text-[11px] text-muted-foreground py-4 border-t border-border/60 mt-4">
+                    All {savedPagination.total} saved jobs loaded
+                  </p>
                 )}
               </>
             )}

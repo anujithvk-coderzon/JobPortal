@@ -179,37 +179,108 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
       where.location = { contains: location, mode: 'insensitive' };
     }
 
-    const [jobNews, total] = await Promise.all([
-      prisma.jobNews.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              profilePhoto: true,
-            },
-          },
-          _count: {
-            select: {
-              helpfulVotes: true,
-            },
-          },
-          helpfulVotes: req.user ? {
-            where: {
-              userId: req.user.userId,
-            },
-            select: {
-              id: true,
-            },
-          } : false,
+    // Fetch user interests for interest-based sorting
+    let userInterests: string[] = [];
+    if (req.user) {
+      const profile = await prisma.profile.findUnique({
+        where: { userId: req.user.userId },
+        select: { interests: true },
+      });
+      userInterests = profile?.interests || [];
+    }
+
+    const includeClause = {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          profilePhoto: true,
         },
-      }),
-      prisma.jobNews.count({ where }),
-    ]);
+      },
+      _count: {
+        select: {
+          helpfulVotes: true,
+        },
+      },
+      helpfulVotes: req.user ? {
+        where: {
+          userId: req.user.userId,
+        },
+        select: {
+          id: true,
+        },
+      } : false,
+    };
+
+    let jobNews: any[];
+    let total: number;
+
+    // Fetch seen post IDs for authenticated users
+    let seenPostIds: Set<string> = new Set();
+    if (req.user) {
+      const seenRecords = await prisma.jobNewsSeen.findMany({
+        where: { userId: req.user.userId },
+        select: { jobNewsId: true },
+      });
+      seenPostIds = new Set(seenRecords.map((r) => r.jobNewsId));
+    }
+
+    if (req.user) {
+      // Authenticated: fetch all posts, sort by seen/interest/recency, then paginate
+      const [allPosts, count] = await Promise.all([
+        prisma.jobNews.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          include: includeClause,
+        }),
+        prisma.jobNews.count({ where }),
+      ]);
+
+      total = count;
+
+      // Score each post by how many interests match its title/description/source/company
+      const scoredPosts = allPosts.map((post) => {
+        let interestScore = 0;
+        if (userInterests.length > 0) {
+          const text = `${post.title} ${post.description || ''} ${post.companyName || ''} ${post.source || ''}`.toLowerCase();
+          interestScore = userInterests.filter((interest) => {
+            const escaped = interest.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (interest.length <= 3 && !interest.includes(' ')) {
+              return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+            }
+            return text.includes(interest);
+          }).length;
+        }
+        return { ...post, _interestScore: interestScore, _isSeen: seenPostIds.has(post.id) };
+      });
+
+      // 3-tier sort: unseen first → interest match → recency
+      scoredPosts.sort((a, b) => {
+        // Primary: unseen before seen
+        if (a._isSeen !== b._isSeen) return a._isSeen ? 1 : -1;
+        // Secondary (within same seen status): higher interest score first
+        if (a._interestScore !== b._interestScore) return b._interestScore - a._interestScore;
+        // Tertiary: newest first
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      // Apply pagination
+      jobNews = scoredPosts.slice(skip, skip + take).map(({ _interestScore, _isSeen, ...post }) => post);
+    } else {
+      // Unauthenticated: standard pagination by recency
+      const [posts, count] = await Promise.all([
+        prisma.jobNews.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { createdAt: 'desc' },
+          include: includeClause,
+        }),
+        prisma.jobNews.count({ where }),
+      ]);
+      jobNews = posts;
+      total = count;
+    }
 
     // Get unique user IDs to calculate credibility scores (cached per user)
     const userIds = [...new Set(jobNews.map(post => post.userId))];
@@ -276,11 +347,12 @@ export const getAllJobNews = async (req: AuthRequest, res: Response) => {
       })
     );
 
-    // Map to add helpfulCount, credibilityScore, and isHelpful to each post
+    // Map to add helpfulCount, credibilityScore, isHelpful, and isSeen to each post
     const jobNewsWithCounts = jobNews.map((post) => ({
       ...post,
       helpfulCount: post._count.helpfulVotes,
       isHelpful: post.helpfulVotes && post.helpfulVotes.length > 0,
+      isSeen: seenPostIds.has(post.id),
       user: {
         ...post.user,
         credibilityScore: userCredibilityMap.get(post.userId),
@@ -349,6 +421,20 @@ export const getJobNewsById = async (req: AuthRequest, res: Response) => {
           error: 'Job news not found',
         });
       }
+    }
+
+    // Mark post as seen for authenticated user (fire-and-forget)
+    if (req.user) {
+      prisma.jobNewsSeen.upsert({
+        where: {
+          jobNewsId_userId: {
+            jobNewsId: id,
+            userId: req.user.userId,
+          },
+        },
+        create: { jobNewsId: id, userId: req.user.userId },
+        update: {},
+      }).catch(() => {});
     }
 
     // Calculate helpful count and check if current user marked as helpful

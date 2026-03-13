@@ -315,36 +315,41 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { headline, bio, portfolioUrl, githubUrl, linkedinUrl, websiteUrl } = req.body;
+    const { headline, bio, portfolioUrl, githubUrl, linkedinUrl, websiteUrl, interests } = req.body;
+
+    // Validate interests if provided
+    const validInterests = Array.isArray(interests)
+      ? interests.filter((i: any) => typeof i === 'string' && i.trim()).map((i: string) => i.trim().toLowerCase())
+      : undefined;
 
     // Get or create profile
     let profile = await prisma.profile.findUnique({
       where: { userId: req.user.userId },
     });
 
+    const profileData: any = {
+      headline,
+      bio,
+      portfolioUrl,
+      githubUrl,
+      linkedinUrl,
+      websiteUrl,
+    };
+    if (validInterests !== undefined) {
+      profileData.interests = validInterests;
+    }
+
     if (!profile) {
       profile = await prisma.profile.create({
         data: {
           userId: req.user.userId,
-          headline,
-          bio,
-          portfolioUrl,
-          githubUrl,
-          linkedinUrl,
-          websiteUrl,
+          ...profileData,
         },
       });
     } else {
       profile = await prisma.profile.update({
         where: { userId: req.user.userId },
-        data: {
-          headline,
-          bio,
-          portfolioUrl,
-          githubUrl,
-          linkedinUrl,
-          websiteUrl,
-        },
+        data: profileData,
       });
     }
 

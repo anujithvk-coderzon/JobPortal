@@ -51,8 +51,16 @@ export default function CreatePostPage() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (!isAuthenticated) { router.push('/auth/login'); return; }
-  }, [isAuthenticated, isHydrated, router]);
+    if (!isAuthenticated) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to share a community post.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
+      return;
+    }
+  }, [isAuthenticated, isHydrated, router, toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -353,8 +361,8 @@ export default function CreatePostPage() {
                     <div>
                       <input type="file" id="poster" accept="image/*" onChange={handlePosterUpload} disabled={loading} className="hidden" />
                       <label htmlFor="poster" className="block cursor-pointer border-2 border-dashed rounded-md p-4 text-center hover:border-primary/30 transition-colors">
-                        <div className="h-9 w-9 mx-auto rounded-md bg-blue-500/8 flex items-center justify-center mb-2">
-                          <ImageIcon className="h-4 w-4 text-blue-600" />
+                        <div className="h-9 w-9 mx-auto rounded-md bg-indigo-500/8 flex items-center justify-center mb-2">
+                          <ImageIcon className="h-4 w-4 text-indigo-600" />
                         </div>
                         <p className="text-[13px] font-medium mb-0.5">Image</p>
                         <p className="text-[11px] text-muted-foreground">JPG, PNG · max 10MB</p>
@@ -531,7 +539,7 @@ export default function CreatePostPage() {
                     <p>Job openings & referral opportunities</p>
                   </div>
                   <div className="flex items-start gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 mt-1.5 flex-shrink-0" />
                     <p>Career tips & interview advice</p>
                   </div>
                   <div className="flex items-start gap-2">

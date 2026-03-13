@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useSWRConfig } from 'swr';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { jobNewsAPI, followAPI } from '@/lib/api';
+import { jobNewsAPI, followAPI, api } from '@/lib/api';
 import { timeAgo, getInitials } from '@/lib/utils';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { CredibilityBadgeCompact } from '@/components/CredibilityBadge';
@@ -19,6 +20,9 @@ import { FollowingDrawer } from '@/components/FollowingDrawer';
 import { FollowButton } from '@/components/FollowButton';
 import { ReportModal } from '@/components/ReportModal';
 import { useAuthStore } from '@/store/authStore';
+import { AuthGate } from '@/components/AuthGate';
+import { useProfile } from '@/hooks/use-profile';
+import { useFollowing } from '@/hooks/use-follow';
 import {
   Search,
   MapPin,
@@ -37,6 +41,10 @@ import {
   Briefcase,
   Shield,
   Share2,
+  Sparkles,
+  Pencil,
+  X,
+  Plus,
 } from 'lucide-react';
 
 interface CredibilityScore {
@@ -60,6 +68,7 @@ interface Post {
   createdAt: string;
   helpfulCount?: number;
   isHelpful?: boolean;
+  isSeen?: boolean;
   user: {
     id: string;
     name: string;
@@ -73,6 +82,10 @@ function CommunityPageContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const { isAuthenticated, user } = useAuthStore();
+  const { mutate: globalMutate } = useSWRConfig();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,47 +106,67 @@ function CommunityPageContent() {
   const [activeTab, setActiveTab] = useState<'all' | 'following'>('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [followingIds, setFollowingIds] = useState<string[]>([]);
-  const [followingUsers, setFollowingUsers] = useState<{ id: string; name: string; profilePhoto?: string; headline?: string }[]>([]);
-  const [followingLoaded, setFollowingLoaded] = useState(false);
+
+  // SWR hooks for following and profile/interests
+  const { data: followingData } = useFollowing({ limit: 100 });
+  const { data: profileData, mutate: mutateProfile } = useProfile();
+
+  // followingData may be the data envelope or contain users directly
+  const followingUsersList = followingData?.users || [];
+  const followingIds = followingUsersList.map((u: any) => u.id);
+  const followingUsers = followingUsersList;
+  const followingLoaded = followingData !== undefined || !isAuthenticated;
+
+  // Interests from profile
+  const userInterests: string[] = profileData?.profile?.interests || [];
 
   // Report modal state
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportingPost, setReportingPost] = useState<{ id: string; title: string } | null>(null);
 
-  // Fetch following IDs first when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchFollowingIds();
-    } else {
-      setFollowingLoaded(true);
+  // Interests editing state
+  const [editingInterests, setEditingInterests] = useState(false);
+  const [newInterest, setNewInterest] = useState('');
+  const [savingInterests, setSavingInterests] = useState(false);
+
+  const saveInterests = async (updated: string[]) => {
+    setSavingInterests(true);
+    try {
+      await api.put('/users/profile', { interests: updated });
+      mutateProfile();
+      // Re-fetch posts to apply new sorting
+      fetchPosts(activeTab);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save interests', variant: 'destructive' });
+    } finally {
+      setSavingInterests(false);
     }
-  }, [isAuthenticated]);
+  };
+
+  const addInterest = () => {
+    const trimmed = newInterest.trim().toLowerCase();
+    if (!trimmed || userInterests.includes(trimmed)) {
+      setNewInterest('');
+      return;
+    }
+    const updated = [...userInterests, trimmed];
+    setNewInterest('');
+    saveInterests(updated);
+  };
+
+  const removeInterest = (interest: string) => {
+    const updated = userInterests.filter((i) => i !== interest);
+    saveInterests(updated);
+  };
 
   // Fetch posts when tab or filters change
   useEffect(() => {
     fetchPosts(activeTab);
   }, [activeTab, selectedUserId]);
 
-  const fetchFollowingIds = async () => {
-    try {
-      const response = await followAPI.getFollowing({ limit: 100 });
-      const users = response.data.users;
-      setFollowingIds(users.map((u: any) => u.id));
-      setFollowingUsers(users);
-    } catch (error) {
-      console.error('Error fetching following:', error);
-    } finally {
-      setFollowingLoaded(true);
-    }
-  };
-
   const handleFollowChange = (userId: string, isFollowing: boolean) => {
-    if (isFollowing) {
-      setFollowingIds((prev) => [...prev, userId]);
-    } else {
-      setFollowingIds((prev) => prev.filter((id) => id !== userId));
-    }
+    // Invalidate follow caches
+    globalMutate((key: unknown) => typeof key === 'string' && key.startsWith('/follow/'), undefined, { revalidate: true });
   };
 
   const fetchPosts = async (currentTab: 'all' | 'following' = 'all') => {
@@ -180,40 +213,56 @@ function CommunityPageContent() {
     }
   };
 
-  const loadMorePosts = async () => {
-    setLoadingMore(true);
-    try {
-      const nextPage = pagination.page + 1;
-      const params: any = {
-        page: nextPage,
-        limit: pagination.limit,
-      };
+  const loadingMoreRef = useRef(false);
+  const postObserver = useRef<IntersectionObserver | null>(null);
 
-      if (filters.search) params.search = filters.search;
-      if (filters.location) params.location = filters.location;
+  const lastPostRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (postObserver.current) postObserver.current.disconnect();
+      if (!node || loadingMore || pagination.page >= pagination.totalPages) return;
+      if (!isAuthenticated && pagination.page >= 1) return;
 
-      if (activeTab === 'following' && !selectedUserId) {
-        params.followingOnly = 'true';
-      }
-
-      const response = await jobNewsAPI.getAllJobNews(params);
-      const newPosts = response.data.data.jobNews;
-
-      setPosts([...posts, ...newPosts]);
-      setPagination(response.data.data.pagination);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load more posts.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+      postObserver.current = new IntersectionObserver(
+        async (entries) => {
+          if (!entries[0].isIntersecting || loadingMoreRef.current) return;
+          loadingMoreRef.current = true;
+          setLoadingMore(true);
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const nextPage = pagination.page + 1;
+            const params: any = { page: nextPage, limit: pagination.limit };
+            if (filters.search) params.search = filters.search;
+            if (filters.location) params.location = filters.location;
+            if (activeTab === 'following' && !selectedUserId) params.followingOnly = 'true';
+            const response = await jobNewsAPI.getAllJobNews(params);
+            const newPosts = response.data.data.jobNews;
+            setPosts((prev) => {
+              const existingIds = new Set(prev.map((p) => p.id));
+              const unique = newPosts.filter((p: Post) => !existingIds.has(p.id));
+              return [...prev, ...unique];
+            });
+            setPagination(response.data.data.pagination);
+          } catch (error: any) {
+            toast({ title: 'Error', description: 'Failed to load more posts.', variant: 'destructive' });
+          }
+          setLoadingMore(false);
+          loadingMoreRef.current = false;
+        },
+        { threshold: 0.1 }
+      );
+      postObserver.current.observe(node);
+    },
+    [loadingMore, pagination, filters, activeTab, selectedUserId]
+  );
 
   const handleToggleHelpful = async (postId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast({ title: 'Sign in required', description: 'Please log in to mark posts as helpful.', variant: 'warning' });
+      setTimeout(() => router.push('/auth/login'), 1500);
+      return;
+    }
 
     try {
       const response = await jobNewsAPI.toggleHelpful(postId);
@@ -224,6 +273,7 @@ function CommunityPageContent() {
           ? { ...post, isHelpful: newIsHelpful, helpfulCount: newCount }
           : post
       ));
+      globalMutate(`/job-news/${postId}`);
 
       toast({
         title: newIsHelpful ? 'Marked as helpful!' : 'Unmarked',
@@ -254,10 +304,11 @@ function CommunityPageContent() {
     e.stopPropagation();
     if (!isAuthenticated) {
       toast({
-        title: 'Login Required',
+        title: 'Sign in required',
         description: 'Please log in to report posts.',
-        variant: 'destructive',
+        variant: 'warning',
       });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
     setReportingPost({ id: post.id, title: post.title });
@@ -293,6 +344,138 @@ function CommunityPageContent() {
           <p className="text-[13px] text-muted-foreground mb-3">
             Share and discover job leads, career tips, industry insights, and articles
           </p>
+          {mounted && isAuthenticated && (
+            <div className="mb-3">
+              {!editingInterests ? (
+                userInterests.length > 0 ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Sparkles className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                    {userInterests.map((interest) => (
+                      <Badge key={interest} variant="secondary" className="text-[10px] h-5 font-medium">
+                        {interest}
+                      </Badge>
+                    ))}
+                    <button
+                      onClick={() => setEditingInterests(true)}
+                      className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-0.5"
+                    >
+                      <Pencil className="h-2.5 w-2.5" />
+                      edit
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-primary/30 bg-primary/[0.03] p-3.5">
+                    <div className="flex items-start gap-3">
+                      <div className="p-1.5 rounded-md bg-primary/10 flex-shrink-0">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium mb-1">Personalize your feed</p>
+                        <p className="text-[11px] text-muted-foreground mb-2.5">
+                          Add topics you care about — matching posts and unseen content will appear first.
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mb-2.5">
+                          {['security', 'AI', 'frontend', 'remote', 'devops', 'salary'].map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              onClick={() => {
+                                const trimmed = suggestion.toLowerCase();
+                                if (!userInterests.includes(trimmed)) {
+                                  const updated = [...userInterests, trimmed];
+                                  saveInterests(updated);
+                                }
+                              }}
+                              className="text-[10px] px-2 py-0.5 rounded-full border border-primary/20 text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              + {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => setEditingInterests(true)}
+                          className="text-[11px] text-primary font-medium hover:underline"
+                        >
+                          Or type your own interests
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="rounded-lg border bg-card p-3.5">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-[12px] font-medium">Your interests</span>
+                    </div>
+                    <button
+                      onClick={() => setEditingInterests(false)}
+                      className="text-muted-foreground hover:text-foreground p-0.5"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  {userInterests.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2.5">
+                      {userInterests.map((interest) => (
+                        <Badge key={interest} variant="secondary" className="text-[11px] gap-1 pr-1">
+                          {interest}
+                          <button
+                            onClick={() => removeInterest(interest)}
+                            className="ml-0.5 hover:text-destructive transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); addInterest(); }}
+                    className="flex gap-1.5"
+                  >
+                    <Input
+                      value={newInterest}
+                      onChange={(e) => setNewInterest(e.target.value)}
+                      placeholder="Type an interest and press add..."
+                      className="h-8 text-[12px] flex-1"
+                      maxLength={30}
+                      autoFocus
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2.5 text-[11px]"
+                      disabled={!newInterest.trim() || savingInterests}
+                    >
+                      {savingInterests ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                    </Button>
+                  </form>
+                  {userInterests.length === 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <span className="text-[10px] text-muted-foreground">Suggestions:</span>
+                      {['security', 'AI', 'frontend', 'remote', 'devops', 'salary', 'interview', 'cloud'].map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => {
+                            const trimmed = suggestion.toLowerCase();
+                            if (!userInterests.includes(trimmed)) {
+                              const updated = [...userInterests, trimmed];
+                              saveInterests(updated);
+                            }
+                          }}
+                          className="text-[10px] px-1.5 py-0.5 rounded-full border border-border hover:border-primary/30 hover:text-primary text-muted-foreground transition-colors"
+                        >
+                          + {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <div className="p-1 rounded bg-primary/8">
@@ -327,17 +510,33 @@ function CommunityPageContent() {
             </Button>
           </form>
 
-          <div className="flex items-center gap-3">
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
-              <TabsList className="h-8">
-                <TabsTrigger value="all" className="text-[12px] px-3">
-                  All Posts
-                </TabsTrigger>
-                <TabsTrigger value="following" className="text-[12px] px-3" disabled={!isAuthenticated}>
-                  Following
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div className="flex items-center justify-between gap-3">
+            {mounted ? (
+              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
+                <TabsList className="h-8">
+                  <TabsTrigger value="all" className="text-[12px] px-3">
+                    All Posts
+                  </TabsTrigger>
+                  <TabsTrigger value="following" className="text-[12px] px-3" disabled={!isAuthenticated}>
+                    Following
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : (
+              <div className="h-8" />
+            )}
+
+            {mounted && isAuthenticated && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 h-8 text-[12px] border-border/60"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Following ({followingIds.length})
+              </Button>
+            )}
           </div>
 
           {selectedUserId && (
@@ -388,9 +587,10 @@ function CommunityPageContent() {
         ) : (
           <>
             <div className="space-y-3">
-              {posts.map((post) => (
+              {posts.map((post, index) => (
                 <Card
                   key={post.id}
+                  ref={index === posts.length - 1 ? lastPostRef : null}
                   className="rounded-lg border bg-card hover:border-primary/20 transition-colors cursor-pointer group"
                   onClick={() => router.push(`/community/${post.id}`)}
                 >
@@ -408,6 +608,11 @@ function CommunityPageContent() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (!isAuthenticated) {
+                                  toast({ title: 'Sign in required', description: 'Please log in to view profiles.', variant: 'warning' });
+                                  setTimeout(() => router.push('/auth/login'), 1500);
+                                  return;
+                                }
                                 router.push(`/user/${post.user.id}`);
                               }}
                               className="text-[11px] text-primary hover:underline flex-shrink-0"
@@ -444,8 +649,11 @@ function CommunityPageContent() {
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-sm font-semibold mb-1.5 leading-snug group-hover:text-primary transition-colors">
-                      {post.title}
+                    <h3 className="text-sm font-semibold mb-1.5 leading-snug group-hover:text-primary transition-colors flex items-start gap-1.5">
+                      <span>{post.title}</span>
+                      {mounted && isAuthenticated && !post.isSeen && (
+                        <span className="flex-shrink-0 mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
                     </h3>
 
                     {/* Description */}
@@ -509,7 +717,7 @@ function CommunityPageContent() {
                       <Button
                         variant={post.isHelpful ? "default" : "outline"}
                         size="sm"
-                        className={`h-7 text-[11px] ${post.isHelpful ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' : ''}`}
+                        className={`h-7 text-[11px] ${post.isHelpful ? 'bg-indigo-600 hover:bg-indigo-700 border-indigo-600' : ''}`}
                         onClick={(e) => handleToggleHelpful(post.id, e)}
                       >
                         <ThumbsUp className={`h-3 w-3 mr-1 ${post.isHelpful ? 'fill-current' : ''}`} />
@@ -553,32 +761,25 @@ function CommunityPageContent() {
               ))}
             </div>
 
-            {/* Load More */}
-            {pagination.page < pagination.totalPages && (
-              <div className="flex flex-col items-center gap-2 mt-6">
-                <p className="text-[11px] text-muted-foreground">
-                  Showing {posts.length} of {pagination.total} posts
-                </p>
-                <Button
-                  onClick={loadMorePosts}
-                  disabled={loadingMore}
-                  variant="outline"
-                  size="sm"
-                  className="min-w-[160px]"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      Load More
-                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                    </>
-                  )}
-                </Button>
+            {loadingMore && (
+              <div className="flex flex-col items-center justify-center gap-1.5 py-6">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.15s' }} />
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.3s' }} />
+                </div>
+                <span className="text-[11px] text-muted-foreground">Loading</span>
               </div>
+            )}
+
+            {!isAuthenticated && pagination.page >= 1 && pagination.totalPages > 1 && posts.length > 0 && (
+              <AuthGate type="posts" />
+            )}
+
+            {isAuthenticated && pagination.page >= pagination.totalPages && posts.length > 0 && !loadingMore && (
+              <p className="text-center text-[11px] text-muted-foreground py-4 border-t border-border/60 mt-4">
+                All {pagination.total} posts loaded
+              </p>
             )}
           </>
         )}

@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSWRConfig } from 'swr';
 import { Button } from '@/components/ui/button';
 import { followAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useFollowStatus } from '@/hooks/use-follow';
 
 interface FollowButtonProps {
   userId: string;
@@ -28,39 +31,30 @@ export function FollowButton({
 }: FollowButtonProps) {
   const { isAuthenticated, user } = useAuthStore();
   const { toast } = useToast();
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing ?? false);
+  const router = useRouter();
+  const { mutate } = useSWRConfig();
   const [loading, setLoading] = useState(false);
-  const [checkingStatus, setCheckingStatus] = useState(initialIsFollowing === undefined);
 
   // Check if this is the user's own profile
   const isOwnProfile = user?.id === userId;
 
-  // Check follow status on mount if not provided
-  useEffect(() => {
-    if (initialIsFollowing === undefined && isAuthenticated && !isOwnProfile) {
-      checkFollowStatus();
-    }
-  }, [userId, isAuthenticated, isOwnProfile, initialIsFollowing]);
+  // Use SWR hook to check follow status (only when initialIsFollowing is not provided)
+  const { data: followStatusData, isLoading: checkingStatus } = useFollowStatus(
+    initialIsFollowing === undefined && !isOwnProfile ? userId : null
+  );
 
-  const checkFollowStatus = async () => {
-    try {
-      setCheckingStatus(true);
-      const response = await followAPI.checkFollowStatus(userId);
-      setIsFollowing(response.data.isFollowing);
-    } catch (error) {
-      console.error('Error checking follow status:', error);
-    } finally {
-      setCheckingStatus(false);
-    }
-  };
+  const isFollowing = initialIsFollowing !== undefined
+    ? initialIsFollowing
+    : (followStatusData?.isFollowing ?? false);
 
   const handleFollowToggle = async () => {
     if (!isAuthenticated) {
       toast({
-        title: 'Login Required',
+        title: 'Sign in required',
         description: 'Please log in to follow users.',
-        variant: 'destructive',
+        variant: 'warning',
       });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
 
@@ -71,7 +65,6 @@ export function FollowButton({
         if (response.data?.error) {
           throw new Error(response.data.error);
         }
-        setIsFollowing(false);
         onFollowChange?.(false);
         toast({
           title: 'Unfollowed',
@@ -82,13 +75,15 @@ export function FollowButton({
         if (response.data?.error) {
           throw new Error(response.data.error);
         }
-        setIsFollowing(true);
         onFollowChange?.(true);
         toast({
           title: 'Following',
           description: 'You are now following this user.',
         });
       }
+      // Invalidate follow-related caches
+      mutate(`/follow/status/${userId}`);
+      mutate((key: unknown) => typeof key === 'string' && key.startsWith('/follow/'), undefined, { revalidate: true });
     } catch (error: any) {
       console.error('Follow error:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to update follow status';

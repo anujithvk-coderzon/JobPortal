@@ -6,7 +6,10 @@ import { useAuthStore } from '@/store/authStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { api } from '@/lib/api';
+import { useDashboardStats } from '@/hooks/use-dashboard';
+import { useCompanies } from '@/hooks/use-companies';
+import { useMyJobNews } from '@/hooks/use-job-news';
+import { useProfile } from '@/hooks/use-profile';
 import {
   Briefcase,
   Loader2,
@@ -27,6 +30,7 @@ import {
 import Link from 'next/link';
 import { ProfileCompletionCard } from '@/components/ProfileCompletionCard';
 import { CompanySelector } from '@/components/CompanySelector';
+import { useToast } from '@/components/ui/use-toast';
 
 interface DashboardStats {
   myApplicationsCount?: number;
@@ -74,59 +78,29 @@ const getJobStatus = (job: any) => {
 function DashboardPageContent() {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({});
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
-  const [profileData, setProfileData] = useState<any>(null);
+  const { toast } = useToast();
   const [showCompanySelector, setShowCompanySelector] = useState(false);
+
+  const { stats, isLoading: statsLoading } = useDashboardStats();
+  const { companies } = useCompanies();
+  const { data: myNewsData, isLoading: newsLoading } = useMyJobNews({ page: 1, limit: 3 });
+  const { data: profileRaw, isLoading: profileLoading } = useProfile();
+
+  const communityPosts: CommunityPost[] = myNewsData?.jobNews || [];
+  const profileData = profileRaw?.profile || null;
+  const loading = statsLoading || newsLoading || profileLoading;
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (!isAuthenticated) { router.push('/auth/login'); return; }
-    fetchDashboardData();
-  }, [isAuthenticated, isHydrated, router]);
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([fetchDashboardStats(), fetchCompanies(), fetchCommunityPosts(), fetchProfile()]);
-    } catch {} finally { setLoading(false); }
-  };
-
-  const fetchDashboardStats = async () => {
-    try {
-      const response = await api.get('/applications/dashboard');
-      if (response.success) setStats(response.data);
-    } catch { setStats({}); }
-  };
-
-  const fetchCompanies = async () => {
-    try {
-      const response = await api.get('/companies');
-      if (response.success) setCompanies(response.data?.companies || response.data?.data?.companies || []);
-    } catch { setCompanies([]); }
-  };
-
-  const fetchCommunityPosts = async () => {
-    try {
-      const response = await api.get('/job-news/user/my-news', { params: { page: 1, limit: 3 } });
-      if (response.success) setCommunityPosts(response.data?.jobNews || response.data?.data?.jobNews || []);
-    } catch { setCommunityPosts([]); }
-  };
-
-  const fetchProfile = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/api/users/profile', {
-        headers: { Authorization: `Bearer ${token}` },
+    if (!isAuthenticated) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
       });
-      if (response.ok) {
-        const data = await response.json();
-        setProfileData(data?.data?.profile || null);
-      }
-    } catch { setProfileData(null); }
-  };
+      setTimeout(() => router.push('/auth/login'), 1500);
+    }
+  }, [isAuthenticated, isHydrated, router]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

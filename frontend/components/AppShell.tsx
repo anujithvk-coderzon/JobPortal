@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer';
 import { useAuthStore } from '@/store/authStore';
 
 const NO_SHELL_ROUTES = ['/auth/login', '/auth/register', '/auth/forgot-password'];
+const CONDITIONAL_SHELL_ROUTES = ['/privacy', '/terms'];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -26,6 +27,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (pathname === '/' && !isAuthenticated) {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
+
+  if (CONDITIONAL_SHELL_ROUTES.some(route => pathname.startsWith(route)) && !isAuthenticated) {
     return <div className="min-h-screen bg-background">{children}</div>;
   }
 

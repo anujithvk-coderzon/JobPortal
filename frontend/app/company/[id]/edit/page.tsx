@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -16,17 +17,77 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Building2, Upload, X, ArrowLeft, Loader2 } from 'lucide-react';
+import {
+  Building2,
+  Upload,
+  X,
+  Loader2,
+  Save,
+  ChevronDown,
+  Lightbulb,
+  CheckCircle2,
+  Info,
+  Link2,
+} from 'lucide-react';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import Image from 'next/image';
+
+// Collapsible section component
+function Section({
+  icon: Icon,
+  title,
+  subtitle,
+  children,
+  defaultOpen = true,
+  badge,
+}: {
+  icon: any;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card className="border border-border/60 bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 p-5 text-left hover:bg-accent/30 transition-colors"
+      >
+        <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+          <Icon className="h-4.5 w-4.5 text-slate-600 dark:text-slate-300" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold">{title}</h2>
+            {badge && (
+              <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0">{badge}</Badge>
+            )}
+          </div>
+          <p className="text-[12px] text-muted-foreground mt-0.5">{subtitle}</p>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <CardContent className="px-5 pb-5 pt-0 border-t border-border/40">
+          <div className="pt-4">{children}</div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
 
 export default function EditCompanyPage() {
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;
   const { user, isAuthenticated, isHydrated } = useAuthStore();
+  const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -56,7 +117,12 @@ export default function EditCompanyPage() {
     if (!isHydrated) return;
 
     if (!isAuthenticated) {
-      router.push('/auth/login');
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
       return;
     }
   }, [isAuthenticated, isHydrated, router]);
@@ -242,36 +308,85 @@ export default function EditCompanyPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <p className="text-[13px] text-muted-foreground">Loading company details...</p>
+        </div>
       </div>
     );
   }
 
+  const completionItems = [
+    { label: 'Company name', done: !!formData.name.trim() },
+    { label: 'Location', done: !!formData.location.trim() },
+    { label: 'PIN Code', done: !!formData.pinCode.trim() && /^\d{6}$/.test(formData.pinCode) },
+    { label: 'Contact Email', done: !!formData.contactEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail) },
+    { label: 'Contact Phone', done: !!formData.contactPhone.trim() },
+    { label: 'Logo', done: !!logoPreview },
+  ];
+  const completionCount = completionItems.filter(i => i.done).length;
+  const completionPct = Math.round((completionCount / completionItems.length) * 100);
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
-        {/* Header */}
-        <div className="mb-6">
-          <Breadcrumb items={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Edit Company' }]} />
+      <div className="max-w-[1100px] mx-auto p-4 sm:p-6 lg:p-8">
+        <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Dashboard', href: '/dashboard' }, { label: 'Edit Company' }]} />
 
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="p-1.5 bg-primary/8 rounded-lg">
-              <Building2 className="h-4 w-4 text-primary" />
-            </div>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
             <h1 className="text-lg font-semibold">Edit Company Profile</h1>
+            <p className="text-[12px] text-muted-foreground mt-0.5">
+              Update your company information
+            </p>
           </div>
-          <p className="text-[13px] text-muted-foreground">Update your company information</p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/company/${companyId}`)}
+              className="text-[13px] h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isSaving}
+              onClick={(e) => {
+                e.preventDefault();
+                const form = document.getElementById('edit-company-form') as HTMLFormElement;
+                if (form) form.requestSubmit();
+              }}
+              className="text-[13px] h-9 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Logo */}
-          <Card className="rounded-lg border bg-card">
-            <div className="p-4 sm:p-6 border-b">
-              <h2 className="text-sm font-semibold">Company Logo</h2>
-              <p className="text-[12px] text-muted-foreground mt-0.5">Optional</p>
-            </div>
-            <CardContent className="p-4 sm:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+          {/* Main Form */}
+          <form id="edit-company-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* Company Logo */}
+            <Section
+              icon={Upload}
+              title="Company Logo"
+              subtitle="Upload your company logo for branding"
+              badge="Optional"
+            >
               {!logoPreview ? (
                 <div className="rounded-lg border-2 border-dashed p-6 text-center hover:border-primary/30 transition-colors">
                   <input type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" id="logo-upload" />
@@ -296,22 +411,21 @@ export default function EditCompanyPage() {
                 </div>
               )}
               {errors.logo && <p className="text-[12px] text-destructive mt-1.5">{errors.logo}</p>}
-            </CardContent>
-          </Card>
+            </Section>
 
-          {/* Required Fields */}
-          <Card className="rounded-lg border bg-card">
-            <div className="p-4 sm:p-6 border-b">
-              <h2 className="text-sm font-semibold">Basic Information</h2>
-              <p className="text-[12px] text-muted-foreground mt-0.5">Required fields are marked with *</p>
-            </div>
-            <CardContent className="p-4 sm:p-6">
+            {/* Basic Information */}
+            <Section
+              icon={Building2}
+              title="Basic Information"
+              subtitle="Company name, location, and contact details"
+              badge="Required"
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-[13px] font-medium">
                     Company Name <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Enter company name" className={`h-9 text-[13px] ${errors.name ? 'border-destructive' : ''}`} />
+                  <Input id="name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Enter company name" className={`h-10 text-[13px] ${errors.name ? 'border-destructive' : ''}`} />
                   {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
                 </div>
 
@@ -319,7 +433,7 @@ export default function EditCompanyPage() {
                   <Label htmlFor="location" className="text-[13px] font-medium">
                     Location <span className="text-destructive">*</span>
                   </Label>
-                  <LocationAutocomplete id="location" value={formData.location} onChange={(value) => handleInputChange('location', value)} placeholder="City, State, Country" className={`h-9 ${errors.location ? 'border-destructive' : ''}`} />
+                  <LocationAutocomplete id="location" value={formData.location} onChange={(value) => handleInputChange('location', value)} placeholder="City, State, Country" className={`h-10 ${errors.location ? 'border-destructive' : ''}`} />
                   {errors.location && <p className="text-[11px] text-destructive">{errors.location}</p>}
                 </div>
 
@@ -327,7 +441,7 @@ export default function EditCompanyPage() {
                   <Label htmlFor="pinCode" className="text-[13px] font-medium">
                     PIN Code <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="pinCode" value={formData.pinCode} onChange={(e) => handleInputChange('pinCode', e.target.value)} placeholder="6-digit PIN code" maxLength={6} className={`h-9 text-[13px] ${errors.pinCode ? 'border-destructive' : ''}`} />
+                  <Input id="pinCode" value={formData.pinCode} onChange={(e) => handleInputChange('pinCode', e.target.value)} placeholder="6-digit PIN code" maxLength={6} className={`h-10 text-[13px] ${errors.pinCode ? 'border-destructive' : ''}`} />
                   {errors.pinCode && <p className="text-[11px] text-destructive">{errors.pinCode}</p>}
                 </div>
 
@@ -335,7 +449,7 @@ export default function EditCompanyPage() {
                   <Label htmlFor="contactEmail" className="text-[13px] font-medium">
                     Contact Email <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="contactEmail" type="email" value={formData.contactEmail} onChange={(e) => handleInputChange('contactEmail', e.target.value)} placeholder="contact@company.com" className={`h-9 text-[13px] ${errors.contactEmail ? 'border-destructive' : ''}`} />
+                  <Input id="contactEmail" type="email" value={formData.contactEmail} onChange={(e) => handleInputChange('contactEmail', e.target.value)} placeholder="contact@company.com" className={`h-10 text-[13px] ${errors.contactEmail ? 'border-destructive' : ''}`} />
                   {errors.contactEmail && <p className="text-[11px] text-destructive">{errors.contactEmail}</p>}
                 </div>
 
@@ -343,155 +457,237 @@ export default function EditCompanyPage() {
                   <Label htmlFor="contactPhone" className="text-[13px] font-medium">
                     Contact Phone <span className="text-destructive">*</span>
                   </Label>
-                  <Input id="contactPhone" value={formData.contactPhone} onChange={(e) => handleInputChange('contactPhone', e.target.value)} placeholder="+1 234 567 8900" className={`h-9 text-[13px] ${errors.contactPhone ? 'border-destructive' : ''}`} />
+                  <Input id="contactPhone" value={formData.contactPhone} onChange={(e) => handleInputChange('contactPhone', e.target.value)} placeholder="+1 234 567 8900" className={`h-10 text-[13px] ${errors.contactPhone ? 'border-destructive' : ''}`} />
                   {errors.contactPhone && <p className="text-[11px] text-destructive">{errors.contactPhone}</p>}
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="website" className="text-[13px] font-medium">Website <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                  <Input id="website" value={formData.website} onChange={(e) => handleInputChange('website', e.target.value)} placeholder="https://company.com" className={`h-9 text-[13px] ${errors.website ? 'border-destructive' : ''}`} />
+                  <Input id="website" value={formData.website} onChange={(e) => handleInputChange('website', e.target.value)} placeholder="https://company.com" className={`h-10 text-[13px] ${errors.website ? 'border-destructive' : ''}`} />
                   {errors.website && <p className="text-[11px] text-destructive">{errors.website}</p>}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </Section>
 
-          {/* Company Details */}
-          <Card className="rounded-lg border bg-card">
-            <div className="p-4 sm:p-6 border-b">
-              <h2 className="text-sm font-semibold">Company Details</h2>
-              <p className="text-[12px] text-muted-foreground mt-0.5">Optional</p>
-            </div>
-            <CardContent className="p-4 sm:p-6 space-y-4">
+            {/* Company Details */}
+            <Section
+              icon={Info}
+              title="Company Details"
+              subtitle="Industry, size, and company description"
+              badge="Optional"
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="industry" className="text-[13px] font-medium">Industry <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                    <Select value={formData.industry} onValueChange={(value) => handleInputChange('industry', value)}>
+                      <SelectTrigger className="h-10 text-[13px]">
+                        <SelectValue placeholder="Select industry" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Technology">Technology</SelectItem>
+                        <SelectItem value="Software Development">Software Development</SelectItem>
+                        <SelectItem value="Information Technology">Information Technology</SelectItem>
+                        <SelectItem value="Healthcare">Healthcare</SelectItem>
+                        <SelectItem value="Finance">Finance</SelectItem>
+                        <SelectItem value="Banking">Banking</SelectItem>
+                        <SelectItem value="Insurance">Insurance</SelectItem>
+                        <SelectItem value="Education">Education</SelectItem>
+                        <SelectItem value="E-Learning">E-Learning</SelectItem>
+                        <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                        <SelectItem value="Retail">Retail</SelectItem>
+                        <SelectItem value="E-Commerce">E-Commerce</SelectItem>
+                        <SelectItem value="Consulting">Consulting</SelectItem>
+                        <SelectItem value="Marketing & Advertising">Marketing & Advertising</SelectItem>
+                        <SelectItem value="Media & Entertainment">Media & Entertainment</SelectItem>
+                        <SelectItem value="Real Estate">Real Estate</SelectItem>
+                        <SelectItem value="Construction">Construction</SelectItem>
+                        <SelectItem value="Telecommunications">Telecommunications</SelectItem>
+                        <SelectItem value="Transportation & Logistics">Transportation & Logistics</SelectItem>
+                        <SelectItem value="Automotive">Automotive</SelectItem>
+                        <SelectItem value="Hospitality">Hospitality</SelectItem>
+                        <SelectItem value="Travel & Tourism">Travel & Tourism</SelectItem>
+                        <SelectItem value="Food & Beverage">Food & Beverage</SelectItem>
+                        <SelectItem value="Pharmaceutical">Pharmaceutical</SelectItem>
+                        <SelectItem value="Biotechnology">Biotechnology</SelectItem>
+                        <SelectItem value="Energy & Utilities">Energy & Utilities</SelectItem>
+                        <SelectItem value="Legal Services">Legal Services</SelectItem>
+                        <SelectItem value="Accounting">Accounting</SelectItem>
+                        <SelectItem value="Human Resources">Human Resources</SelectItem>
+                        <SelectItem value="Non-Profit">Non-Profit</SelectItem>
+                        <SelectItem value="Government">Government</SelectItem>
+                        <SelectItem value="Agriculture">Agriculture</SelectItem>
+                        <SelectItem value="Fashion & Apparel">Fashion & Apparel</SelectItem>
+                        <SelectItem value="Sports & Fitness">Sports & Fitness</SelectItem>
+                        <SelectItem value="Gaming">Gaming</SelectItem>
+                        <SelectItem value="Aerospace & Defense">Aerospace & Defense</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="companySize" className="text-[13px] font-medium">Company Size <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                    <Select value={formData.companySize} onValueChange={(value) => handleInputChange('companySize', value)}>
+                      <SelectTrigger className="h-10 text-[13px]">
+                        <SelectValue placeholder="Select company size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1-10">1-10 employees</SelectItem>
+                        <SelectItem value="11-50">11-50 employees</SelectItem>
+                        <SelectItem value="51-200">51-200 employees</SelectItem>
+                        <SelectItem value="201-500">201-500 employees</SelectItem>
+                        <SelectItem value="501-1000">501-1000 employees</SelectItem>
+                        <SelectItem value="1001-5000">1001-5000 employees</SelectItem>
+                        <SelectItem value="5000+">5000+ employees</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="foundedYear" className="text-[13px] font-medium">Founded Year <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                    <Input id="foundedYear" type="number" value={formData.foundedYear} onChange={(e) => handleInputChange('foundedYear', e.target.value)} placeholder="e.g., 2020" min="1800" max={new Date().getFullYear()} className={`h-10 text-[13px] ${errors.foundedYear ? 'border-destructive' : ''}`} />
+                    {errors.foundedYear && <p className="text-[11px] text-destructive">{errors.foundedYear}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="about" className="text-[13px] font-medium">About Company <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Textarea id="about" value={formData.about} onChange={(e) => handleInputChange('about', e.target.value)} placeholder="Tell us about your company..." rows={4} className="text-[13px] resize-none leading-relaxed" />
+                </div>
+              </div>
+            </Section>
+
+            {/* Social Media */}
+            <Section
+              icon={Link2}
+              title="Social Media"
+              subtitle="Add your company social media profiles"
+              defaultOpen={false}
+              badge="Optional"
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="industry" className="text-[13px] font-medium">Industry <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                  <Select value={formData.industry} onValueChange={(value) => handleInputChange('industry', value)}>
-                    <SelectTrigger className="h-9 text-[13px]">
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Technology">Technology</SelectItem>
-                      <SelectItem value="Software Development">Software Development</SelectItem>
-                      <SelectItem value="Information Technology">Information Technology</SelectItem>
-                      <SelectItem value="Healthcare">Healthcare</SelectItem>
-                      <SelectItem value="Finance">Finance</SelectItem>
-                      <SelectItem value="Banking">Banking</SelectItem>
-                      <SelectItem value="Insurance">Insurance</SelectItem>
-                      <SelectItem value="Education">Education</SelectItem>
-                      <SelectItem value="E-Learning">E-Learning</SelectItem>
-                      <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                      <SelectItem value="Retail">Retail</SelectItem>
-                      <SelectItem value="E-Commerce">E-Commerce</SelectItem>
-                      <SelectItem value="Consulting">Consulting</SelectItem>
-                      <SelectItem value="Marketing & Advertising">Marketing & Advertising</SelectItem>
-                      <SelectItem value="Media & Entertainment">Media & Entertainment</SelectItem>
-                      <SelectItem value="Real Estate">Real Estate</SelectItem>
-                      <SelectItem value="Construction">Construction</SelectItem>
-                      <SelectItem value="Telecommunications">Telecommunications</SelectItem>
-                      <SelectItem value="Transportation & Logistics">Transportation & Logistics</SelectItem>
-                      <SelectItem value="Automotive">Automotive</SelectItem>
-                      <SelectItem value="Hospitality">Hospitality</SelectItem>
-                      <SelectItem value="Travel & Tourism">Travel & Tourism</SelectItem>
-                      <SelectItem value="Food & Beverage">Food & Beverage</SelectItem>
-                      <SelectItem value="Pharmaceutical">Pharmaceutical</SelectItem>
-                      <SelectItem value="Biotechnology">Biotechnology</SelectItem>
-                      <SelectItem value="Energy & Utilities">Energy & Utilities</SelectItem>
-                      <SelectItem value="Legal Services">Legal Services</SelectItem>
-                      <SelectItem value="Accounting">Accounting</SelectItem>
-                      <SelectItem value="Human Resources">Human Resources</SelectItem>
-                      <SelectItem value="Non-Profit">Non-Profit</SelectItem>
-                      <SelectItem value="Government">Government</SelectItem>
-                      <SelectItem value="Agriculture">Agriculture</SelectItem>
-                      <SelectItem value="Fashion & Apparel">Fashion & Apparel</SelectItem>
-                      <SelectItem value="Sports & Fitness">Sports & Fitness</SelectItem>
-                      <SelectItem value="Gaming">Gaming</SelectItem>
-                      <SelectItem value="Aerospace & Defense">Aerospace & Defense</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="linkedIn" className="text-[13px] font-medium">LinkedIn URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="linkedIn" value={formData.linkedIn} onChange={(e) => handleInputChange('linkedIn', e.target.value)} placeholder="https://linkedin.com/company/..." className="h-10 text-[13px]" />
                 </div>
-
                 <div className="space-y-1.5">
-                  <Label htmlFor="companySize" className="text-[13px] font-medium">Company Size <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                  <Select value={formData.companySize} onValueChange={(value) => handleInputChange('companySize', value)}>
-                    <SelectTrigger className="h-9 text-[13px]">
-                      <SelectValue placeholder="Select company size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1-10">1-10 employees</SelectItem>
-                      <SelectItem value="11-50">11-50 employees</SelectItem>
-                      <SelectItem value="51-200">51-200 employees</SelectItem>
-                      <SelectItem value="201-500">201-500 employees</SelectItem>
-                      <SelectItem value="501-1000">501-1000 employees</SelectItem>
-                      <SelectItem value="1001-5000">1001-5000 employees</SelectItem>
-                      <SelectItem value="5000+">5000+ employees</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="twitter" className="text-[13px] font-medium">Twitter URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="twitter" value={formData.twitter} onChange={(e) => handleInputChange('twitter', e.target.value)} placeholder="https://twitter.com/..." className="h-10 text-[13px]" />
                 </div>
-
                 <div className="space-y-1.5">
-                  <Label htmlFor="foundedYear" className="text-[13px] font-medium">Founded Year <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                  <Input id="foundedYear" type="number" value={formData.foundedYear} onChange={(e) => handleInputChange('foundedYear', e.target.value)} placeholder="e.g., 2020" min="1800" max={new Date().getFullYear()} className={`h-9 text-[13px] ${errors.foundedYear ? 'border-destructive' : ''}`} />
-                  {errors.foundedYear && <p className="text-[11px] text-destructive">{errors.foundedYear}</p>}
+                  <Label htmlFor="facebook" className="text-[13px] font-medium">Facebook URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                  <Input id="facebook" value={formData.facebook} onChange={(e) => handleInputChange('facebook', e.target.value)} placeholder="https://facebook.com/..." className="h-10 text-[13px]" />
                 </div>
               </div>
+            </Section>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="about" className="text-[13px] font-medium">About Company <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                <Textarea id="about" value={formData.about} onChange={(e) => handleInputChange('about', e.target.value)} placeholder="Tell us about your company..." rows={4} className="text-[13px]" />
+            {/* Submit Error */}
+            {errors.submit && (
+              <div className="p-3 bg-destructive/5 border border-destructive/10 rounded-lg">
+                <p className="text-[12px] text-destructive">{errors.submit}</p>
               </div>
-            </CardContent>
-          </Card>
+            )}
 
-          {/* Social */}
-          <Card className="rounded-lg border bg-card">
-            <div className="p-4 sm:p-6 border-b">
-              <h2 className="text-sm font-semibold">Social Media</h2>
-              <p className="text-[12px] text-muted-foreground mt-0.5">Optional</p>
+            {/* Bottom Save Bar */}
+            <div className="flex items-center justify-between pt-4 border-t border-border/60">
+              <p className="text-[12px] text-muted-foreground">
+                All changes are saved when you click Save Changes
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/company/${companyId}`)}
+                  disabled={isSaving}
+                  className="text-[13px] h-9"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSaving}
+                  className="text-[13px] h-9 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-1.5 h-3.5 w-3.5" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-            <CardContent className="p-4 sm:p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="linkedIn" className="text-[13px] text-muted-foreground">LinkedIn URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                  <Input id="linkedIn" value={formData.linkedIn} onChange={(e) => handleInputChange('linkedIn', e.target.value)} placeholder="https://linkedin.com/company/..." className="h-9 text-[13px]" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="twitter" className="text-[13px] text-muted-foreground">Twitter URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                  <Input id="twitter" value={formData.twitter} onChange={(e) => handleInputChange('twitter', e.target.value)} placeholder="https://twitter.com/..." className="h-9 text-[13px]" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="facebook" className="text-[13px] text-muted-foreground">Facebook URL <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                  <Input id="facebook" value={formData.facebook} onChange={(e) => handleInputChange('facebook', e.target.value)} placeholder="https://facebook.com/..." className="h-9 text-[13px]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          </form>
 
-          {/* Submit Error */}
-          {errors.submit && (
-            <div className="p-3 bg-destructive/5 border border-destructive/10 rounded-lg">
-              <p className="text-[12px] text-destructive">{errors.submit}</p>
-            </div>
-          )}
+          {/* Sidebar */}
+          <div className="hidden lg:block space-y-4">
+            {/* Completion Tracker */}
+            <Card className="border border-border/60 sticky top-20">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[13px] font-semibold">Completion</h3>
+                  <span className={`text-[12px] font-bold ${completionPct === 100 ? 'text-emerald-600' : completionPct >= 70 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                    {completionPct}%
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mb-4">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      completionPct === 100 ? 'bg-emerald-500' : completionPct >= 70 ? 'bg-amber-500' : 'bg-slate-400'
+                    }`}
+                    style={{ width: `${completionPct}%` }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  {completionItems.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2.5">
+                      {item.done ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                      ) : (
+                        <div className="h-3.5 w-3.5 rounded-full border-2 border-slate-200 dark:border-slate-700 flex-shrink-0" />
+                      )}
+                      <span className={`text-[12px] ${item.done ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}`}>
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/company/${companyId}`)} disabled={isSaving}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
+            {/* Tips */}
+            <Card className="border border-border/60">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                  <h3 className="text-[13px] font-semibold">Editing Tips</h3>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    'Keep your company name consistent across all platforms',
+                    'Add a professional logo to build trust with candidates',
+                    'Provide accurate contact details for better communication',
+                    'Write a compelling "About" section to attract talent',
+                    'Link your social media to showcase company culture',
+                  ].map((tip, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-[11px] font-bold text-muted-foreground/40 mt-0.5 flex-shrink-0">{i + 1}.</span>
+                      <p className="text-[12px] text-muted-foreground leading-relaxed">{tip}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

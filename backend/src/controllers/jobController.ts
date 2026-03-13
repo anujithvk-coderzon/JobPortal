@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import prisma from '../config/database';
 import { AuthRequest, SearchParams } from '../types';
-import { calculateJobMatch, calculateJobMatches } from '../services/jobMatchingService';
+import { calculateJobMatch, calculateJobMatches, calculateJobMatchFromData } from '../services/jobMatchingService';
 import { parseSearchQuery } from '../utils/searchParser';
 import { cacheGet, cacheInvalidate, cacheInvalidatePattern, TTL, CacheKeys, hashQuery } from '../utils/cache';
 
@@ -367,17 +367,33 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
       // If user is authenticated, calculate match scores and sort by match percentage
       if (req.user) {
         try {
-          const jobsWithMatchScores = await Promise.all(
-            jobsWithParsedData.map(async (job) => {
-              try {
-                const matchScore = await calculateJobMatch(req.user!.userId, job.id);
-                return { ...job, matchScore: matchScore.overall };
-              } catch (error) {
-                console.error(`Error calculating match for job ${job.id}:`, error);
-                return { ...job, matchScore: 0 };
+          // Fetch user profile once for all jobs
+          const userWithProfile = await prisma.user.findUnique({
+            where: { id: req.user.userId },
+            include: {
+              profile: {
+                include: {
+                  skills: true,
+                  experiences: true,
+                  education: true,
+                },
+              },
+            },
+          });
+
+          const userProfile = userWithProfile?.profile || null;
+
+          const jobsWithMatchScores = jobsWithParsedData.map((job) => {
+            const matchScore = calculateJobMatchFromData(
+              userProfile,
+              {
+                requiredSkills: job.requiredSkills ? JSON.stringify(job.requiredSkills) : null,
+                experienceLevel: job.experienceLevel as any,
+                requiredQualifications: job.requiredQualifications ? JSON.stringify(job.requiredQualifications) : null,
               }
-            })
-          );
+            );
+            return { ...job, matchScore };
+          });
 
           // Sort by match score descending (highest match first)
           jobsWithParsedData = jobsWithMatchScores.sort((a: any, b: any) => {
@@ -407,17 +423,33 @@ export const getAllJobs = async (req: AuthRequest, res: Response) => {
     // If sorting by match and user is authenticated, calculate match scores and sort
     if (sortBy === 'match' && req.user && !search) {
       try {
-        const jobsWithMatchScores = await Promise.all(
-          jobsWithParsedData.map(async (job) => {
-            try {
-              const matchScore = await calculateJobMatch(req.user!.userId, job.id);
-              return { ...job, matchScore: matchScore.overall };
-            } catch (error) {
-              console.error(`Error calculating match for job ${job.id}:`, error);
-              return { ...job, matchScore: 0 };
+        // Fetch user profile once instead of per-job (avoids N+1 queries)
+        const userWithProfile = await prisma.user.findUnique({
+          where: { id: req.user.userId },
+          include: {
+            profile: {
+              include: {
+                skills: true,
+                experiences: true,
+                education: true,
+              },
+            },
+          },
+        });
+
+        const userProfile = userWithProfile?.profile || null;
+
+        const jobsWithMatchScores = jobsWithParsedData.map((job) => {
+          const matchScore = calculateJobMatchFromData(
+            userProfile,
+            {
+              requiredSkills: job.requiredSkills ? JSON.stringify(job.requiredSkills) : null,
+              experienceLevel: job.experienceLevel as any,
+              requiredQualifications: job.requiredQualifications ? JSON.stringify(job.requiredQualifications) : null,
             }
-          })
-        );
+          );
+          return { ...job, matchScore };
+        });
 
         // Sort by match score descending (highest first)
         const sortedJobs = jobsWithMatchScores.sort((a: any, b: any) => {
@@ -854,7 +886,7 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
       ];
     }
 
-    const [jobs, total, company] = await Promise.all([
+    const [jobs, total, company, activeCount, totalApplications] = await Promise.all([
       prisma.job.findMany({
         where: jobWhereClause,
         skip,
@@ -880,6 +912,14 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
       }),
       prisma.company.findUnique({
         where: { id: companyId },
+      }),
+      prisma.job.count({
+        where: { ...jobWhereClause, isActive: true },
+      }),
+      prisma.application.count({
+        where: {
+          job: { companyId },
+        },
       }),
     ]);
 
@@ -913,6 +953,11 @@ export const getCompanyJobs = async (req: AuthRequest, res: Response) => {
           page: parseInt(page),
           limit: parseInt(limit),
           totalPages: Math.ceil(total / parseInt(limit)),
+        },
+        stats: {
+          totalJobs: total,
+          activeJobs: activeCount,
+          totalApplications,
         },
       },
     });

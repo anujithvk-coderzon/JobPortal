@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import AdminLayout from '@/components/AdminLayout';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { showToast } from '@/components/Toast';
 import { api } from '@/lib/api';
@@ -26,6 +25,7 @@ import {
   User,
   MoreVertical,
   Eye,
+  Loader2,
 } from 'lucide-react';
 
 interface Post {
@@ -211,28 +211,27 @@ export default function PostsPage() {
 
   const StatusBadge = ({ status }: { status: string }) => {
     const config = {
-      PENDING: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: Clock, label: 'Pending Review' },
+      PENDING: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: Clock, label: 'Pending' },
       APPROVED: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle2, label: 'Approved' },
       REJECTED: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: XCircle, label: 'Rejected' },
     }[status] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: AlertCircle, label: status };
 
     const Icon = config.icon;
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${config.bg} ${config.text} border ${config.border}`}>
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-md ${config.bg} ${config.text} border ${config.border}`}>
         <Icon className="h-3 w-3" />
-        <span className="hidden sm:inline">{config.label}</span>
-        <span className="sm:hidden">{status === 'PENDING' ? 'Pending' : config.label}</span>
+        {config.label}
       </span>
     );
   };
 
   const UserAvatar = ({ user }: { user: Post['user'] }) => (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2">
       {user.profilePhoto ? (
         <img
           src={user.profilePhoto}
           alt={user.name}
-          className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm"
+          className="h-8 w-8 rounded-full object-cover"
           referrerPolicy="no-referrer"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
@@ -240,56 +239,44 @@ export default function PostsPage() {
           }}
         />
       ) : null}
-      <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center ring-2 ring-white shadow-sm ${user.profilePhoto ? 'hidden' : ''}`}>
-        <span className="text-white text-xs font-bold">{user.name?.[0]?.toUpperCase() || 'U'}</span>
+      <div className={`h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center ${user.profilePhoto ? 'hidden' : ''}`}>
+        <span className="text-primary text-[11px] font-semibold">{user.name?.[0]?.toUpperCase() || 'U'}</span>
       </div>
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-      </div>
+      <span className="text-[13px] font-medium text-gray-900 truncate">{user.name}</span>
     </div>
   );
 
   return (
-    <AdminLayout>
-      <div className="space-y-4 sm:space-y-6">
-        {/* Header Section */}
-        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 rounded-2xl p-4 sm:p-6 text-white shadow-lg">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <FileText className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold">Post Moderation</h1>
-                <p className="text-indigo-100 text-sm mt-0.5">Review and manage community content</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
-                <span className="text-2xl sm:text-3xl font-bold">{pagination?.total || 0}</span>
-                <span className="text-indigo-100 text-sm ml-2">{filter === 'PENDING' ? 'Awaiting Review' : 'Approved'}</span>
-              </div>
-            </div>
+    <>
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">Post Moderation</h1>
+            <p className="text-[12px] text-gray-500 mt-0.5">Review and manage community content</p>
+          </div>
+          <div className="text-[12px] text-gray-500">
+            <span className="font-semibold text-gray-900 text-[14px]">{pagination?.total || 0}</span> {filter === 'PENDING' ? 'awaiting review' : 'approved'}
           </div>
         </div>
 
-        {/* Filters & Search Card */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* Filters & Search */}
+        <div className="rounded-lg border bg-white overflow-hidden">
           {/* Filter Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b">
             <button
               onClick={() => setFilter('PENDING')}
-              className={`flex-1 sm:flex-none px-6 py-3.5 text-sm font-medium transition-all relative ${
+              className={`flex-1 sm:flex-none px-5 py-2.5 text-[13px] font-medium transition-colors relative ${
                 filter === 'PENDING'
-                  ? 'text-amber-700 bg-amber-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-amber-700 bg-amber-50/50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <div className="flex items-center justify-center gap-2">
-                <Clock className="h-4 w-4" />
+              <div className="flex items-center justify-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
                 <span>Pending</span>
                 {filter === 'PENDING' && pagination?.total > 0 && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-amber-600 text-white rounded-full">
+                  <span className="min-w-[20px] h-5 px-1.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full inline-flex items-center justify-center">
                     {pagination.total}
                   </span>
                 )}
@@ -300,14 +287,14 @@ export default function PostsPage() {
             </button>
             <button
               onClick={() => setFilter('APPROVED')}
-              className={`flex-1 sm:flex-none px-6 py-3.5 text-sm font-medium transition-all relative ${
+              className={`flex-1 sm:flex-none px-5 py-2.5 text-[13px] font-medium transition-colors relative ${
                 filter === 'APPROVED'
-                  ? 'text-emerald-700 bg-emerald-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-emerald-700 bg-emerald-50/50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
+              <div className="flex items-center justify-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
                 <span>Approved</span>
               </div>
               {filter === 'APPROVED' && (
@@ -317,19 +304,19 @@ export default function PostsPage() {
           </div>
 
           {/* Search Bar */}
-          <div className="p-3 sm:p-4">
+          <div className="p-3">
             <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search posts by title or description..."
-                className="w-full pl-10 pr-24 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full pl-9 pr-20 h-9 bg-gray-50 border rounded-md text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
               />
               <button
                 type="submit"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
+                className="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1 bg-gray-900 hover:bg-gray-800 text-white text-[12px] font-medium rounded transition-colors"
               >
                 Search
               </button>
@@ -339,41 +326,41 @@ export default function PostsPage() {
 
         {/* Posts List */}
         {loading ? (
-          <div className="flex items-center justify-center py-20 bg-white rounded-xl border border-gray-200">
+          <div className="flex items-center justify-center py-20 rounded-lg border bg-white">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-500 text-sm font-medium">Loading posts...</p>
+              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+              <p className="text-[12px] text-gray-400">Loading posts...</p>
             </div>
           </div>
         ) : posts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-gray-200">
-            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <FileText className="h-7 w-7 text-gray-400" />
+          <div className="flex flex-col items-center justify-center py-20 rounded-lg border bg-white">
+            <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+              <FileText className="h-6 w-6 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">No posts found</h3>
-            <p className="text-gray-500 text-sm text-center max-w-sm">
+            <h3 className="text-[14px] font-semibold text-gray-900 mb-1">No posts found</h3>
+            <p className="text-[12px] text-gray-500 text-center max-w-sm">
               {search ? 'Try adjusting your search terms' : `No ${filter.toLowerCase()} posts at the moment`}
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {posts.map((post) => (
               <div
                 key={post.id}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                className="rounded-lg border bg-white hover:border-gray-300 transition-colors"
               >
-                {/* Post Header */}
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-3 mb-3">
+                {/* Post Content */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
                         <StatusBadge status={post.moderationStatus} />
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <span className="text-[11px] text-gray-400 flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {formatDate(post.createdAt)}
                         </span>
                       </div>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 leading-snug line-clamp-2">
+                      <h3 className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2">
                         {post.title}
                       </h3>
                     </div>
@@ -385,47 +372,47 @@ export default function PostsPage() {
                           e.stopPropagation();
                           setMobileActionsOpen(mobileActionsOpen === post.id ? null : post.id);
                         }}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-2 hover:bg-gray-100 rounded-md transition-colors"
                       >
-                        <MoreVertical className="h-5 w-5 text-gray-500" />
+                        <MoreVertical className="h-4 w-4 text-gray-400" />
                       </button>
 
                       {/* Mobile Actions Dropdown */}
                       {mobileActionsOpen === post.id && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
+                        <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border py-1 z-20">
                           {post.moderationStatus === 'PENDING' ? (
                             <>
                               <button
                                 onClick={() => { handleApprove(post.id); setMobileActionsOpen(null); }}
                                 disabled={actionLoading === post.id}
-                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-emerald-700 hover:bg-emerald-50 transition-colors"
                               >
-                                <CheckCircle2 className="h-4 w-4" />
-                                Approve Post
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Approve
                               </button>
                               <button
                                 onClick={() => { handleReject(post.id); setMobileActionsOpen(null); }}
                                 disabled={actionLoading === post.id}
-                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+                                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-amber-700 hover:bg-amber-50 transition-colors"
                               >
-                                <XCircle className="h-4 w-4" />
-                                Reject Post
+                                <XCircle className="h-3.5 w-3.5" />
+                                Reject
                               </button>
                               <button
                                 onClick={() => { handleSoftDelete(post.id); setMobileActionsOpen(null); }}
                                 disabled={actionLoading === post.id}
-                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
                                 Delete
                               </button>
-                              <div className="my-1 border-t border-gray-100" />
+                              <div className="my-1 border-t" />
                               <button
                                 onClick={() => { handleBlockUser(post.user.id, post.id); setMobileActionsOpen(null); }}
                                 disabled={actionLoading === post.id}
-                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
+                                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-red-700 hover:bg-red-50 transition-colors"
                               >
-                                <Shield className="h-4 w-4" />
+                                <Shield className="h-3.5 w-3.5" />
                                 Block User
                               </button>
                             </>
@@ -433,9 +420,9 @@ export default function PostsPage() {
                             <button
                               onClick={() => { handleSoftDelete(post.id); setMobileActionsOpen(null); }}
                               disabled={actionLoading === post.id}
-                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-red-700 hover:bg-red-50 transition-colors"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                               Delete
                             </button>
                           )}
@@ -445,20 +432,20 @@ export default function PostsPage() {
                   </div>
 
                   {/* User Info */}
-                  <div className="flex items-center gap-4 mb-3">
+                  <div className="flex items-center gap-4 mb-2.5">
                     <UserAvatar user={post.user} />
                     {(post.companyName || post.location) && (
-                      <div className="hidden sm:flex items-center gap-3 text-xs text-gray-500">
+                      <div className="hidden sm:flex items-center gap-3 text-[11px] text-gray-500 min-w-0 flex-wrap">
                         {post.companyName && (
-                          <span className="flex items-center gap-1">
-                            <Building2 className="h-3.5 w-3.5" />
-                            {post.companyName}
+                          <span className="flex items-center gap-1 min-w-0">
+                            <Building2 className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate max-w-[150px]">{post.companyName}</span>
                           </span>
                         )}
                         {post.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5" />
-                            {post.location}
+                          <span className="flex items-center gap-1 min-w-0">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate max-w-[150px]">{post.location}</span>
                           </span>
                         )}
                       </div>
@@ -466,13 +453,13 @@ export default function PostsPage() {
                   </div>
 
                   {/* Description */}
-                  <p className={`text-sm text-gray-600 leading-relaxed ${expandedPost === post.id ? '' : 'line-clamp-2'}`}>
+                  <p className={`text-[13px] text-gray-600 leading-relaxed ${expandedPost === post.id ? '' : 'line-clamp-2'}`}>
                     {post.description}
                   </p>
                   {post.description.length > 150 && (
                     <button
                       onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
-                      className="text-xs text-indigo-600 hover:text-indigo-700 font-medium mt-1"
+                      className="text-[11px] text-primary hover:text-primary/80 font-medium mt-1"
                     >
                       {expandedPost === post.id ? 'Show less' : 'Read more'}
                     </button>
@@ -480,17 +467,17 @@ export default function PostsPage() {
 
                   {/* Mobile Meta Info */}
                   {(post.companyName || post.location) && (
-                    <div className="flex sm:hidden items-center gap-3 mt-3 text-xs text-gray-500">
+                    <div className="flex sm:hidden items-center gap-3 mt-2 text-[11px] text-gray-500 flex-wrap min-w-0">
                       {post.companyName && (
-                        <span className="flex items-center gap-1">
-                          <Building2 className="h-3.5 w-3.5" />
-                          {post.companyName}
+                        <span className="flex items-center gap-1 min-w-0">
+                          <Building2 className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate max-w-[120px]">{post.companyName}</span>
                         </span>
                       )}
                       {post.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {post.location}
+                        <span className="flex items-center gap-1 min-w-0">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate max-w-[120px]">{post.location}</span>
                         </span>
                       )}
                     </div>
@@ -498,24 +485,24 @@ export default function PostsPage() {
                 </div>
 
                 {/* Actions Bar */}
-                <div className="px-4 sm:px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3">
+                <div className="px-4 py-2.5 bg-gray-50/50 border-t flex items-center justify-between gap-3">
                   {/* Media & Link Buttons */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {post.poster && (
                       <button
                         onClick={() => setPosterModal({ url: post.poster!, title: post.title })}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors"
                       >
-                        <ImageIcon className="h-3.5 w-3.5" />
+                        <ImageIcon className="h-3 w-3" />
                         <span className="hidden sm:inline">View</span> Poster
                       </button>
                     )}
                     {post.video && (
                       <button
                         onClick={() => setVideoModal({ url: post.video!, title: post.title, aspectRatio: post.videoAspectRatio })}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors"
                       >
-                        <Play className="h-3.5 w-3.5" fill="currentColor" />
+                        <Play className="h-3 w-3" fill="currentColor" />
                         <span className="hidden sm:inline">Watch</span> Video
                       </button>
                     )}
@@ -524,28 +511,28 @@ export default function PostsPage() {
                         href={post.externalLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-gray-700 bg-white hover:bg-gray-100 border rounded-md transition-colors"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        <ExternalLink className="h-3 w-3" />
                         <span className="hidden sm:inline">External</span> Link
                       </a>
                     )}
                   </div>
 
                   {/* Desktop Actions */}
-                  <div className="hidden lg:flex items-center gap-2">
+                  <div className="hidden lg:flex items-center gap-1.5">
                     {post.moderationStatus === 'PENDING' ? (
                       <>
                         <button
                           onClick={() => handleApprove(post.id)}
                           disabled={actionLoading === post.id}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all shadow-sm disabled:opacity-50"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors disabled:opacity-50"
                         >
                           {actionLoading === post.id ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
                             <>
-                              <CheckCircle2 className="h-4 w-4" />
+                              <CheckCircle2 className="h-3.5 w-3.5" />
                               Approve
                             </>
                           )}
@@ -553,25 +540,25 @@ export default function PostsPage() {
                         <button
                           onClick={() => handleReject(post.id)}
                           disabled={actionLoading === post.id}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-all disabled:opacity-50"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors disabled:opacity-50"
                         >
-                          <XCircle className="h-4 w-4" />
+                          <XCircle className="h-3.5 w-3.5" />
                           Reject
                         </button>
                         <button
                           onClick={() => handleSoftDelete(post.id)}
                           disabled={actionLoading === post.id}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-all disabled:opacity-50"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border rounded-md transition-colors disabled:opacity-50"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                           Delete
                         </button>
                         <button
                           onClick={() => handleBlockUser(post.user.id, post.id)}
                           disabled={actionLoading === post.id}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all disabled:opacity-50"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors disabled:opacity-50"
                         >
-                          <Shield className="h-4 w-4" />
+                          <Shield className="h-3.5 w-3.5" />
                           Block
                         </button>
                       </>
@@ -579,13 +566,13 @@ export default function PostsPage() {
                       <button
                         onClick={() => handleSoftDelete(post.id)}
                         disabled={actionLoading === post.id}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors disabled:opacity-50"
                       >
                         {actionLoading === post.id ? (
-                          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                             Delete
                           </>
                         )}
@@ -596,8 +583,8 @@ export default function PostsPage() {
 
                 {/* Rejection Reason */}
                 {post.rejectionReason && (
-                  <div className="px-4 sm:px-5 py-3 bg-red-50 border-t border-red-100">
-                    <p className="text-xs text-red-800">
+                  <div className="px-4 py-2.5 bg-red-50/50 border-t border-red-100">
+                    <p className="text-[11px] text-red-800">
                       <strong className="font-semibold">Rejection Reason:</strong> {post.rejectionReason}
                     </p>
                   </div>
@@ -605,17 +592,17 @@ export default function PostsPage() {
 
                 {/* Mobile Action Bar for Approved Posts */}
                 {post.moderationStatus === 'APPROVED' && (
-                  <div className="lg:hidden px-4 sm:px-5 py-3 bg-gray-50 border-t border-gray-100">
+                  <div className="lg:hidden px-4 py-2.5 bg-gray-50/50 border-t">
                     <button
                       onClick={() => handleSoftDelete(post.id)}
                       disabled={actionLoading === post.id}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-700 bg-white hover:bg-red-50 border border-red-200 rounded-lg transition-all disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-medium text-red-700 bg-white hover:bg-red-50 border border-red-200 rounded-md transition-colors disabled:opacity-50"
                     >
                       {actionLoading === post.id ? (
-                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <>
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                           Delete
                         </>
                       )}
@@ -629,9 +616,9 @@ export default function PostsPage() {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-sm text-gray-600 order-2 sm:order-1">
+          <div className="rounded-lg border bg-white p-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-[12px] text-gray-500 order-2 sm:order-1">
                 Showing <span className="font-semibold text-gray-900">{((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
                 <span className="font-semibold text-gray-900">{pagination.total}</span>
               </p>
@@ -639,11 +626,11 @@ export default function PostsPage() {
                 <button
                   onClick={() => fetchPosts(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="p-1.5 rounded-md border text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
-                <div className="flex items-center gap-1 px-2">
+                <div className="flex items-center gap-0.5 px-1">
                   {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                     let pageNum;
                     if (pagination.totalPages <= 5) {
@@ -659,10 +646,10 @@ export default function PostsPage() {
                       <button
                         key={pageNum}
                         onClick={() => fetchPosts(pageNum)}
-                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                        className={`min-w-[32px] h-8 rounded-md text-[12px] font-medium transition-colors ${
                           pagination.page === pageNum
-                            ? 'bg-indigo-600 text-white'
-                            : 'text-gray-600 hover:bg-gray-100'
+                            ? 'bg-gray-900 text-white'
+                            : 'text-gray-500 hover:bg-gray-100'
                         }`}
                       >
                         {pageNum}
@@ -673,9 +660,9 @@ export default function PostsPage() {
                 <button
                   onClick={() => fetchPosts(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="p-1.5 rounded-md border text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -684,48 +671,48 @@ export default function PostsPage() {
 
         {/* Rejection Modal */}
         {rejectingPostId && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-              <div className="p-4 sm:p-5 border-b border-gray-100">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+              <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="p-1.5 sm:p-2 bg-amber-100 rounded-lg">
-                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 bg-amber-100 rounded-md flex items-center justify-center">
+                      <XCircle className="h-4 w-4 text-amber-600" />
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Reject Post</h3>
+                    <h3 className="text-[14px] font-semibold text-gray-900">Reject Post</h3>
                   </div>
-                  <button onClick={cancelReject} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                    <X className="h-5 w-5 text-gray-400" />
+                  <button onClick={cancelReject} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors">
+                    <X className="h-4 w-4 text-gray-400" />
                   </button>
                 </div>
               </div>
-              <div className="p-4 sm:p-5">
-                <p className="text-sm text-gray-600 mb-4">
+              <div className="p-4">
+                <p className="text-[13px] text-gray-600 mb-3">
                   Provide a reason for rejection. This will be sent to the user as a notification.
                 </p>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="Enter rejection reason (optional)..."
-                  className="w-full px-3 sm:px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"
+                  className="w-full px-3 py-2.5 bg-gray-50 border rounded-md text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
                   rows={3}
                 />
               </div>
-              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+              <div className="p-4 bg-gray-50 border-t flex gap-2">
                 <button
                   onClick={cancelReject}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-gray-700 bg-white border rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmReject}
                   disabled={actionLoading === rejectingPostId}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {actionLoading === rejectingPostId ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Rejecting...
                     </>
                   ) : (
@@ -739,46 +726,46 @@ export default function PostsPage() {
 
         {/* Approve Modal */}
         {approvingPostId && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
-              <div className="p-4 sm:p-5 border-b border-gray-100">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+              <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="p-1.5 sm:p-2 bg-emerald-100 rounded-lg">
-                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 bg-emerald-100 rounded-md flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Approve Post</h3>
+                    <h3 className="text-[14px] font-semibold text-gray-900">Approve Post</h3>
                   </div>
-                  <button onClick={() => setApprovingPostId(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                    <X className="h-5 w-5 text-gray-400" />
+                  <button onClick={() => setApprovingPostId(null)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors">
+                    <X className="h-4 w-4 text-gray-400" />
                   </button>
                 </div>
               </div>
-              <div className="p-4 sm:p-5">
-                <p className="text-sm text-gray-600">
+              <div className="p-4">
+                <p className="text-[13px] text-gray-600">
                   This post will be published and visible to all users. Make sure the content follows community guidelines.
                 </p>
               </div>
-              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+              <div className="p-4 bg-gray-50 border-t flex gap-2">
                 <button
                   onClick={() => setApprovingPostId(null)}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-gray-700 bg-white border rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmApprove}
                   disabled={actionLoading === approvingPostId}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {actionLoading === approvingPostId ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Approving...
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                       Approve
                     </>
                   )}
@@ -790,51 +777,51 @@ export default function PostsPage() {
 
         {/* Block User Modal */}
         {blockingUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
-              <div className="p-4 sm:p-5 border-b border-gray-100">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+              <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
-                      <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 bg-red-100 rounded-md flex items-center justify-center">
+                      <Shield className="h-4 w-4 text-red-600" />
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Block User</h3>
+                    <h3 className="text-[14px] font-semibold text-gray-900">Block User</h3>
                   </div>
-                  <button onClick={() => setBlockingUser(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                    <X className="h-5 w-5 text-gray-400" />
+                  <button onClick={() => setBlockingUser(null)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors">
+                    <X className="h-4 w-4 text-gray-400" />
                   </button>
                 </div>
               </div>
-              <div className="p-4 sm:p-5">
-                <p className="text-sm text-gray-600 mb-3">
+              <div className="p-4">
+                <p className="text-[13px] text-gray-600 mb-3">
                   This will block the user and reject their post. The user will no longer be able to access the platform.
                 </p>
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-sm text-amber-800">
+                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md">
+                  <p className="text-[12px] text-amber-800">
                     <strong>Warning:</strong> This action can be reversed from the Users page.
                   </p>
                 </div>
               </div>
-              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+              <div className="p-4 bg-gray-50 border-t flex gap-2">
                 <button
                   onClick={() => setBlockingUser(null)}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-gray-700 bg-white border rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmBlockUser}
                   disabled={actionLoading === blockingUser.postId}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {actionLoading === blockingUser.postId ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Blocking...
                     </>
                   ) : (
                     <>
-                      <Shield className="h-4 w-4" />
+                      <Shield className="h-3.5 w-3.5" />
                       Block User
                     </>
                   )}
@@ -846,48 +833,48 @@ export default function PostsPage() {
 
         {/* Delete Modal */}
         {deletingPostId && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-              <div className="p-4 sm:p-5 border-b border-gray-100">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+              <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
-                      <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 bg-red-100 rounded-md flex items-center justify-center">
+                      <Trash2 className="h-4 w-4 text-red-600" />
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Delete Post</h3>
+                    <h3 className="text-[14px] font-semibold text-gray-900">Delete Post</h3>
                   </div>
-                  <button onClick={cancelSoftDelete} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                    <X className="h-5 w-5 text-gray-400" />
+                  <button onClick={cancelSoftDelete} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors">
+                    <X className="h-4 w-4 text-gray-400" />
                   </button>
                 </div>
               </div>
-              <div className="p-4 sm:p-5">
-                <p className="text-sm text-gray-600 mb-4">
+              <div className="p-4">
+                <p className="text-[13px] text-gray-600 mb-3">
                   This will hide the post from all users. It can be restored later from the Deleted Posts section.
                 </p>
                 <textarea
                   value={deletionReason}
                   onChange={(e) => setDeletionReason(e.target.value)}
                   placeholder="Enter reason for deletion (optional but recommended)..."
-                  className="w-full px-3 sm:px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none"
+                  className="w-full px-3 py-2.5 bg-gray-50 border rounded-md text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
                   rows={3}
                 />
               </div>
-              <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+              <div className="p-4 bg-gray-50 border-t flex gap-2">
                 <button
                   onClick={cancelSoftDelete}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-gray-700 bg-white border rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmSoftDelete}
                   disabled={actionLoading === deletingPostId}
-                  className="w-full sm:flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-3 py-2 text-[13px] font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {actionLoading === deletingPostId ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Deleting...
                     </>
                   ) : (
@@ -906,16 +893,16 @@ export default function PostsPage() {
             onClick={() => setVideoModal(null)}
           >
             <div
-              className="relative w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-2xl bg-white rounded-lg overflow-hidden shadow-lg"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-900 truncate pr-4">{videoModal.title}</h3>
+              <div className="flex items-center justify-between p-3 border-b">
+                <h3 className="text-[13px] font-semibold text-gray-900 truncate pr-4">{videoModal.title}</h3>
                 <button
                   onClick={() => setVideoModal(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
                 >
-                  <X className="h-5 w-5 text-gray-400" />
+                  <X className="h-4 w-4 text-gray-400" />
                 </button>
               </div>
               <div className="bg-black">
@@ -937,30 +924,30 @@ export default function PostsPage() {
             onClick={() => setPosterModal(null)}
           >
             <div
-              className="relative bg-white rounded-2xl overflow-hidden shadow-2xl"
+              className="relative bg-white rounded-lg overflow-hidden shadow-lg"
               style={{ maxWidth: '90vw', maxHeight: '90vh' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-900 truncate pr-4">{posterModal.title}</h3>
+              <div className="flex items-center justify-between p-3 border-b">
+                <h3 className="text-[13px] font-semibold text-gray-900 truncate pr-4">{posterModal.title}</h3>
                 <button
                   onClick={() => setPosterModal(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
                 >
-                  <X className="h-5 w-5 text-gray-400" />
+                  <X className="h-4 w-4 text-gray-400" />
                 </button>
               </div>
               <div className="bg-gray-100 flex items-center justify-center p-4">
                 <img
                   src={posterModal.url}
                   alt={posterModal.title}
-                  className="max-w-full max-h-[75vh] object-contain rounded-lg"
+                  className="max-w-full max-h-[75vh] object-contain rounded-md"
                 />
               </div>
             </div>
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

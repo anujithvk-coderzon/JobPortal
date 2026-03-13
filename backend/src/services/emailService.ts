@@ -53,7 +53,7 @@ export const sendVerificationCode = async ({ email, name, code }: SendVerificati
       email: SENDER_EMAIL
     },
     to: [{ email, name }],
-    subject: 'Verify Your Email - JobConnect',
+    subject: 'Verify Your Email - jobaye',
     htmlContent: `
       <!DOCTYPE html>
       <html lang="en">
@@ -72,7 +72,7 @@ export const sendVerificationCode = async ({ email, name, code }: SendVerificati
                 <!-- Header -->
                 <tr>
                   <td style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.3px;">JobConnect</h1>
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.3px;">jobaye</h1>
                     <p style="color: #dbeafe; margin: 6px 0 0 0; font-size: 14px;">Email Verification</p>
                   </td>
                 </tr>
@@ -82,7 +82,7 @@ export const sendVerificationCode = async ({ email, name, code }: SendVerificati
                   <td style="padding: 35px 40px 30px 40px;">
                     <p style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Hello ${name},</p>
                     <p style="color: #4b5563; font-size: 14px; line-height: 22px; margin: 0 0 24px 0;">
-                      Thank you for registering with JobConnect. Please use the verification code below to complete your account setup.
+                      Thank you for registering with jobaye. Please use the verification code below to complete your account setup.
                     </p>
 
                     <!-- Verification Code -->
@@ -116,7 +116,7 @@ export const sendVerificationCode = async ({ email, name, code }: SendVerificati
                 <tr>
                   <td style="background-color: #f9fafb; padding: 20px 40px; border-top: 1px solid #e5e7eb;">
                     <p style="color: #6b7280; font-size: 12px; line-height: 18px; margin: 0; text-align: center;">
-                      &copy; ${new Date().getFullYear()} JobConnect. All rights reserved.<br>
+                      &copy; ${new Date().getFullYear()} jobaye. All rights reserved.<br>
                       <a href="mailto:support@jobconnect.com" style="color: #2563eb; text-decoration: none;">support@jobconnect.com</a>
                     </p>
                   </td>
@@ -146,7 +146,7 @@ export const sendPasswordResetCode = async ({ email, name, code }: SendPasswordR
       email: SENDER_EMAIL
     },
     to: [{ email, name }],
-    subject: 'Reset Your Password - JobConnect',
+    subject: 'Reset Your Password - jobaye',
     htmlContent: `
       <!DOCTYPE html>
       <html lang="en">
@@ -162,7 +162,7 @@ export const sendPasswordResetCode = async ({ email, name, code }: SendPasswordR
               <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                 <tr>
                   <td style="background-color: #dc2626; padding: 30px 40px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.3px;">JobConnect</h1>
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.3px;">jobaye</h1>
                     <p style="color: #fecaca; margin: 6px 0 0 0; font-size: 14px;">Password Reset</p>
                   </td>
                 </tr>
@@ -197,7 +197,7 @@ export const sendPasswordResetCode = async ({ email, name, code }: SendPasswordR
                 <tr>
                   <td style="background-color: #f9fafb; padding: 20px 40px; border-top: 1px solid #e5e7eb;">
                     <p style="color: #6b7280; font-size: 12px; line-height: 18px; margin: 0; text-align: center;">
-                      &copy; ${new Date().getFullYear()} JobConnect. All rights reserved.
+                      &copy; ${new Date().getFullYear()} jobaye. All rights reserved.
                     </p>
                   </td>
                 </tr>
@@ -225,7 +225,7 @@ export const sendWelcomeEmail = async ({ email, name }: SendWelcomeEmailParams):
       email: SENDER_EMAIL
     },
     to: [{ email, name }],
-    subject: 'Welcome to JobConnect',
+    subject: 'Welcome to jobaye',
     htmlContent: `
       <!DOCTYPE html>
       <html lang="en">
@@ -233,7 +233,7 @@ export const sendWelcomeEmail = async ({ email, name }: SendWelcomeEmailParams):
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>Welcome to JobConnect</title>
+        <title>Welcome to jobaye</title>
       </head>
       <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 10px;">
@@ -244,7 +244,7 @@ export const sendWelcomeEmail = async ({ email, name }: SendWelcomeEmailParams):
                 <!-- Header -->
                 <tr>
                   <td style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Welcome to JobConnect</h1>
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Welcome to jobaye</h1>
                   </td>
                 </tr>
 
@@ -253,7 +253,7 @@ export const sendWelcomeEmail = async ({ email, name }: SendWelcomeEmailParams):
                   <td style="padding: 35px 40px 30px 40px;">
                     <p style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Hello ${name},</p>
                     <p style="color: #4b5563; font-size: 14px; line-height: 22px; margin: 0 0 24px 0;">
-                      Your account has been successfully created. Get started by exploring what JobConnect has to offer.
+                      Your account has been successfully created. Get started by exploring what jobaye has to offer.
                     </p>
 
                     <!-- Getting Started Steps -->
@@ -297,7 +297,7 @@ export const sendWelcomeEmail = async ({ email, name }: SendWelcomeEmailParams):
                 <tr>
                   <td style="background-color: #f9fafb; padding: 20px 40px; border-top: 1px solid #e5e7eb;">
                     <p style="color: #6b7280; font-size: 12px; line-height: 18px; margin: 0; text-align: center;">
-                      &copy; ${new Date().getFullYear()} JobConnect. All rights reserved.
+                      &copy; ${new Date().getFullYear()} jobaye. All rights reserved.
                     </p>
                   </td>
                 </tr>
@@ -422,7 +422,7 @@ export const sendInterviewScheduledEmail = async (params: SendInterviewScheduled
               <tr>
                 <td style="background-color: #f9fafb; padding: 16px 30px; border-top: 1px solid #e5e7eb;">
                   <p style="color: #6b7280; font-size: 11px; line-height: 16px; margin: 0; text-align: center;">
-                    ${params.companyName} | &copy; ${new Date().getFullYear()} JobConnect
+                    ${params.companyName} | &copy; ${new Date().getFullYear()} jobaye
                   </p>
                 </td>
               </tr>
@@ -514,7 +514,7 @@ export const sendRejectionEmail = async (params: SendRejectionEmailParams): Prom
               <tr>
                 <td style="background-color: #f9fafb; padding: 16px 30px; border-top: 1px solid #e5e7eb;">
                   <p style="color: #6b7280; font-size: 11px; line-height: 16px; margin: 0; text-align: center;">
-                    ${params.companyName} | &copy; ${new Date().getFullYear()} JobConnect
+                    ${params.companyName} | &copy; ${new Date().getFullYear()} jobaye
                   </p>
                 </td>
               </tr>
@@ -600,7 +600,7 @@ export const sendHiredEmail = async (params: SendHiredEmailParams): Promise<bool
               <tr>
                 <td style="background-color: #f9fafb; padding: 16px 30px; border-top: 1px solid #e5e7eb;">
                   <p style="color: #6b7280; font-size: 11px; line-height: 16px; margin: 0; text-align: center;">
-                    ${params.companyName} | &copy; ${new Date().getFullYear()} JobConnect
+                    ${params.companyName} | &copy; ${new Date().getFullYear()} jobaye
                   </p>
                 </td>
               </tr>

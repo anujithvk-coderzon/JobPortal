@@ -272,6 +272,30 @@ function calculateEducationMatch(
 }
 
 /**
+ * Calculate match score using pre-fetched user and job data (avoids N+1 queries)
+ */
+export const calculateJobMatchFromData = (
+  userProfile: {
+    skills: Array<{ name: string; level?: string | null }>;
+    experiences: Array<{ startDate: Date; endDate: Date | null; current: boolean }>;
+    education: Array<{ degree: string; fieldOfStudy: string }>;
+  } | null,
+  job: { requiredSkills: string | null; experienceLevel: ExperienceLevel; requiredQualifications: string | null }
+): number => {
+  if (!userProfile) return 0;
+
+  const skillsMatch = calculateSkillsMatch(userProfile.skills || [], job.requiredSkills);
+  const experienceMatch = calculateExperienceMatch(userProfile.experiences || [], job.experienceLevel);
+  const educationMatch = calculateEducationMatch(userProfile.education || [], job.requiredQualifications);
+
+  return Math.round(
+    skillsMatch.score * 0.4 +
+    experienceMatch.score * 0.3 +
+    educationMatch.score * 0.3
+  );
+};
+
+/**
  * Calculate match scores for multiple jobs
  */
 export const calculateJobMatches = async (

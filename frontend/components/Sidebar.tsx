@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { Logo } from '@/components/Logo';
+import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
-import { api, notificationAPI } from '@/lib/api';
+import { useCompanies } from '@/hooks/use-companies';
+import { useNotifications } from '@/hooks/use-notifications';
 import Image from 'next/image';
 import {
   Briefcase,
@@ -69,11 +71,10 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [companiesLoading, setCompaniesLoading] = useState(false);
   const [jobPostOpen, setJobPostOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+
+  const { companies, isLoading: companiesLoading } = useCompanies();
+  const { notifications, unreadCount, markAsRead } = useNotifications();
 
   const handleLogout = async () => {
     try {
@@ -84,39 +85,9 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
     router.push('/');
   };
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      (async () => {
-        try {
-          setCompaniesLoading(true);
-          const response = await api.get('/companies');
-          if (response.success) setCompanies(response.data.companies);
-        } catch {} finally {
-          setCompaniesLoading(false);
-        }
-      })();
-
-      // Fetch notifications
-      const fetchNotifications = async () => {
-        try {
-          const response = await notificationAPI.getNotifications();
-          if (response.data?.success) {
-            setNotifications(response.data.data || []);
-            setUnreadCount((response.data.data || []).length);
-          }
-        } catch {}
-      };
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated]);
-
   const handleNotificationClick = async (notification: Notification) => {
     try {
-      await notificationAPI.markAsRead(notification.id);
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      await markAsRead(notification.id);
       const noNav = ['POST_REJECTED', 'POST_DELETED'];
       if (notification.postId && !noNav.includes(notification.type)) {
         router.push(`/community/${notification.postId}`);
@@ -129,7 +100,7 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
     { href: '/', icon: Home, label: 'Home' },
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/jobs', icon: Search, label: 'Jobs' },
-    { href: '/applications', icon: FileText, label: 'Applications' },
+    { href: '/applications', icon: FileText, label: 'My Applications' },
     { href: '/community', icon: Users, label: 'Community' },
     { href: '/my-page', icon: UserCircle, label: 'My Page' },
   ];
@@ -182,11 +153,9 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
       {/* ── Header ── */}
       <div className={`flex items-center h-14 border-b border-border/60 flex-shrink-0 ${collapsed ? 'justify-center px-2' : 'px-4 justify-between'}`}>
         <Link href="/" onClick={onClose} className="flex items-center gap-2.5 min-w-0">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <Briefcase className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <Logo size={32} />
           {!collapsed && (
-            <span className="font-semibold text-[15px] tracking-tight truncate">JobConnect</span>
+            <span className="font-semibold text-[15px] tracking-tight truncate">job<span className="text-indigo-500">aye</span></span>
           )}
         </Link>
 
@@ -377,8 +346,8 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
               onClick={() => navigate('/community/create')}
               className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
             >
-              <div className="h-5 w-5 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <MessageSquarePlus className="h-3 w-3 text-blue-600" />
+              <div className="h-5 w-5 rounded bg-indigo-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <MessageSquarePlus className="h-3 w-3 text-indigo-600" />
               </div>
               <div className="min-w-0">
                 <span className="text-[13px] font-medium block">Community Post</span>
@@ -429,7 +398,7 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
                       {companies.map((company) => (
                         <button
                           key={company.id}
-                          onClick={() => navigate(`/jobs/post?companyId=${company.id}`)}
+                          onClick={() => navigate(`/company/${company.id}`)}
                           className="w-full flex items-center gap-2 px-2.5 h-7 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
                         >
                           {company.logo ? (
@@ -498,7 +467,7 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
                       Companies
                     </DropdownMenuLabel>
                     {companies.map((c) => (
-                      <DropdownMenuItem key={c.id} onClick={() => navigate(`/jobs/post?companyId=${c.id}`)}>
+                      <DropdownMenuItem key={c.id} onClick={() => navigate(`/company/${c.id}`)}>
                         <Building2 className="mr-2 h-4 w-4" />
                         {c.name}
                       </DropdownMenuItem>

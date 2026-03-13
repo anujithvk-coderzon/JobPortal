@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/Logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -17,7 +18,10 @@ import { useAuthStore } from '@/store/authStore';
 import { getInitials } from '@/lib/utils';
 import { Briefcase, Menu, X, User, LogOut, ChevronDown, Building2, Plus, MessageSquarePlus, Bell } from 'lucide-react';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
-import { api, authAPI, notificationAPI } from '@/lib/api';
+import { authAPI } from '@/lib/api';
+import { useCompanies } from '@/hooks/use-companies';
+import { useNotifications } from '@/hooks/use-notifications';
+import { useDashboardStats } from '@/hooks/use-dashboard';
 import Image from 'next/image';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -43,11 +47,11 @@ export function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [companiesLoading, setCompaniesLoading] = useState(false);
-  const [pendingApplicationsCount, setPendingApplicationsCount] = useState(0);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+
+  const { companies, isLoading: companiesLoading } = useCompanies();
+  const { notifications, unreadCount, markAsRead } = useNotifications();
+  const { stats } = useDashboardStats();
+  const pendingApplicationsCount = stats?.pendingApplicationsCount || 0;
 
   const handleLogout = async () => {
     try {
@@ -59,60 +63,10 @@ export function Navbar() {
     router.push('/');
   };
 
-  const fetchCompanies = async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      setCompaniesLoading(true);
-      const response = await api.get('/companies');
-      if (response.success) {
-        setCompanies(response.data.companies);
-      }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-    } finally {
-      setCompaniesLoading(false);
-    }
-  };
-
-  const fetchPendingApplications = async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      const response = await api.get('/applications/dashboard');
-      if (response.success) {
-        setPendingApplicationsCount(response.data.pendingApplicationsCount || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching pending applications:', error);
-    }
-  };
-
-  const fetchNotifications = async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      const response = await notificationAPI.getNotifications();
-      if (response.data?.success) {
-        setNotifications(response.data.data || []);
-        setUnreadCount((response.data.data || []).length);
-      }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  };
-
   const handleNotificationClick = async (notification: Notification) => {
     try {
-      // Mark as read
-      await notificationAPI.markAsRead(notification.id);
+      await markAsRead(notification.id);
 
-      // Remove from list
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-
-      // Don't navigate for rejected or deleted posts (they no longer exist)
-      // Only navigate to post if it exists and is NOT a rejection/deletion notification
       const noNavigationTypes = ['POST_REJECTED', 'POST_DELETED'];
       if (notification.postId && !noNavigationTypes.includes(notification.type)) {
         router.push(`/community/${notification.postId}`);
@@ -121,21 +75,6 @@ export function Navbar() {
       console.error('Error marking notification as read:', error);
     }
   };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchCompanies();
-      fetchPendingApplications();
-      fetchNotifications();
-
-      // Refresh counts every 30 seconds
-      const interval = setInterval(() => {
-        fetchPendingApplications();
-        fetchNotifications();
-      }, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated]);
 
   const NavLink = ({ href, children, badge, className = '' }: { href: string; children: React.ReactNode; badge?: number; className?: string }) => {
     const isActive = pathname === href;
@@ -179,8 +118,8 @@ export function Navbar() {
             </Button>
 
             <Link href="/" className="flex items-center gap-2 mr-4">
-              <Briefcase className="h-5 w-5 text-primary flex-shrink-0" />
-              <span className="font-bold text-sm lg:text-base truncate">Job Portal</span>
+              <Logo size={32} />
+              <span className="font-bold text-sm lg:text-base tracking-tight truncate">job<span className="text-indigo-500">aye</span></span>
             </Link>
 
             {/* Desktop Navigation - Visible on large screens */}
@@ -226,8 +165,8 @@ export function Navbar() {
                       onClick={() => router.push('/community/create')}
                       className="flex items-center gap-3 py-3 px-3 cursor-pointer"
                     >
-                      <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <MessageSquarePlus className="h-5 w-5 text-blue-600" />
+                      <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <MessageSquarePlus className="h-5 w-5 text-indigo-600" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="font-medium block text-sm">Share to Community</span>
@@ -430,8 +369,8 @@ export function Navbar() {
                     className="flex items-center gap-2 px-3 py-2.5 min-h-10 rounded-md text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MessageSquarePlus className="h-4 w-4 text-blue-600" />
+                    <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <MessageSquarePlus className="h-4 w-4 text-indigo-600" />
                     </div>
                     <div className="min-w-0">
                       <span className="block text-sm font-medium truncate">Share to Community</span>

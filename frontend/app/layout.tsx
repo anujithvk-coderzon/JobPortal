@@ -4,12 +4,16 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AppShell } from "@/components/AppShell";
+import { SWRProvider } from "@/lib/swr-config";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "JobConnect - Professional Job Posting Platform",
+  title: "jobaye - Professional Job Posting Platform",
   description: "Find your dream job or hire top talent. A professional platform connecting job seekers with employers.",
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
@@ -21,9 +25,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className}`}>
         <AuthProvider>
-          <AppShell>
-            {children}
-          </AppShell>
+          <SWRProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </SWRProvider>
         </AuthProvider>
         <Toaster />
       </body>

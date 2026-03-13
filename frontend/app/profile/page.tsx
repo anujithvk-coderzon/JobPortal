@@ -52,8 +52,11 @@ import {
   Phone,
   Mail,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { api, userAPI } from '@/lib/api';
+import { useSWRConfig } from 'swr';
+import { useProfile } from '@/hooks/use-profile';
 
 interface Education {
   id: string;
@@ -89,6 +92,7 @@ function ProfilePageContent() {
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isHydrated, updateUser, triggerProfileUpdate } = useAuthStore();
   const { toast } = useToast();
+  const { mutate: globalMutate } = useSWRConfig();
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
@@ -103,12 +107,16 @@ function ProfilePageContent() {
     skills: true,
   });
 
+  // SWR profile fetch
+  const { data: swrProfileData, mutate: mutateProfile } = useProfile();
+
   // Basic Profile
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [bio, setBio] = useState('');
   const [profileData, setProfileData] = useState<any>(null);
+  const [profileInitialized, setProfileInitialized] = useState(false);
 
   // Education, Experience, Skills
   const [education, setEducation] = useState<Education[]>([]);
@@ -120,6 +128,11 @@ function ProfilePageContent() {
   const [showExperienceForm, setShowExperienceForm] = useState(false);
   const [showSkillForm, setShowSkillForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+
+  // Interests
+  const [interests, setInterests] = useState<string[]>([]);
+  const [newInterest, setNewInterest] = useState('');
+  const [savingInterests, setSavingInterests] = useState(false);
 
   // Delete dialog states
   const [deleteEducationId, setDeleteEducationId] = useState<string | null>(null);
@@ -140,15 +153,21 @@ function ProfilePageContent() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (!isAuthenticated) { router.push('/auth/login'); return; }
-    fetchUserProfile();
+    if (!isAuthenticated) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please log in to access this page.',
+        variant: 'warning',
+      });
+      setTimeout(() => router.push('/auth/login'), 1500);
+      return;
+    }
   }, [isAuthenticated, isHydrated, router]);
 
-  const fetchUserProfile = async () => {
-    try {
-      const response = await userAPI.getProfile();
-      const data = response.data;
-      const userData = data.data;
+  // Sync SWR data to local state when it arrives
+  useEffect(() => {
+    if (swrProfileData && !profileInitialized) {
+      const userData = swrProfileData;
       useAuthStore.getState().updateUser(userData);
       setName(userData.name || '');
       setPhone(userData.phone || '');
@@ -159,9 +178,28 @@ function ProfilePageContent() {
         setEducation(userData.profile.education || []);
         setExperience(userData.profile.experiences || []);
         setSkills(userData.profile.skills || []);
+        setInterests(userData.profile.interests || []);
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+      setProfileInitialized(true);
+    }
+  }, [swrProfileData, profileInitialized]);
+
+  const fetchUserProfile = async () => {
+    const data = await mutateProfile();
+    if (data) {
+      const userData = data;
+      useAuthStore.getState().updateUser(userData);
+      setName(userData.name || '');
+      setPhone(userData.phone || '');
+      setLocation(userData.location || '');
+      setBio(userData.profile?.bio || '');
+      setProfileData(userData.profile);
+      if (userData.profile) {
+        setEducation(userData.profile.education || []);
+        setExperience(userData.profile.experiences || []);
+        setSkills(userData.profile.skills || []);
+        setInterests(userData.profile.interests || []);
+      }
     }
   };
 
@@ -181,6 +219,36 @@ function ProfilePageContent() {
       toast({ title: 'Error', description: 'Failed to update profile', variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addInterest = () => {
+    const trimmed = newInterest.trim().toLowerCase();
+    if (!trimmed || interests.includes(trimmed)) {
+      setNewInterest('');
+      return;
+    }
+    const updated = [...interests, trimmed];
+    setInterests(updated);
+    setNewInterest('');
+    saveInterests(updated);
+  };
+
+  const removeInterest = (interest: string) => {
+    const updated = interests.filter((i) => i !== interest);
+    setInterests(updated);
+    saveInterests(updated);
+  };
+
+  const saveInterests = async (updated: string[]) => {
+    setSavingInterests(true);
+    try {
+      await api.put('/users/profile', { interests: updated });
+      mutateProfile();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save interests', variant: 'destructive' });
+    } finally {
+      setSavingInterests(false);
     }
   };
 
@@ -626,14 +694,64 @@ function ProfilePageContent() {
           </div>
         </div>
 
-        {/* Right Sidebar — Profile Completion */}
+        {/* Right Sidebar — Profile Completion + Interests */}
         <div className="hidden lg:block">
-          <div className="sticky top-4">
+          <div className="sticky top-4 space-y-4">
             <ProfileCompletion
               user={user}
               profile={{ ...profileData, skills, experiences: experience, education }}
               onNavigate={navigateToSection}
             />
+
+            {/* News Interests */}
+            <Card className="border border-border/60">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">News Interests</h3>
+                </div>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  Community posts matching your interests appear first.
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {interests.map((interest) => (
+                    <Badge key={interest} variant="secondary" className="text-[11px] gap-1 pr-1">
+                      {interest}
+                      <button
+                        onClick={() => removeInterest(interest)}
+                        className="ml-0.5 hover:text-destructive transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {interests.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground italic">No interests added yet</p>
+                  )}
+                </div>
+                <form
+                  onSubmit={(e) => { e.preventDefault(); addInterest(); }}
+                  className="flex gap-1.5"
+                >
+                  <Input
+                    value={newInterest}
+                    onChange={(e) => setNewInterest(e.target.value)}
+                    placeholder="e.g. security, AI, frontend"
+                    className="h-8 text-[12px] flex-1"
+                    maxLength={30}
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2.5 text-[11px]"
+                    disabled={!newInterest.trim() || savingInterests}
+                  >
+                    {savingInterests ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
