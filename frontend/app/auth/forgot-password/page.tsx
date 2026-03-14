@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogoWhite, Logo } from '@/components/Logo';
+import { Briefcase, Loader2, ArrowLeft, ArrowRight, Eye, EyeOff, Mail, KeyRound, Shield, Lock, CheckCircle2 } from 'lucide-react';
+import { LogoWhite, Logo } from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { authAPI } from '@/lib/api';
-import { Briefcase, Loader2, ArrowLeft, ArrowRight, Eye, EyeOff, Mail, KeyRound, Shield, Lock, CheckCircle2 } from 'lucide-react';
 
-export default function ForgotPasswordPage() {
+const ForgotPasswordPage = () => {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -335,4 +335,6 @@ export default function ForgotPasswordPage() {
       </div>
     </div>
   );
-}
+};
+
+export default ForgotPasswordPage;

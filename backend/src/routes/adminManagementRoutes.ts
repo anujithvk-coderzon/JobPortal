@@ -5,7 +5,7 @@ import {
   deactivateAdmin,
   activateAdmin,
   deleteAdmin,
-} from '../controllers/adminManagementController';
+} from '../controllers/adminManagementController/controller';
 import { authenticateAdmin, requireSuperAdmin } from '../middleware/auth';
 
 const router = express.Router();

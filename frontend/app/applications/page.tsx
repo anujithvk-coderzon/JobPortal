@@ -2,18 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+
 import { useSWRConfig } from 'swr';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
-import { applicationAPI, jobAPI } from '@/lib/api';
-import { getApplicationStatusLabel, getEmploymentTypeLabel, getLocationTypeLabel } from '@/lib/constants';
-import { ApplicationStatus, EmploymentType, LocationType } from '@/lib/types';
-import { useMyApplications } from '@/hooks/use-applications';
-import { useSavedJobs } from '@/hooks/use-jobs';
 import {
   Briefcase,
   FileText,
@@ -30,7 +20,19 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
+
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+import { applicationAPI, jobAPI } from '@/lib/api';
+import { getApplicationStatusLabel, getEmploymentTypeLabel, getLocationTypeLabel } from '@/lib/constants';
+import { ApplicationStatus, EmploymentType, LocationType } from '@/lib/types';
 import { timeAgo } from '@/lib/utils';
+import { useMyApplications } from '@/hooks/use-applications';
+import { useSavedJobs } from '@/hooks/use-jobs';
+import { useAuthStore } from '@/store/authStore';
 
 interface Application {
   id: string;
@@ -74,7 +76,7 @@ interface SavedJob {
   };
 }
 
-export default function ApplicationsPage() {
+const ApplicationsPage = () => {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
@@ -655,4 +657,6 @@ export default function ApplicationsPage() {
       </div>
     </div>
   );
-}
+};
+
+export default ApplicationsPage;

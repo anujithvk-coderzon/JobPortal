@@ -5,7 +5,7 @@ import {
   blockUser,
   unblockUser,
   deleteUser,
-} from '../controllers/adminUserController';
+} from '../controllers/adminUserController/controller';
 import { authenticateAdmin } from '../middleware/auth';
 
 const router = express.Router();

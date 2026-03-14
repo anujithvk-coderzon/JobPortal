@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { generalLimiter } from './middleware/rateLimiter';
+import { AppError } from './errors/AppError';
 
 // Load environment variables
 dotenv.config();
@@ -92,13 +93,18 @@ app.use((req: Request, res: Response) => {
 });
 
 // Error handling middleware
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('Error:', err);
-
-  // Default error response
-  res.status(err.status || 500).json({
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+      ...(err.code && { code: err.code }),
+    });
+  }
+  console.error('Unexpected error:', err);
+  return res.status(500).json({
     success: false,
-    error: err.message || 'Internal server error',
+    error: 'Unexpected error occurred',
   });
 });
 

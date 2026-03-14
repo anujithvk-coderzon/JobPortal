@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { showToast } from '@/components/Toast';
-import { api } from '@/lib/api';
 import {
   Search,
   UserX,
@@ -14,8 +12,10 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
+import { showToast } from '@/components/Toast';
+import { api } from '@/lib/api';
 
-export default function UsersPage() {
+const UsersPage = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -525,4 +525,6 @@ export default function UsersPage() {
       </div>
     </>
   );
-}
+};
+
+export default UsersPage;

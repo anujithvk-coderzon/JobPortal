@@ -1,4 +1,5 @@
 import useSWR from 'swr';
+
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
@@ -9,7 +10,7 @@ interface Company {
   _count?: { jobs: number };
 }
 
-export function useCompanies() {
+export const useCompanies = () => {
   const { isAuthenticated } = useAuthStore();
 
   const swr = useSWR<Company[]>(
@@ -26,9 +27,9 @@ export function useCompanies() {
     companies: swr.data || [],
     isLoading: swr.isLoading,
   };
-}
+};
 
-export function useCompany(companyId: string | null) {
+export const useCompany = (companyId: string | null) => {
   return useSWR(
     companyId ? `/companies/${companyId}` : null,
     async () => {
@@ -36,4 +37,4 @@ export function useCompany(companyId: string | null) {
       return response.data;
     }
   );
-}
+};

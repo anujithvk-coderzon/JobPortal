@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { api } from '@/lib/api';
 
 interface AdminAuthContextType {
@@ -16,11 +17,11 @@ const AdminAuthContext = createContext<AdminAuthContextType>({
   logout: async () => {},
 });
 
-export function useAdminAuth() {
+export const useAdminAuth = () => {
   return useContext(AdminAuthContext);
-}
+};
 
-export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
+export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const [admin, setAdmin] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -54,4 +55,4 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AdminAuthContext.Provider>
   );
-}
+};

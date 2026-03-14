@@ -7,7 +7,7 @@ import {
   deleteCompany,
   uploadCompanyLogo,
   deleteCompanyLogo,
-} from '../controllers/companyController';
+} from '../controllers/companyController/controller';
 import { authenticate } from '../middleware/auth';
 
 const router = express.Router();

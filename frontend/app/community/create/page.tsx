@@ -2,16 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
-import { jobNewsAPI } from '@/lib/api';
-import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { Breadcrumb } from '@/components/Breadcrumb';
+
 import {
   Loader2,
   Image as ImageIcon,
@@ -25,7 +16,18 @@ import {
   Info,
 } from 'lucide-react';
 
-export default function CreatePostPage() {
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/use-toast';
+import { jobNewsAPI } from '@/lib/api';
+import { LocationAutocomplete } from '@/components/common/LocationAutocomplete';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { useAuthStore } from '@/store/authStore';
+
+const CreatePostPage = () => {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
@@ -558,4 +560,6 @@ export default function CreatePostPage() {
       </div>
     </div>
   );
-}
+};
+
+export default CreatePostPage;

@@ -2,17 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import Link from 'next/link';
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
-import { jobNewsAPI } from '@/lib/api';
-import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import {
   Loader2,
   Image as ImageIcon,
@@ -30,11 +21,21 @@ import {
   Lightbulb,
   Info,
 } from 'lucide-react';
-import Link from 'next/link';
-import { Breadcrumb } from '@/components/Breadcrumb';
+
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { jobNewsAPI } from '@/lib/api';
+import { LocationAutocomplete } from '@/components/common/LocationAutocomplete';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { useAuthStore } from '@/store/authStore';
 
 // Collapsible section component
-function Section({
+const Section = ({
   icon: Icon,
   title,
   subtitle,
@@ -48,7 +49,7 @@ function Section({
   children: React.ReactNode;
   defaultOpen?: boolean;
   badge?: string;
-}) {
+}) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Card className="border border-border/60 bg-card overflow-hidden">
@@ -78,9 +79,9 @@ function Section({
       )}
     </Card>
   );
-}
+};
 
-export default function EditPostPage() {
+const EditPostPage = () => {
   const router = useRouter();
   const params = useParams();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
@@ -853,4 +854,6 @@ export default function EditPostPage() {
       </div>
     </div>
   );
-}
+};
+
+export default EditPostPage;

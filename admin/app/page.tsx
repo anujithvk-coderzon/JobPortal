@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function HomePage() {
+const HomePage = () => {
   const router = useRouter();
 
   useEffect(() => {
@@ -22,4 +22,6 @@ export default function HomePage() {
       <div className="text-lg">Redirecting...</div>
     </div>
   );
-}
+};
+
+export default HomePage;

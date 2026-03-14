@@ -41,7 +41,7 @@ const barMap = {
   default: 'bg-slate-400',
 };
 
-export default function ToastContainer() {
+const ToastContainer = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
@@ -120,4 +120,6 @@ export default function ToastContainer() {
       `}</style>
     </div>
   );
-}
+};
+
+export default ToastContainer;

@@ -2,17 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
-import { api } from '@/lib/api';
-import { getInitials, timeAgo, getUserFriendlyErrorMessage } from '@/lib/utils';
-import { CredibilityBadge } from '@/components/CredibilityBadge';
-import { usePublicProfile } from '@/hooks/use-profile';
 import {
   Mail,
   Phone,
@@ -28,7 +18,18 @@ import {
   ArrowLeft,
   TrendingUp,
 } from 'lucide-react';
-import { Breadcrumb } from '@/components/Breadcrumb';
+
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import { CredibilityBadge } from '@/components/profile/CredibilityBadge';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { api } from '@/lib/api';
+import { getInitials, timeAgo, getUserFriendlyErrorMessage } from '@/lib/utils';
+import { usePublicProfile } from '@/hooks/use-profile';
+import { useAuthStore } from '@/store/authStore';
 
 interface Post {
   id: string;
@@ -47,7 +48,7 @@ interface CredibilityScore {
   nextLevelAt: number;
 }
 
-export default function UserPublicProfile() {
+const UserPublicProfile = () => {
   const router = useRouter();
   const params = useParams();
   const userId = params.userId as string;
@@ -433,4 +434,6 @@ export default function UserPublicProfile() {
       </div>
     </div>
   );
-}
+};
+
+export default UserPublicProfile;

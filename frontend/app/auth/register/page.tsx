@@ -3,19 +3,21 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogoWhite, Logo } from '@/components/Logo';
+
+import { signInWithPopup } from 'firebase/auth';
+import { Briefcase, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Shield, Target, Users, Star, Sparkles, BarChart3, Mail } from 'lucide-react';
+
+import { LocationAutocomplete } from '@/components/common/LocationAutocomplete';
+import { LogoWhite, Logo } from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { authAPI } from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
-import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { Briefcase, Loader2, Eye, EyeOff, ArrowRight, ArrowLeft, Shield, Target, Users, Star, Sparkles, BarChart3, Mail } from 'lucide-react';
 import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { useAuthStore } from '@/store/authStore';
 
-export default function RegisterPage() {
+const RegisterPage = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { setAuth } = useAuthStore();
@@ -583,4 +585,6 @@ export default function RegisterPage() {
       </div>
     </div>
   );
-}
+};
+
+export default RegisterPage;

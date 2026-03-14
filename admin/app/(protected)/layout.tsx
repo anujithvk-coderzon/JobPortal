@@ -3,7 +3,7 @@
 import { AdminAuthProvider } from '@/context/AdminAuthContext';
 import AdminLayout from '@/components/AdminLayout';
 
-export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
+const ProtectedLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <AdminAuthProvider>
       <AdminLayout>
@@ -11,4 +11,6 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       </AdminLayout>
     </AdminAuthProvider>
   );
-}
+};
+
+export default ProtectedLayout;

@@ -1,7 +1,8 @@
 import useSWR from 'swr';
+
 import { jobNewsAPI } from '@/lib/api';
 
-export function useJobNews(params?: Record<string, any>) {
+export const useJobNews = (params?: Record<string, any>) => {
   const key = params
     ? `/job-news?${new URLSearchParams(
         Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
@@ -16,9 +17,9 @@ export function useJobNews(params?: Record<string, any>) {
     },
     { revalidateOnFocus: true }
   );
-}
+};
 
-export function useJobNewsById(id: string | null) {
+export const useJobNewsById = (id: string | null) => {
   return useSWR(
     id ? `/job-news/${id}` : null,
     async () => {
@@ -26,9 +27,9 @@ export function useJobNewsById(id: string | null) {
       return response.data?.data;
     }
   );
-}
+};
 
-export function useMyJobNews(params?: Record<string, any>) {
+export const useMyJobNews = (params?: Record<string, any>) => {
   const key = params
     ? `/job-news/user/my-news?${new URLSearchParams(
         Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
@@ -42,4 +43,4 @@ export function useMyJobNews(params?: Record<string, any>) {
       return response.data?.data;
     }
   );
-}
+};

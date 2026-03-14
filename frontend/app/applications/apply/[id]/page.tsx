@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+
+import { Loader2, ArrowLeft, Briefcase, Building2, MapPin, Send, Save, AlertCircle, CheckCircle, Plus, Pencil, Trash2, X, Upload, FileText } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -10,9 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { jobAPI, applicationAPI, userAPI } from '@/lib/api';
-import { Job } from '@/lib/types';
-import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import {
   Select,
   SelectContent,
@@ -30,9 +29,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { jobAPI, applicationAPI, userAPI } from '@/lib/api';
+import { Job } from '@/lib/types';
 import { DEGREE_OPTIONS, getFieldsOfStudy } from '@/lib/degrees';
-import { Loader2, ArrowLeft, Briefcase, Building2, MapPin, Send, Save, AlertCircle, CheckCircle, Plus, Pencil, Trash2, X, Upload, FileText } from 'lucide-react';
-import { Breadcrumb } from '@/components/Breadcrumb';
+import { LocationAutocomplete } from '@/components/common/LocationAutocomplete';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { useAuthStore } from '@/store/authStore';
 
 interface ProfileData {
   name: string;
@@ -45,7 +47,7 @@ interface ProfileData {
   skills: any[];
 }
 
-export default function ApplyJobPage() {
+const ApplyJobPage = () => {
   const router = useRouter();
   const params = useParams();
   const { user, isAuthenticated, isHydrated, triggerProfileUpdate } = useAuthStore();
@@ -879,10 +881,10 @@ export default function ApplyJobPage() {
       </div>
     </div>
   );
-}
+};
 
 // Education Form Component
-function EducationForm({ initialData, onSave, onCancel }: any) {
+const EducationForm = ({ initialData, onSave, onCancel }: any) => {
   const [formData, setFormData] = useState({
     institution: initialData?.institution || '',
     degree: initialData?.degree || '',
@@ -981,10 +983,10 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
       </Card>
     </div>
   );
-}
+};
 
 // Experience Form Component
-function ExperienceForm({ initialData, onSave, onCancel }: any) {
+const ExperienceForm = ({ initialData, onSave, onCancel }: any) => {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     company: initialData?.company || '',
@@ -1051,10 +1053,10 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
       </Card>
     </div>
   );
-}
+};
 
 // Skill Form Component
-function SkillForm({ onSave, onCancel }: any) {
+const SkillForm = ({ onSave, onCancel }: any) => {
   const [name, setName] = useState('');
   const [level, setLevel] = useState('');
 
@@ -1098,4 +1100,6 @@ function SkillForm({ onSave, onCancel }: any) {
       </Card>
     </div>
   );
-}
+};
+
+export default ApplyJobPage;

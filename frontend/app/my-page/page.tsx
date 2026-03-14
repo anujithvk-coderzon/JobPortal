@@ -2,29 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { useSWRConfig } from 'swr';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
-import { api } from '@/lib/api';
-import { getInitials, timeAgo } from '@/lib/utils';
-import { CredibilityBadge } from '@/components/CredibilityBadge';
-import { useProfile } from '@/hooks/use-profile';
-import { useCompanies } from '@/hooks/use-companies';
-import { useMyJobNews } from '@/hooks/use-job-news';
+
 import {
   Mail,
   Phone,
@@ -50,6 +28,30 @@ import {
   Edit,
   MessageSquarePlus,
 } from 'lucide-react';
+import { useSWRConfig } from 'swr';
+
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { getInitials, timeAgo } from '@/lib/utils';
+import { CredibilityBadge } from '@/components/profile/CredibilityBadge';
+import { useProfile } from '@/hooks/use-profile';
+import { useCompanies } from '@/hooks/use-companies';
+import { useMyJobNews } from '@/hooks/use-job-news';
+import { useAuthStore } from '@/store/authStore';
 
 interface PrivacySettings {
   email: boolean;
@@ -80,7 +82,7 @@ interface Post {
   video?: string;
 }
 
-export default function MyPage() {
+const MyPage = () => {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
@@ -633,4 +635,6 @@ export default function MyPage() {
       </div>
     </div>
   );
-}
+};
+
+export default MyPage;

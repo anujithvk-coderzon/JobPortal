@@ -15,7 +15,7 @@ import {
   getSoftDeletedPostsCount,
   restorePost,
   permanentDeletePost,
-} from '../controllers/adminPostController';
+} from '../controllers/adminPostController/controller';
 import { authenticateAdmin } from '../middleware/auth';
 
 const router = express.Router();

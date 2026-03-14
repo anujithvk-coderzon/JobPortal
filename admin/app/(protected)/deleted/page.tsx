@@ -1,9 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { VideoPlayer } from '@/components/VideoPlayer';
-import { showToast } from '@/components/Toast';
-import { api } from '@/lib/api';
 import {
   Search,
   Trash2,
@@ -22,6 +19,9 @@ import {
   Ban,
   Loader2,
 } from 'lucide-react';
+import { VideoPlayer } from '@/components/VideoPlayer';
+import { showToast } from '@/components/Toast';
+import { api } from '@/lib/api';
 
 interface Post {
   id: string;
@@ -50,7 +50,7 @@ interface Post {
   };
 }
 
-export default function DeletedPostsPage() {
+const DeletedPostsPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -566,4 +566,6 @@ export default function DeletedPostsPage() {
       </div>
     </>
   );
-}
+};
+
+export default DeletedPostsPage;

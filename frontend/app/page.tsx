@@ -1,15 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CompanySelector } from '@/components/CompanySelector';
-import { JobMatchScore } from '@/components/JobMatchScore';
-import { Logo, LogoSmall } from '@/components/Logo';
 import {
   Briefcase,
   MapPin,
@@ -27,6 +20,13 @@ import {
   Bell,
   Lock,
 } from 'lucide-react';
+import { CompanySelector } from '@/components/common/CompanySelector';
+import { JobMatchScore } from '@/components/jobs/JobMatchScore';
+import { Logo, LogoSmall } from '@/components/common/Logo';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { useJobNews } from '@/hooks/use-job-news';
 import { useJobs } from '@/hooks/use-jobs';
 import { EmploymentType, ExperienceLevel, LocationType } from '@/lib/types';
@@ -64,7 +64,7 @@ interface Job {
   companyName?: string;
 }
 
-export default function HomePage() {
+const HomePage = () => {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
   const [showCompanySelector, setShowCompanySelector] = useState(false);
@@ -567,12 +567,14 @@ export default function HomePage() {
       </footer>
     </div>
   );
-}
+};
 
-function LoadingState() {
+const LoadingState = () => {
   return (
     <div className="flex items-center justify-center py-16">
       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
     </div>
   );
-}
+};
+
+export default HomePage;

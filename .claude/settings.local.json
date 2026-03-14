@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l \"/mnt/d/CoderZone/Job posting/backend/src/controllers/\"*.ts | sort -rn | head -20)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npm install zod 2>&1 | tail -5)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npx tsc --noEmit --pretty 2>&1 | head -60)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npx tsc --noEmit 2>&1 | head -60)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npx tsc --noEmit 2>&1 | head -80)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npx tsc --noEmit 2>&1 | head -30)",
+      "Bash(ls \"/mnt/d/CoderZone/Job posting/backend/src/controllers/\"*/)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npx tsc --noEmit 2>&1 | head -20)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend/src\" && find controllers -name \"controller.ts\" -exec sed -i 's|../../middlewares/asyncWrapper|../../middleware/asyncWrapper|g' {} +)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npx tsc --noEmit 2>&1 | tail -5)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/backend\" && npm uninstall express-validator 2>&1 | tail -3)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && npx tsc --noEmit --pretty 2>&1 | head -40)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/admin\" && npx tsc --noEmit 2>&1 | head -30)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && npx tsc --noEmit 2>&1 | tail -10)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/admin\" && npx tsc --noEmit 2>&1 | tail -10)",
+      "Bash(tail -50 \"/mnt/d/CoderZone/Job posting/admin/app/\\(protected\\)/posts/page.tsx\")",
+      "Bash(head -50 \"/mnt/d/CoderZone/Job posting/admin/app/\\(protected\\)/deleted/page.tsx\" | grep -E \"import|from\")",
+      "Bash(for file:*)",
+      "Bash(do)",
+      "Bash(echo \"=== $file ===\")",
+      "Read(//mnt/d/CoderZone/Job posting/admin/**)",
+      "Bash(done)",
+      "Bash(/tmp/orphaned_files_report.txt:*)",
+      "Read(//tmp/**)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && npm uninstall react-hook-form 2>&1 | tail -3)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && npx tsc --noEmit 2>&1 | tail -5)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend/components\" && mkdir -p layout auth profile social jobs common)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend/components\" && mv AppShell.tsx Sidebar.tsx TopBar.tsx Navbar.tsx Footer.tsx layout/ && mv AuthProvider.tsx AuthGate.tsx auth/ && mv ProfileAvatar.tsx ProfileCompletion.tsx ProfileCompletionCard.tsx CredibilityBadge.tsx profile/ && mv FollowButton.tsx FollowingDrawer.tsx social/ && mv JobCardSkeleton.tsx JobMatchScore.tsx jobs/ && mv Logo.tsx Breadcrumb.tsx VideoPlayer.tsx ReportModal.tsx LocationAutocomplete.tsx CompanySelector.tsx common/ && echo \"done\")",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && find app/ components/ lib/ hooks/ store/ -name \"*.tsx\" -o -name \"*.ts\" | xargs sed -i \\\\\n  -e \"s|@/components/AppShell|@/components/layout/AppShell|g\" \\\\\n  -e \"s|@/components/Sidebar|@/components/layout/Sidebar|g\" \\\\\n  -e \"s|@/components/TopBar|@/components/layout/TopBar|g\" \\\\\n  -e \"s|@/components/Navbar|@/components/layout/Navbar|g\" \\\\\n  -e \"s|@/components/Footer|@/components/layout/Footer|g\" \\\\\n  -e \"s|@/components/AuthProvider|@/components/auth/AuthProvider|g\" \\\\\n  -e \"s|@/components/AuthGate|@/components/auth/AuthGate|g\" \\\\\n  -e \"s|@/components/ProfileAvatar|@/components/profile/ProfileAvatar|g\" \\\\\n  -e \"s|@/components/ProfileCompletion'|@/components/profile/ProfileCompletion'|g\" \\\\\n  -e \"s|@/components/ProfileCompletionCard|@/components/profile/ProfileCompletionCard|g\" \\\\\n  -e \"s|@/components/CredibilityBadge|@/components/profile/CredibilityBadge|g\" \\\\\n  -e \"s|@/components/FollowButton|@/components/social/FollowButton|g\" \\\\\n  -e \"s|@/components/FollowingDrawer|@/components/social/FollowingDrawer|g\" \\\\\n  -e \"s|@/components/JobCardSkeleton|@/components/jobs/JobCardSkeleton|g\" \\\\\n  -e \"s|@/components/JobMatchScore|@/components/jobs/JobMatchScore|g\" \\\\\n  -e \"s|@/components/Logo|@/components/common/Logo|g\" \\\\\n  -e \"s|@/components/Breadcrumb|@/components/common/Breadcrumb|g\" \\\\\n  -e \"s|@/components/VideoPlayer|@/components/common/VideoPlayer|g\" \\\\\n  -e \"s|@/components/ReportModal|@/components/common/ReportModal|g\" \\\\\n  -e \"s|@/components/LocationAutocomplete|@/components/common/LocationAutocomplete|g\" \\\\\n  -e \"s|@/components/CompanySelector|@/components/common/CompanySelector|g\" \\\\\n  2>/dev/null && echo \"done\")",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && npx tsc --noEmit 2>&1 | head -20)",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && rm -rf .next && echo \"cleared .next cache\")",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && rm -rf .next 2>/dev/null; ls .next 2>/dev/null || echo \"cleared\")",
+      "Bash(cd \"/mnt/d/CoderZone/Job posting/frontend\" && npx tsc --noEmit 2>&1 | head -30)"
+    ]
+  }
+}

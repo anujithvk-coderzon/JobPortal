@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { Shield, Lock, Eye, Database, Users, Mail, FileText, Globe, Cookie, ArrowLeft, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Logo, LogoSmall } from '@/components/Logo';
+import { Logo, LogoSmall } from '@/components/common/Logo';
 import { useAuthStore } from '@/store/authStore';
 
-export default function PrivacyPolicy() {
+const PrivacyPolicy = () => {
   const { isAuthenticated } = useAuthStore();
 
   return (
@@ -439,4 +439,6 @@ export default function PrivacyPolicy() {
       )}
     </div>
   );
-}
+};
+
+export default PrivacyPolicy;

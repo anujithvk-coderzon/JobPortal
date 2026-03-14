@@ -1,8 +1,9 @@
 import useSWR from 'swr';
+
 import { followAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
-export function useFollowStatus(userId: string | null) {
+export const useFollowStatus = (userId: string | null) => {
   const { isAuthenticated } = useAuthStore();
 
   return useSWR(
@@ -13,9 +14,9 @@ export function useFollowStatus(userId: string | null) {
     },
     { revalidateOnFocus: false }
   );
-}
+};
 
-export function useFollowing(params?: Record<string, any>) {
+export const useFollowing = (params?: Record<string, any>) => {
   const { isAuthenticated } = useAuthStore();
 
   return useSWR(
@@ -25,9 +26,9 @@ export function useFollowing(params?: Record<string, any>) {
       return response.data?.data || response.data;
     }
   );
-}
+};
 
-export function useFollowCounts(userId: string | null) {
+export const useFollowCounts = (userId: string | null) => {
   return useSWR(
     userId ? `/follow/counts/${userId}` : null,
     async () => {
@@ -36,4 +37,4 @@ export function useFollowCounts(userId: string | null) {
     },
     { revalidateOnFocus: false }
   );
-}
+};

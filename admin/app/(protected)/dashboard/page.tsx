@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import { useAdminAuth } from '@/context/AdminAuthContext';
+import Link from 'next/link';
 import {
   Users,
   UserCheck,
@@ -19,9 +18,10 @@ import {
   TrendingUp,
   ShieldAlert,
 } from 'lucide-react';
-import Link from 'next/link';
+import { api } from '@/lib/api';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 
-export default function DashboardPage() {
+const DashboardPage = () => {
   const [stats, setStats] = useState<any>(null);
   const [flaggedCount, setFlaggedCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -371,4 +371,6 @@ export default function DashboardPage() {
       </div>
     </>
   );
-}
+};
+
+export default DashboardPage;

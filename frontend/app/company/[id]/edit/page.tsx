@@ -2,7 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import Image from 'next/image';
+
+import {
+  Building2,
+  Upload,
+  X,
+  Loader2,
+  Save,
+  ChevronDown,
+  Lightbulb,
+  CheckCircle2,
+  Info,
+  Link2,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,26 +30,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Building2,
-  Upload,
-  X,
-  Loader2,
-  Save,
-  ChevronDown,
-  Lightbulb,
-  CheckCircle2,
-  Info,
-  Link2,
-} from 'lucide-react';
-import { Breadcrumb } from '@/components/Breadcrumb';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useToast } from '@/components/ui/use-toast';
+import { LocationAutocomplete } from '@/components/common/LocationAutocomplete';
 import { api } from '@/lib/api';
-import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import Image from 'next/image';
+import { useAuthStore } from '@/store/authStore';
 
 // Collapsible section component
-function Section({
+const Section = ({
   icon: Icon,
   title,
   subtitle,
@@ -50,7 +51,7 @@ function Section({
   children: React.ReactNode;
   defaultOpen?: boolean;
   badge?: string;
-}) {
+}) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Card className="border border-border/60 bg-card overflow-hidden">
@@ -80,9 +81,9 @@ function Section({
       )}
     </Card>
   );
-}
+};
 
-export default function EditCompanyPage() {
+const EditCompanyPage = () => {
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;
@@ -691,4 +692,6 @@ export default function EditCompanyPage() {
       </div>
     </div>
   );
-}
+};
+
+export default EditCompanyPage;

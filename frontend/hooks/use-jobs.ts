@@ -1,8 +1,9 @@
 import useSWR from 'swr';
+
 import { jobAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
-export function useJobs(params?: Record<string, any>) {
+export const useJobs = (params?: Record<string, any>) => {
   const key = params
     ? `/jobs?${new URLSearchParams(
         Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
@@ -17,9 +18,9 @@ export function useJobs(params?: Record<string, any>) {
     },
     { revalidateOnFocus: false }
   );
-}
+};
 
-export function useJob(jobId: string | null) {
+export const useJob = (jobId: string | null) => {
   return useSWR(
     jobId ? `/jobs/job/${jobId}` : null,
     async () => {
@@ -27,9 +28,9 @@ export function useJob(jobId: string | null) {
       return response.data?.data;
     }
   );
-}
+};
 
-export function useSavedJobs(params?: Record<string, any>) {
+export const useSavedJobs = (params?: Record<string, any>) => {
   const { isAuthenticated } = useAuthStore();
   const key = params
     ? `/jobs/saved?${new URLSearchParams(
@@ -44,4 +45,4 @@ export function useSavedJobs(params?: Record<string, any>) {
       return response.data?.data;
     }
   );
-}
+};

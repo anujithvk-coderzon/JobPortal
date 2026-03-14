@@ -3,7 +3,7 @@ import {
   reportPost,
   checkReportStatus,
   getReportReasons,
-} from '../controllers/reportController';
+} from '../controllers/reportController/controller';
 import { authenticate } from '../middleware/auth';
 import { reportLimiter } from '../middleware/rateLimiter';
 

@@ -1,5 +1,4 @@
 import express from 'express';
-import { body } from 'express-validator';
 import {
   getProfile,
   getPublicProfile,
@@ -20,9 +19,8 @@ import {
   uploadResume,
   deleteResume,
   getMyPosts,
-} from '../controllers/userController';
+} from '../controllers/userController/controller';
 import { authenticate } from '../middleware/auth';
-import { validate } from '../middleware/validation';
 import { uploadLimiter, writeLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
@@ -35,42 +33,16 @@ router.put('/profile-info', authenticate, updateProfile);
 router.put('/basic-info', authenticate, updateBasicInfo);
 
 // Skills routes
-router.post(
-  '/skills',
-  authenticate,
-  validate([
-    body('name').notEmpty().withMessage('Skill name is required'),
-  ]),
-  addSkill
-);
+router.post('/skills', authenticate, addSkill);
 router.delete('/skills/:skillId', authenticate, deleteSkill);
 
 // Experience routes
-router.post(
-  '/experience',
-  authenticate,
-  validate([
-    body('title').notEmpty().withMessage('Job title is required'),
-    body('company').notEmpty().withMessage('Company name is required'),
-    body('startDate').isISO8601().withMessage('Valid start date is required'),
-  ]),
-  addExperience
-);
+router.post('/experience', authenticate, addExperience);
 router.put('/experience/:experienceId', authenticate, updateExperience);
 router.delete('/experience/:experienceId', authenticate, deleteExperience);
 
 // Education routes
-router.post(
-  '/education',
-  authenticate,
-  validate([
-    body('institution').notEmpty().withMessage('Institution name is required'),
-    body('degree').notEmpty().withMessage('Degree is required'),
-    body('fieldOfStudy').notEmpty().withMessage('Field of study is required'),
-    body('startDate').isISO8601().withMessage('Valid start date is required'),
-  ]),
-  addEducation
-);
+router.post('/education', authenticate, addEducation);
 router.put('/education/:educationId', authenticate, updateEducation);
 router.delete('/education/:educationId', authenticate, deleteEducation);
 
@@ -78,37 +50,14 @@ router.delete('/education/:educationId', authenticate, deleteEducation);
 router.put('/privacy-settings', authenticate, updatePrivacySettings);
 
 // Company routes
-router.put(
-  '/company',
-  authenticate,
-  validate([
-    body('name').notEmpty().withMessage('Company name is required'),
-  ]),
-  updateCompany
-);
+router.put('/company', authenticate, updateCompany);
 
 // Profile photo routes
-router.post(
-  '/profile-photo',
-  authenticate,
-  uploadLimiter,
-  validate([
-    body('image').notEmpty().withMessage('Image data is required'),
-  ]),
-  uploadProfilePhoto
-);
+router.post('/profile-photo', authenticate, uploadLimiter, uploadProfilePhoto);
 router.delete('/profile-photo', authenticate, deleteProfilePhoto);
 
 // Resume routes
-router.post(
-  '/resume',
-  authenticate,
-  uploadLimiter,
-  validate([
-    body('file').notEmpty().withMessage('File data is required'),
-  ]),
-  uploadResume
-);
+router.post('/resume', authenticate, uploadLimiter, uploadResume);
 router.delete('/resume', authenticate, deleteResume);
 
 // Posts routes

@@ -1,16 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { api } from '@/lib/api';
-import { showToast } from '@/components/Toast';
 import {
   Eye,
   EyeOff,
   Loader2,
   AlertCircle,
 } from 'lucide-react';
+import { api } from '@/lib/api';
+import { showToast } from '@/components/Toast';
 
-export default function SettingsPage() {
+const SettingsPage = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -178,4 +178,6 @@ export default function SettingsPage() {
       </div>
     </>
   );
-}
+};
+
+export default SettingsPage;

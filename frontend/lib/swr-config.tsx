@@ -2,7 +2,7 @@
 
 import { SWRConfig } from 'swr';
 
-export function SWRProvider({ children }: { children: React.ReactNode }) {
+export const SWRProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <SWRConfig
       value={{
@@ -20,4 +20,4 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
       {children}
     </SWRConfig>
   );
-}
+};

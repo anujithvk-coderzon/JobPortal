@@ -1,9 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { VideoPlayer } from '@/components/VideoPlayer';
-import { showToast } from '@/components/Toast';
-import { api } from '@/lib/api';
 import {
   Flag,
   AlertTriangle,
@@ -24,6 +21,9 @@ import {
   ShieldCheck,
   Loader2,
 } from 'lucide-react';
+import { VideoPlayer } from '@/components/VideoPlayer';
+import { showToast } from '@/components/Toast';
+import { api } from '@/lib/api';
 
 interface Report {
   id: string;
@@ -85,7 +85,7 @@ const REASON_LABELS_FULL: Record<string, string> = {
   OTHER: 'Other',
 };
 
-export default function FlaggedPostsPage() {
+const FlaggedPostsPage = () => {
   const [posts, setPosts] = useState<FlaggedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<any>(null);
@@ -699,4 +699,6 @@ export default function FlaggedPostsPage() {
       </div>
     </>
   );
-}
+};
+
+export default FlaggedPostsPage;

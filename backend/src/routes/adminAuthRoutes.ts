@@ -1,8 +1,6 @@
 import express from 'express';
-import { body } from 'express-validator';
-import { checkAdminSetupStatus, adminRegister, adminLogin, getMe, logout, refreshAdminToken, changeAdminPassword } from '../controllers/adminAuthController';
+import { checkAdminSetupStatus, adminRegister, adminLogin, getMe, logout, refreshAdminToken, changeAdminPassword } from '../controllers/adminAuthController/controller';
 import { authenticateAdmin } from '../middleware/auth';
-import { validate } from '../middleware/validation';
 import { adminAuthLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();

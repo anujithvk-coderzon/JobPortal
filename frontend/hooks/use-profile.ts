@@ -1,8 +1,9 @@
 import useSWR from 'swr';
+
 import { userAPI, api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
-export function useProfile() {
+export const useProfile = () => {
   const { isAuthenticated } = useAuthStore();
 
   return useSWR(
@@ -13,9 +14,9 @@ export function useProfile() {
     },
     { revalidateOnFocus: false, dedupingInterval: 10000 }
   );
-}
+};
 
-export function usePublicProfile(userId: string | null) {
+export const usePublicProfile = (userId: string | null) => {
   return useSWR(
     userId ? `/users/public-profile/${userId}` : null,
     async () => {
@@ -25,4 +26,4 @@ export function usePublicProfile(userId: string | null) {
       return response.data;
     }
   );
-}
+};

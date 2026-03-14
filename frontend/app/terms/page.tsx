@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { Scale, AlertTriangle, UserCheck, FileText, Shield, Ban, Mail, Globe, ArrowLeft, Lock, Laptop, BookOpen, Gavel, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Logo, LogoSmall } from '@/components/Logo';
+import { Logo, LogoSmall } from '@/components/common/Logo';
 import { useAuthStore } from '@/store/authStore';
 
-export default function TermsOfService() {
+const TermsOfService = () => {
   const { isAuthenticated } = useAuthStore();
 
   return (
@@ -453,4 +453,6 @@ export default function TermsOfService() {
       )}
     </div>
   );
-}
+};
+
+export default TermsOfService;

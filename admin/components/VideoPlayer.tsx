@@ -34,13 +34,13 @@ const buildIframeUrl = (baseUrl: string, autoplay: boolean = false): string => {
   }
 };
 
-export function VideoPlayer({
+export const VideoPlayer = ({
   videoUrl,
   title,
   className = '',
   aspectRatio = 'auto',
   autoPlay = false
-}: VideoPlayerProps) {
+}: VideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
@@ -161,4 +161,4 @@ export function VideoPlayer({
       </div>
     </div>
   );
-}
+};

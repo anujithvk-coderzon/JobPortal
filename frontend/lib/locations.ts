@@ -208,7 +208,7 @@ export const POPULAR_LOCATIONS = [
 ];
 
 // Search popular locations locally (instant, no API call)
-export function searchLocalLocations(query: string, limit: number = 5): typeof POPULAR_LOCATIONS {
+export const searchLocalLocations = (query: string, limit: number = 5): typeof POPULAR_LOCATIONS => {
   if (!query || query.length < 2) return [];
 
   const lowerQuery = query.toLowerCase();
@@ -218,23 +218,23 @@ export function searchLocalLocations(query: string, limit: number = 5): typeof P
       location.name.toLowerCase().includes(lowerQuery)
     )
     .slice(0, limit);
-}
+};
 
 // Cache for API results
 const locationCache = new Map<string, any>();
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
-export function getCachedLocation(query: string) {
+export const getCachedLocation = (query: string) => {
   const cached = locationCache.get(query.toLowerCase());
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.data;
   }
   return null;
-}
+};
 
-export function setCachedLocation(query: string, data: any) {
+export const setCachedLocation = (query: string, data: any) => {
   locationCache.set(query.toLowerCase(), {
     data,
     timestamp: Date.now(),
   });
-}
+};

@@ -2,8 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { JobMatchScore } from '@/components/JobMatchScore';
+
+import {
+  ArrowLeft,
+  Loader2,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  FileText,
+  Briefcase,
+  GraduationCap,
+  Award,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Eye,
+  AlertCircle,
+  ShieldAlert,
+} from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,28 +50,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { JobMatchScore } from '@/components/jobs/JobMatchScore';
 import { applicationAPI, jobAPI } from '@/lib/api';
 import { getInitials, timeAgo } from '@/lib/utils';
-import {
-  ArrowLeft,
-  Loader2,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  FileText,
-  Briefcase,
-  GraduationCap,
-  Award,
-  Calendar,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Eye,
-  AlertCircle,
-  ShieldAlert,
-} from 'lucide-react';
-import { Breadcrumb } from '@/components/Breadcrumb';
+import { useAuthStore } from '@/store/authStore';
 
 interface Application {
   id: string;
@@ -106,7 +108,7 @@ interface Job {
   companyName?: string;
 }
 
-export default function JobApplicationsPage() {
+const JobApplicationsPage = () => {
   const router = useRouter();
   const params = useParams();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
@@ -1238,4 +1240,6 @@ ${companyName} Team`;
       </div>
     </div>
   );
-}
+};
+
+export default JobApplicationsPage;

@@ -1,11 +1,8 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import ToastContainer from './Toast';
-import { useAdminAuth } from '@/context/AdminAuthContext';
 import {
   LayoutDashboard,
   Users,
@@ -22,12 +19,15 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
+import { api } from '@/lib/api';
+import ToastContainer from './Toast';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   const pathname = usePathname();
   const { admin, loading, logout } = useAdminAuth();
   const [pendingCount, setPendingCount] = useState(0);
@@ -372,4 +372,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <ToastContainer />
     </div>
   );
-}
+};
+
+export default AdminLayout;

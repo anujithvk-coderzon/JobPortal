@@ -1,8 +1,9 @@
 import useSWR from 'swr';
+
 import { applicationAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
-export function useMyApplications(params?: Record<string, any>) {
+export const useMyApplications = (params?: Record<string, any>) => {
   const { isAuthenticated } = useAuthStore();
   const key = params
     ? `/applications/my-applications?${new URLSearchParams(
@@ -17,9 +18,9 @@ export function useMyApplications(params?: Record<string, any>) {
       return response.data?.data;
     }
   );
-}
+};
 
-export function useJobApplications(jobId: string | null, params?: Record<string, any>) {
+export const useJobApplications = (jobId: string | null, params?: Record<string, any>) => {
   const key = params
     ? `/applications/job/${jobId}?${new URLSearchParams(
         Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
@@ -33,4 +34,4 @@ export function useJobApplications(jobId: string | null, params?: Record<string,
       return response.data?.data;
     }
   );
-}
+};

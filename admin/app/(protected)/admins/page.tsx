@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { showToast } from '@/components/Toast';
-import { api } from '@/lib/api';
 import {
   Shield,
   UserPlus,
@@ -15,6 +13,8 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
+import { showToast } from '@/components/Toast';
+import { api } from '@/lib/api';
 
 interface Admin {
   id: string;
@@ -26,7 +26,7 @@ interface Admin {
   createdAt: string;
 }
 
-export default function AdminsPage() {
+const AdminsPage = () => {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [currentAdmin, setCurrentAdmin] = useState<Admin | null>(null);
   const [loading, setLoading] = useState(true);
@@ -450,4 +450,6 @@ export default function AdminsPage() {
       </div>
     </>
   );
-}
+};
+
+export default AdminsPage;

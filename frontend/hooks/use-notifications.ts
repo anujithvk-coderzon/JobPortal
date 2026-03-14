@@ -1,7 +1,9 @@
-import useSWR, { useSWRConfig } from 'swr';
+import { useCallback } from 'react';
+
+import useSWR from 'swr';
+
 import { notificationAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { useCallback } from 'react';
 
 interface Notification {
   id: string;
@@ -13,7 +15,7 @@ interface Notification {
   isRead: boolean;
 }
 
-export function useNotifications() {
+export const useNotifications = () => {
   const { isAuthenticated } = useAuthStore();
 
   const swr = useSWR<Notification[]>(
@@ -44,4 +46,4 @@ export function useNotifications() {
     unreadCount: (swr.data || []).length,
     markAsRead,
   };
-}
+};

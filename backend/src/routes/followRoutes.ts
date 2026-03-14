@@ -7,7 +7,7 @@ import {
   checkFollowStatus,
   getFollowCounts,
   getSuggestedUsers,
-} from '../controllers/followController';
+} from '../controllers/followController/controller';
 import { authenticate } from '../middleware/auth';
 
 const router = express.Router();

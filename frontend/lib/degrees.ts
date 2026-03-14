@@ -292,9 +292,9 @@ export const FIELD_OF_STUDY_OPTIONS: { [key: string]: string[] } = {
 };
 
 // Helper function to get field of study options based on degree
-export function getFieldsOfStudy(degree: string): string[] {
+export const getFieldsOfStudy = (degree: string): string[] => {
   const degreeObj = DEGREE_OPTIONS.find(d => d.value === degree);
   if (!degreeObj) return [];
 
   return FIELD_OF_STUDY_OPTIONS[degreeObj.category] || [];
-}
+};

@@ -1,8 +1,9 @@
 import useSWR from 'swr';
+
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
-export function useDashboardStats() {
+export const useDashboardStats = () => {
   const { isAuthenticated } = useAuthStore();
 
   const swr = useSWR(
@@ -20,4 +21,4 @@ export function useDashboardStats() {
     stats: swr.data || {},
     isLoading: swr.isLoading,
   };
-}
+};

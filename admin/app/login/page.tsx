@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
 import { Shield, Target, Users, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { api } from '@/lib/api';
 
-export default function LoginPage() {
+const LoginPage = () => {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -268,4 +268,6 @@ export default function LoginPage() {
       </div>
     </div>
   );
-}
+};
+
+export default LoginPage;

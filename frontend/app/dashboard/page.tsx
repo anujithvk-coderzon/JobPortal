@@ -2,14 +2,8 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useDashboardStats } from '@/hooks/use-dashboard';
-import { useCompanies } from '@/hooks/use-companies';
-import { useMyJobNews } from '@/hooks/use-job-news';
-import { useProfile } from '@/hooks/use-profile';
+import Link from 'next/link';
+
 import {
   Briefcase,
   Loader2,
@@ -27,10 +21,18 @@ import {
   ThumbsUp,
   ArrowUpRight,
 } from 'lucide-react';
-import Link from 'next/link';
-import { ProfileCompletionCard } from '@/components/ProfileCompletionCard';
-import { CompanySelector } from '@/components/CompanySelector';
+
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import { useDashboardStats } from '@/hooks/use-dashboard';
+import { useCompanies } from '@/hooks/use-companies';
+import { useMyJobNews } from '@/hooks/use-job-news';
+import { useProfile } from '@/hooks/use-profile';
+import { ProfileCompletionCard } from '@/components/profile/ProfileCompletionCard';
+import { CompanySelector } from '@/components/common/CompanySelector';
+import { useAuthStore } from '@/store/authStore';
 
 interface DashboardStats {
   myApplicationsCount?: number;
@@ -75,7 +77,7 @@ const getJobStatus = (job: any) => {
   return { label: 'Active', variant: 'success' as const };
 };
 
-function DashboardPageContent() {
+const DashboardPageContent = () => {
   const router = useRouter();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
   const { toast } = useToast();
@@ -437,9 +439,9 @@ function DashboardPageContent() {
       <CompanySelector isOpen={showCompanySelector} onClose={() => setShowCompanySelector(false)} />
     </div>
   );
-}
+};
 
-export default function DashboardPage() {
+const DashboardPage = () => {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -449,4 +451,6 @@ export default function DashboardPage() {
       <DashboardPageContent />
     </Suspense>
   );
-}
+};
+
+export default DashboardPage;

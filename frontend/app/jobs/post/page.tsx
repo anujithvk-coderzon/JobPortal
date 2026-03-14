@@ -2,34 +2,9 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import Image from 'next/image';
+
 import { format, addDays, startOfDay, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { api, jobAPI } from '@/lib/api';
-import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import {
-  EMPLOYMENT_TYPE_OPTIONS,
-  EXPERIENCE_LEVEL_OPTIONS,
-  LOCATION_TYPE_OPTIONS,
-  SALARY_FORMAT_OPTIONS,
-} from '@/lib/constants';
 import {
   Loader2,
   Plus,
@@ -48,8 +23,35 @@ import {
   EyeOff,
   CalendarIcon,
 } from 'lucide-react';
-import { Breadcrumb } from '@/components/Breadcrumb';
-import Image from 'next/image';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { LocationAutocomplete } from '@/components/common/LocationAutocomplete';
+import { cn } from '@/lib/utils';
+import { api, jobAPI } from '@/lib/api';
+import {
+  EMPLOYMENT_TYPE_OPTIONS,
+  EXPERIENCE_LEVEL_OPTIONS,
+  LOCATION_TYPE_OPTIONS,
+  SALARY_FORMAT_OPTIONS,
+} from '@/lib/constants';
+import { useAuthStore } from '@/store/authStore';
 
 interface Company {
   id: string;
@@ -61,7 +63,7 @@ interface Company {
 }
 
 // Collapsible section component
-function Section({
+const Section = ({
   icon: Icon,
   title,
   subtitle,
@@ -75,7 +77,7 @@ function Section({
   children: React.ReactNode;
   defaultOpen?: boolean;
   badge?: string;
-}) {
+}) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Card className="border border-border/60 bg-card overflow-hidden">
@@ -105,10 +107,10 @@ function Section({
       )}
     </Card>
   );
-}
+};
 
 // Array field component for responsibilities, qualifications, skills
-function ArrayField({
+const ArrayField = ({
   items,
   setItems,
   placeholder,
@@ -118,7 +120,7 @@ function ArrayField({
   setItems: React.Dispatch<React.SetStateAction<string[]>>;
   placeholder: string;
   addLabel: string;
-}) {
+}) => {
   const handleChange = (index: number, value: string) => {
     const newItems = [...items];
     newItems[index] = value;
@@ -168,9 +170,9 @@ function ArrayField({
       </Button>
     </div>
   );
-}
+};
 
-function PostJobPageContent() {
+const PostJobPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
@@ -978,9 +980,9 @@ function PostJobPageContent() {
       </div>
     </div>
   );
-}
+};
 
-export default function PostJobPage() {
+const PostJobPage = () => {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -990,4 +992,6 @@ export default function PostJobPage() {
       <PostJobPageContent />
     </Suspense>
   );
-}
+};
+
+export default PostJobPage;

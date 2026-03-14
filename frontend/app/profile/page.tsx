@@ -1,39 +1,8 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import * as React from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
-import { getInitials } from '@/lib/utils';
-import { ProfileCompletion } from '@/components/ProfileCompletion';
-import { Breadcrumb } from '@/components/Breadcrumb';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { DEGREE_OPTIONS, getFieldsOfStudy } from '@/lib/degrees';
+
 import {
   User,
   Loader2,
@@ -54,9 +23,41 @@ import {
   ChevronDown,
   Sparkles,
 } from 'lucide-react';
-import { api, userAPI } from '@/lib/api';
 import { useSWRConfig } from 'swr';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { LocationAutocomplete } from '@/components/common/LocationAutocomplete';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ProfileCompletion } from '@/components/profile/ProfileCompletion';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { getInitials } from '@/lib/utils';
+import { DEGREE_OPTIONS, getFieldsOfStudy } from '@/lib/degrees';
+import { api, userAPI } from '@/lib/api';
 import { useProfile } from '@/hooks/use-profile';
+import { useAuthStore } from '@/store/authStore';
 
 interface Education {
   id: string;
@@ -87,7 +88,7 @@ interface Skill {
   level?: string;
 }
 
-function ProfilePageContent() {
+const ProfilePageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isHydrated, updateUser, triggerProfileUpdate } = useAuthStore();
@@ -839,7 +840,7 @@ function ProfilePageContent() {
 }
 
 // Education Form Component
-function EducationForm({ initialData, onSave, onCancel }: any) {
+const EducationForm = ({ initialData, onSave, onCancel }: any) => {
   const [formData, setFormData] = useState({
     institution: initialData?.institution || '',
     degree: initialData?.degree || '',
@@ -959,10 +960,10 @@ function EducationForm({ initialData, onSave, onCancel }: any) {
       </Card>
     </div>
   );
-}
+};
 
 // Experience Form Component
-function ExperienceForm({ initialData, onSave, onCancel }: any) {
+const ExperienceForm = ({ initialData, onSave, onCancel }: any) => {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     company: initialData?.company || '',
@@ -1023,10 +1024,10 @@ function ExperienceForm({ initialData, onSave, onCancel }: any) {
       </Card>
     </div>
   );
-}
+};
 
 // Skill Form Component
-function SkillForm({ onSave, onCancel }: any) {
+const SkillForm = ({ onSave, onCancel }: any) => {
   const [skillName, setSkillName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(skillName); };
@@ -1053,12 +1054,14 @@ function SkillForm({ onSave, onCancel }: any) {
       </Card>
     </div>
   );
-}
+};
 
-export default function ProfilePage() {
+const ProfilePage = () => {
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
       <ProfilePageContent />
     </Suspense>
   );
-}
+};
+
+export default ProfilePage;

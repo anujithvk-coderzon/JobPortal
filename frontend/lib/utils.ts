@@ -1,19 +1,19 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+export const cn = (...inputs: ClassValue[]) => {
+  return twMerge(clsx(inputs));
+};
 
-export function formatDate(date: string | Date) {
+export const formatDate = (date: string | Date) => {
   return new Date(date).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
-  })
-}
+  });
+};
 
-export function formatSalary(min?: number, max?: number, currency: string = 'INR', period: string = 'LPA') {
+export const formatSalary = (min?: number, max?: number, currency: string = 'INR', period: string = 'LPA') => {
   if (!min && !max) return 'Not specified';
 
   // Treat legacy 'YEARLY' / 'YEARLY_CTC' values as LPA / CTC
@@ -41,18 +41,18 @@ export function formatSalary(min?: number, max?: number, currency: string = 'INR
   }
 
   return 'Not specified';
-}
+};
 
-export function getInitials(name: string): string {
+export const getInitials = (name: string): string => {
   return name
     .split(' ')
     .map(n => n[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
-}
+};
 
-export function timeAgo(date: string | Date): string {
+export const timeAgo = (date: string | Date): string => {
   const now = new Date();
   const past = new Date(date);
   const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
@@ -71,10 +71,10 @@ export function timeAgo(date: string | Date): string {
   } else {
     return formatDate(date);
   }
-}
+};
 
 // Transform technical error messages to user-friendly messages
-export function getUserFriendlyErrorMessage(error: string | undefined, statusCode?: number): string {
+export const getUserFriendlyErrorMessage = (error: string | undefined, statusCode?: number): string => {
   if (!error) {
     return 'Something went wrong. Please try again.';
   }
@@ -107,4 +107,4 @@ export function getUserFriendlyErrorMessage(error: string | undefined, statusCod
 
   // Return original message if it's already user-friendly
   return error;
-}
+};

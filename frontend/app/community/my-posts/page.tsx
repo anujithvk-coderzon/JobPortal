@@ -2,15 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
-import { api } from '@/lib/api';
-import { timeAgo } from '@/lib/utils';
-import { VideoPlayer } from '@/components/VideoPlayer';
 import {
   Search,
   MapPin,
@@ -24,9 +17,17 @@ import {
   Plus,
   Newspaper,
 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { timeAgo } from '@/lib/utils';
+import { VideoPlayer } from '@/components/common/VideoPlayer';
 import { useAuthStore } from '@/store/authStore';
-import { Breadcrumb } from '@/components/Breadcrumb';
-import Image from 'next/image';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
 
 interface Post {
   id: string;
@@ -43,7 +44,7 @@ interface Post {
   isActive?: boolean;
 }
 
-function MyPostsPageContent() {
+const MyPostsPageContent = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { user, isAuthenticated, isHydrated } = useAuthStore();
@@ -345,9 +346,9 @@ function MyPostsPageContent() {
       </div>
     </div>
   );
-}
+};
 
-export default function MyPostsPage() {
+const MyPostsPage = () => {
   return (
     <Suspense
       fallback={
@@ -359,4 +360,6 @@ export default function MyPostsPage() {
       <MyPostsPageContent />
     </Suspense>
   );
-}
+};
+
+export default MyPostsPage;

@@ -3,18 +3,20 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogoWhite, Logo } from '@/components/Logo';
+
+import { signInWithPopup } from 'firebase/auth';
+import { Briefcase, Loader2, Eye, EyeOff, ArrowRight, Shield, Target, Users, Sparkles } from 'lucide-react';
+
+import { LogoWhite, Logo } from '@/components/common/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { authAPI } from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
-import { Briefcase, Loader2, Eye, EyeOff, ArrowRight, Shield, Target, Users, Sparkles } from 'lucide-react';
 import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { useAuthStore } from '@/store/authStore';
 
-export default function LoginPage() {
+const LoginPage = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { setAuth } = useAuthStore();
@@ -339,4 +341,6 @@ export default function LoginPage() {
       </div>
     </div>
   );
-}
+};
+
+export default LoginPage;
